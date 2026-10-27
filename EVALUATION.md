@@ -51,6 +51,8 @@ briefs, and on reading the traces neither was a model failure:
   cell; Haiku said so (unmet / partial) every time, Opus passed by
   reinterpreting the brief. Reworded.
 - three-storey and open-drawer (Haiku 4/5 each): single misses, not yet read.
+- After the fixes, Haiku ×5: vented-enclosure **5/5**, bay-bins **5/5** ($0.06 total;
+  `runs/suite-2026-10-27T17-52-23-888Z`, `runs/suite-2026-10-27T17-54-16-542Z`).
 
 So far the data supports "if the cheap model passes, the capable one does",
 and shows the cheap model is the better detector of tool and brief problems.

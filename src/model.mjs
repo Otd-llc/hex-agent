@@ -34,6 +34,11 @@ export function metaModel({ model = 'muse-wonder-1.0', apiKey = process.env.MODE
         input: items,
         tools: tools.map((t) => ({ type: 'function', name: t.name, description: t.description, parameters: t.parameters })),
         reasoning: { effort: reasoningEffort },
+        // Caching is automatic; the loop only appends, so each turn's prefix is
+        // the last turn's request. One key for every run keeps the shared
+        // instructions and tools prefix warm across runs too.
+        prompt_cache_key: 'hex-agent-v1',
+        prompt_cache_retention: '24h',
       };
       const res = await fetchImpl(`${META_BASE}/responses`, {
         method: 'POST',

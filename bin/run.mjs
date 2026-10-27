@@ -29,7 +29,7 @@ const modelId = flag('model', purpose === 'dev' ? 'muse-spark-1.3' : 'muse-wonde
 
 let model, ledger;
 try {
-  ({ model, ledger } = modelFor({ modelId, purpose, effort: flag('effort', 'medium') }));
+  ({ model, ledger } = modelFor({ modelId, purpose, effort: flag('effort', undefined) }));
 } catch (e) {
   console.error(e.message);
   process.exit(2);

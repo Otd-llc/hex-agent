@@ -20,6 +20,7 @@ export function basetenModel({ model = BASETEN_MODEL, apiKey = process.env.BASET
     kind: 'live',
     provider: 'baseten',
     model,
+    effort,
     async next({ instructions, items, tools }) {
       const body = {
         model,

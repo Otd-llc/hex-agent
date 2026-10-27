@@ -35,6 +35,32 @@ results in each suite's `rescore.json`, two flips read by hand and confirmed:
 | Haiku 5.5, 8 hard ×5 | 31/40 | **33/40** |
 | Opus 5.5, 12 briefs ×3 | 35/36 | **36/36** |
 
+### Ablation: strategy and reasoning effort (Muse Spark Open, 20 briefs ×3 each, same code)
+
+| Variant | Pass | Calls/run | s/run | $/run | Overclaims |
+|---|---|---|---|---|---|
+| interactive, medium effort | 55/60 | 17.3 | 45 | 0.072 | 0 |
+| plan-then-batch, medium | 57/60 | 14.9 | 38 | 0.073 | 3 |
+| **interactive, low effort** | **58/60** | **14.7** | **30** | **0.044** | 2 |
+| interactive, high effort | 52/60 | 19.8 | 66 | 0.124 | 0 |
+
+Read in the traces (`runs/ablation-muse.log` lists the 8 suites):
+- **High effort loses to the turn budget, not to bad reasoning.** All 8 of its
+  fails used 28-30 calls and then wrapped up honestly ("unmet"), several with
+  nothing built yet (two organizers ended with no bin or handle). Under a fixed
+  30-turn budget, more deliberation per step means fewer steps. pipe-planter:
+  low 3/3, medium 1/3, high 0/3.
+- Low effort was at least as good, ~40% cheaper and ~33% faster than medium.
+  Its two fails are same-corner-conflict, pending the F5 ruling.
+- plan-then-batch used fewer calls and less time than interactive at equal
+  effort and passed 2 more, but 2 of its 3 fails are F5-pending and the third
+  is a borderline overclaim (pipe-planter: four separate risers called "a
+  pipe running through the bases"). Differences of 2-3 runs in 60 are within
+  noise at this sample size; low vs high (58 vs 52) and the pipe-planter flip
+  are the clearest signals.
+- Decision: Baseten Muse Spark Open now defaults to **low** effort. The Meta
+  Model API models stay at medium until measured there.
+
 ### Cheap vs capable model, same tools (rescored, `bin/compare.mjs`)
 
 Haiku 5.5 ×5 and Opus 5.5 ×3 on all 20 briefs: **Haiku 89/100, Opus 60/60.**

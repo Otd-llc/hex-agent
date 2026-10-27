@@ -11,14 +11,18 @@ import { openLedger } from './ledger.mjs';
 import { runAgent, verify } from './agent.mjs';
 import { checkBrief } from './checks.mjs';
 
-export function modelFor({ modelId, purpose, effort = 'medium' }) {
+// Reasoning effort when none is asked for. Muse Spark Open measured best at low
+// (ablation 2026-10-27, EVALUATION.md); the others stay at medium until measured.
+export const DEFAULT_EFFORT = { baseten: 'low', anthropic: 'medium', meta: 'medium' };
+
+export function modelFor({ modelId, purpose, effort }) {
   // Each provider has its own credit, so its own ledger.
   if (modelId.startsWith('claude-')) {
     if (purpose === 'demo') throw new Error('Claude runs are development and baseline only: never --purpose=demo');
     // Claude credit expires unused: no reserve.
     const credit = Number(process.env.CLAUDE_CREDIT_USD ?? 100);
     return {
-      model: claudeModel({ model: modelId, effort }),
+      model: claudeModel({ model: modelId, effort: effort ?? DEFAULT_EFFORT.anthropic }),
       ledger: openLedger({ path: '.spend/anthropic.jsonl', creditUsd: credit, reserveUsd: 0, caps: { dev: credit, eval: credit } }),
     };
   }
@@ -27,11 +31,11 @@ export function modelFor({ modelId, purpose, effort = 'medium' }) {
     const credit = Number(process.env.BASETEN_CREDIT_USD ?? 100);
     const reserve = Number(process.env.BASETEN_RESERVE_USD ?? 0);
     return {
-      model: basetenModel({ model: modelId, effort }),
+      model: basetenModel({ model: modelId, effort: effort ?? DEFAULT_EFFORT.baseten }),
       ledger: openLedger({ path: '.spend/baseten.jsonl', creditUsd: credit, reserveUsd: reserve, caps: { dev: credit - reserve, eval: credit - reserve } }),
     };
   }
-  return { model: metaModel({ model: modelId, reasoningEffort: effort }), ledger: openLedger() };
+  return { model: metaModel({ model: modelId, reasoningEffort: effort ?? DEFAULT_EFFORT.meta }), ledger: openLedger() };
 }
 
 export async function runSession({ brief, briefId = null, expect = null, model, ledger, purpose, headless = true, overlay = !headless, holdMs = 0, strategy = 'interactive', maxTurns = 30, maxUsd = 3, outRoot = 'runs', onEvent = () => {} }) {
@@ -82,6 +86,7 @@ export async function runSession({ brief, briefId = null, expect = null, model, 
     briefId,
     purpose,
     strategy,
+    effort: model.effort,
     inference: model.kind,
     provider: model.provider,
     model: model.model,

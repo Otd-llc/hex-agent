@@ -20,6 +20,7 @@ export function claudeModel({ model = 'claude-opus-5-5', effort = 'medium', clie
     kind: 'live',
     provider: 'anthropic',
     model,
+    effort,
     async next({ instructions, items, tools }) {
       const params = {
         model,

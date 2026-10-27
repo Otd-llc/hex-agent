@@ -32,6 +32,7 @@ export function metaModel({ model = 'muse-wonder-1.0', apiKey = process.env.MODE
     kind: 'live',
     provider: 'meta',
     model,
+    effort: reasoningEffort,
     async next({ instructions, items, tools }) {
       const body = {
         model,

@@ -25,11 +25,11 @@ const strategy = flag('strategy', 'interactive');
 const only = flag('only', null)?.split(',');
 const briefs = JSON.parse(readFileSync(flag('briefs', 'evals/briefs.json'), 'utf8')).filter((b) => !only || only.includes(b.id));
 
-const { model, ledger } = modelFor({ modelId, purpose, effort: flag('effort', 'medium') });
+const { model, ledger } = modelFor({ modelId, purpose, effort: flag('effort', undefined) });
 const suiteId = `suite-${new Date().toISOString().replace(/[:.]/g, '-')}`;
 const root = `runs/${suiteId}`;
 mkdirSync(root, { recursive: true });
-console.log(`${suiteId}: ${briefs.length} briefs x ${repeat}, ${model.provider}/${model.model}, ${purpose}, strategy ${strategy}, effort ${flag('effort', 'medium')}`);
+console.log(`${suiteId}: ${briefs.length} briefs x ${repeat}, ${model.provider}/${model.model}, ${purpose}, strategy ${strategy}, effort ${model.effort}`);
 
 const rows = [];
 const concurrency = Math.max(1, Number(flag('concurrency', 1)));
@@ -67,7 +67,7 @@ async function runJob({ b, attempt }) {
   rows.push(row);
   console.log(`${row.pass ? 'PASS' : 'FAIL'} ${row.id}#${row.attempt} ${row.error ?? `parts=${row.parts} refusals=${JSON.stringify(row.refusals)} calls=${row.calls} ${row.seconds}s $${row.costUsd}${row.overclaimed ? ' OVERCLAIMED' : ''}${row.forcedFinish ? ' FORCED-FINISH' : ''}${row.claimed?.some((c) => c !== 'met') ? ` claims=${row.claimed.join('/')}` : ''} ${row.briefChecks.filter((x) => x.startsWith('FAIL')).join(' ')}`}`);
   rows.sort((x, y) => jobs.findIndex((j) => j.b.id === x.id && j.attempt === x.attempt) - jobs.findIndex((j) => j.b.id === y.id && j.attempt === y.attempt));
-  writeFileSync(`${root}/summary.json`, JSON.stringify({ suiteId, provider: model.provider, model: model.model, purpose, strategy, effort: flag('effort', 'medium'), concurrency, rows }, null, 2) + '\n');
+  writeFileSync(`${root}/summary.json`, JSON.stringify({ suiteId, provider: model.provider, model: model.model, purpose, strategy, effort: model.effort, concurrency, rows }, null, 2) + '\n');
 }
 
 // N workers pull from one queue; each run has its own browser.

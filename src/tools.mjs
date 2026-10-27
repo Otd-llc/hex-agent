@@ -127,7 +127,8 @@ export const TOOL_SPECS = [
       'Every place one kind of part fits on the build now, each with an id (s1, s2, ...) you can pass to apply. ' +
       'An offered socket passes the placement rules; it is not yet proof the meshes clear. ' +
       'Offers are valid one at a time: applying one can make others stale (a joint bolt is offered from both cells of the same joint, so take one of the pair), so ask again after a change. ' +
-      'Drawers sit on the cut face of a half base; a handle needs a cover on its face; spikes stand where three cells meet.',
+      'Drawers (family drawer) sit on the cut face of a half base; notch drawers (family notch) stand in an empty spot ' +
+      'touching two bases that also touch each other; a handle needs a cover on its face; spikes stand where three cells meet.',
     parameters: obj(
       {
         family: { type: 'string', enum: FAMILIES },

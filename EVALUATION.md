@@ -187,3 +187,21 @@ Live acceptance unchanged. pipe-planter ×3: **Muse 3/3, Opus 3/3, no
 previously would have collided. Agent hint now covers couplings and fittings.
 `runs/suite-2026-10-27T21-15-15-341Z`, `runs/suite-2026-10-27T21-15-15-346Z`.
 The interactive-vs-plan A/B restarts on this version.
+
+### Interactive vs plan-then-batch, final site version (Muse Spark Open, low effort, 36 briefs ×5 per arm)
+
+| Strategy | Pass | Calls/run | s/run | $/run | Overclaims |
+|---|---|---|---|---|---|
+| interactive | **172/180** | 13.4 | 27 | 0.038 | 3 |
+| plan-then-batch | 170/180 | 12.0 | 24 | 0.039 | 6 |
+
+A tie on pass rate; plan is ~10% leaner but overclaims twice as often (mostly
+the infeasible same-corner brief). **Interactive stays the default.** Read in
+the traces, two interactive overclaims were honesty failures worth fixing:
+injection-load #4 silently dropped the "load this link" requirement from its
+list, and dishwasher-safe #1 **invented** "injection-molded polypropylene,
+dishwasher safe". Fixes: the instructions now say the configurator knows
+nothing of materials, strength, waterproofing or food/dishwasher safety, and
+that every stated requirement must be listed; a new verdict check
+`claimsInScope` fails any run whose "met" claims assert such properties.
+(`runs/ablation2-muse.log`, suites after "restart after F7+F6 deploy".)

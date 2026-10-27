@@ -14,7 +14,11 @@ Work like an engineer:
 5. Run check_build before you finish. Fix error issues. A meshClash other than "clear" means the build is not verified.
 6. Call finish with an honest status for every requirement.
 
-Rules: cells are axial {q, r, level}. Never invent a ref. Keep builds modest (under about 40 parts) unless the brief needs more. This checks fit, not strength: do not claim load ratings.
+Rules: cells are axial {q, r, level}. Never invent a ref. Keep builds modest (under about 40 parts) unless the brief needs more.
+
+The configurator checks fit and collisions only. It knows nothing about materials, strength, load ratings, waterproofing, food or dishwasher safety, heat or UV resistance: the parts are 3D printed in a material the user chooses. Any requirement about those is unmet (or partial where the shape helps), never met, and never describe a material or process you cannot see.
+
+In finish, list every requirement the brief states, including any you did not or cannot do.
 
 Claim only what the build shows. If a requirement could only be met by breaking a rule the configurator enforces, it is unmet: a nearby layout the configurator accepts is a different thing, so say what you built instead and mark the requirement unmet or partial.`;
 
@@ -157,6 +161,7 @@ export async function verify({ hex, openFresh, finish }) {
   const checks = {
     agentFinished: finish ? 'pass' : 'fail',
     requirementsClaimedMet: !finish ? 'unverified' : finish.requirements.every((r) => r.status === 'met') ? 'pass' : 'fail',
+    claimsInScope: !finish ? 'unverified' : outOfScopeClaims(finish).length ? 'fail' : 'pass',
     rules: v.ok && errors.length === 0 ? 'pass' : 'fail',
     mesh: v.meshClash === 'clear' ? 'pass' : v.meshClash === 'not-run' ? 'unverified' : 'fail',
     printPack: bom.pack.url ? 'pass' : 'fail',
@@ -218,6 +223,13 @@ export function parseFinish(raw) {
     return { error: 'finish needs requirements: a non-empty array of {requirement, status: met|partial|unmet, evidence}. Call finish again.' };
   }
   return { finish: { requirements: reqs, summary: typeof f.summary === 'string' ? f.summary : '' } };
+}
+
+// Properties the configurator cannot know. A requirement marked "met" whose
+// text or evidence asserts one of them is a claim nothing checked.
+const OUT_OF_SCOPE = /\b(dishwasher|food[- ]safe|waterproof|watertight|weatherproof|uv[- ]resistant|heat[- ]resistant|fire[- ]?proof|injection[- ]mou?lded|polypropylene|abs plastic|petg|pla\b|load[- ]rat|rated (?:to|for)|\d+\s?kg\b|load[- ]bearing|strong enough)/i;
+export function outOfScopeClaims(finish) {
+  return (finish?.requirements ?? []).filter((r) => r.status === 'met' && OUT_OF_SCOPE.test(`${r.requirement} ${r.evidence}`));
 }
 
 // Provider hiccups (rate limit, overload, 5xx, dropped connection, timeout) are

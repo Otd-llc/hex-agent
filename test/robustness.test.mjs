@@ -191,3 +191,14 @@ test('a model that keeps going is told 4 turns before the end, then can only fin
   assert.equal(r.forcedFinish, true);
   assert.equal(r.stop, null);
 });
+
+test('a "met" claim about materials, safety or load is out of scope', async () => {
+  const { outOfScopeClaims } = await import('../src/agent.mjs');
+  const finish = { requirements: [
+    { requirement: 'Utensil holder with two bins', status: 'met', evidence: 'two hex-bin-full' },
+    { requirement: 'Dishwasher safe', status: 'met', evidence: 'injection-molded polypropylene trays' },
+    { requirement: 'Rated to hold 50 kg', status: 'unmet', evidence: 'the configurator checks fit only' },
+    { requirement: 'Holds water', status: 'met', evidence: 'solid bins are waterproof' },
+  ] };
+  assert.deepEqual(outOfScopeClaims(finish).map((r) => r.requirement), ['Dishwasher safe', 'Holds water']);
+});

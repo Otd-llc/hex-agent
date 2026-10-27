@@ -46,7 +46,8 @@ async function runJob({ b, attempt }) {
     row = {
       id: b.id,
       attempt,
-      pass: configurator && trace.briefChecks.pass && !over,
+      pass: configurator && trace.briefChecks.pass && !over && c.claimsInScope !== 'fail',
+      claimsInScope: c.claimsInScope,
       configurator,
       mesh: c.mesh,
       briefChecks: trace.briefChecks.results.map((r) => `${r.pass ? 'ok' : 'FAIL'} ${JSON.stringify(r.expect)}=${r.saw}`),

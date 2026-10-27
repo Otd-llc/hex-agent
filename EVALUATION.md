@@ -178,3 +178,12 @@ still met `MESH_CLASH`, now against a pipe **coupling** (third-depth bins at a
 coupling cell, 2.08 mm): a new F1-class gap, sent to product triage as F6.
 Muse recovered by switching to offered sockets. `runs/suite-2026-10-27T20-13-36-263Z`,
 `runs/suite-2026-10-27T20-13-36-266Z`.
+
+### After the F7+F6 deploy (contract 2b45909b…, viz c221bd5b)
+
+Wording-only contract change (d.ts byte-identical; ops, values, codes same).
+Live acceptance unchanged. pipe-planter ×3: **Muse 3/3, Opus 3/3, no
+`MESH_CLASH` in any run**; Muse got a named `ROUTE_BIN_IN_WAY` where it
+previously would have collided. Agent hint now covers couplings and fittings.
+`runs/suite-2026-10-27T21-15-15-341Z`, `runs/suite-2026-10-27T21-15-15-346Z`.
+The interactive-vs-plan A/B restarts on this version.

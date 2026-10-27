@@ -35,6 +35,17 @@ const OP_FIELDS = {
   setFootBolt: [['mm'], []],
 };
 const BUILD_OPS = new Set(Object.keys(OP_FIELDS));
+// Compact, for the apply tool's description: "place(at, variant, storeys?); ..."
+const OP_TABLE = Object.entries(OP_FIELDS)
+  .map(([op, [req, opt]]) => `${op}(${[...req, ...opt.map((o) => `${o}?`)].join(', ')})`)
+  .join('; ');
+
+// Said when an offer list comes back empty, so the model changes the build
+// instead of guessing raw ops for a part that has nowhere to go yet.
+const NO_OFFERS =
+  'No place on the build takes this part right now. Change the build so it can (for example add the cells it needs ' +
+  'beside or below it), then ask again. Guessing raw ops for a part with no offers rarely works.';
+const STREAK_LIMIT = 6;
 
 export function checkOpShape(item) {
   const [required, optional] = OP_FIELDS[item.op];
@@ -95,7 +106,8 @@ export const TOOL_SPECS = [
     description:
       'Change the build. Each item is either {"socket":"s12"} (an offer from find_sockets) or a full op object. ' +
       'Atomic by default: if any op is refused, the whole batch is taken back. Refusals carry a code, a message and ' +
-      'nearby alternatives (also given socket ids). Never invent a ref: take refs from get_build or an outcome.',
+      'nearby alternatives (also given socket ids). Never invent a ref: take refs from get_build or an outcome. ' +
+      `Ops and their fields (? = optional): ${OP_TABLE}.`,
     parameters: obj(
       {
         ops: {
@@ -142,6 +154,7 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
   const sockets = new Map();
   let nextSocket = 1;
   let opsTotal = 0;
+  let refusalStreak = 0;
   const counters = { applied: 0, refused: 0, refusalCodes: {} };
 
   const remember = (op) => {
@@ -213,10 +226,12 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
 
     async find_sockets(query) {
       const offers = await hex.call('openSockets', query);
-      return {
+      const out = {
         total: offers.length,
         sockets: offers.slice(0, LIMITS.socketsShown).map((o) => ({ socket: remember(o.op), at: o.at, slot: o.slot, op: o.op })),
       };
+      if (!offers.length) out.note = NO_OFFERS;
+      return out;
     },
 
     async apply({ ops, atomic = true }) {
@@ -259,6 +274,11 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
         onEvent({ type: 'apply', ops: batch, outcomes: r.outcomes, rolledBack: r.rolledBack, atomic, retryWithout: dropped.length });
       }
       const out = { rolledBack: r.rolledBack, outcomes: r.outcomes.map(summarizeOutcome) };
+      // Consecutive refusals across calls: past the limit, say so plainly.
+      for (const o of r.outcomes) refusalStreak = o.ok ? 0 : refusalStreak + 1;
+      if (refusalStreak >= STREAK_LIMIT) {
+        out.warning = `${refusalStreak} refusals in a row. Stop guessing: read the refusal messages, change the build so find_sockets offers the part, or report the requirement as unmet.`;
+      }
       if (dropped.length) {
         out.droppedAlreadyFitted = dropped;
         out.note = 'These ops were refused ALREADY_FITTED (that state already holds), so the batch was applied again without them.';

@@ -42,7 +42,7 @@ export async function runSession({ brief, briefId = null, expect = null, model, 
       };
     }
     result = await runAgent({ hex, model, brief, ledger, purpose, runId, budget: { maxTurns, maxUsd: Math.min(maxUsd, headroom) }, onEvent: events });
-    verdict = await verify({ hex, openFresh: () => openHex({ headless: true }), finish: result.finish });
+    verdict = await verify({ hex, openFresh: () => hex.fresh(), finish: result.finish });
     state = await hex.call('getState');
     checks = expect ? checkBrief(expect, { state, verdict, finish: result.finish }) : null;
     if (overlay) {

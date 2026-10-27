@@ -121,3 +121,28 @@ test('any other refusal still rolls the batch back with no retry', async () => {
   assert.equal(r.rolledBack, true);
   assert.equal(r.droppedAlreadyFitted, undefined);
 });
+
+test('the op table is in the apply description and an empty offer list says what to do', async () => {
+  const { TOOL_SPECS, createTools } = await import('../src/tools.mjs');
+  const apply = TOOL_SPECS.find((t) => t.name === 'apply');
+  assert.match(apply.description, /setCoverMagnets\(at, variant, face, on\)/);
+  assert.match(apply.description, /place\(at, variant, storeys\?\)/);
+  const hex = { call: async (m) => (m === 'openSockets' ? [] : { nodes: [] }) };
+  const r = await createTools(hex).run('find_sockets', { family: 'notch' });
+  assert.match(r.note, /Change the build/);
+});
+
+test('six refusals in a row bring a plain warning', async () => {
+  const { createTools } = await import('../src/tools.mjs');
+  const op = { op: 'addNotch', at: { q: 1, r: 0, level: 0 }, k: 0, stem: 'x' };
+  const hex = {
+    call: async (m, ops) => (m === 'applyAll'
+      ? { rolledBack: false, outcomes: ops.map((o) => ({ ok: false, op: o, code: 'NO_CELL', message: 'm', details: {}, validAlternatives: [] })) }
+      : { nodes: [] }),
+  };
+  const t = createTools(hex);
+  const first = await t.run('apply', { ops: Array(5).fill(op), atomic: false });
+  assert.equal(first.warning, undefined);
+  const sixth = await t.run('apply', { ops: [op], atomic: false });
+  assert.match(sixth.warning, /6 refusals in a row/);
+});

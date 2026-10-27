@@ -22,7 +22,11 @@ async function openOnce({ url = HEX_ORIGIN + '/', headless = true, timeoutMs = 9
   // System Chrome: WebGL works and no Playwright browser download is needed.
   const browser = await chromium.launch({ headless, channel: process.env.HEX_BROWSER_CHANNEL || 'chrome' });
   try {
-    return await bind(browser, { url, timeoutMs });
+    const hex = await bind(browser, { url, timeoutMs });
+    // close() ends the browser; fresh() opens another isolated session (its
+    // own context: no shared storage) in the same browser, which is half the
+    // memory of a second Chrome.
+    return { ...hex, close: () => browser.close(), fresh: () => bind(browser, { url, timeoutMs }) };
   } catch (e) {
     await browser.close();
     throw e;
@@ -41,7 +45,7 @@ async function bind(browser, { url, timeoutMs }) {
     page,
     version,
     call: (method, ...args) => call(page, method, ...args),
-    close: () => browser.close(),
+    close: () => context.close(),
   };
 }
 

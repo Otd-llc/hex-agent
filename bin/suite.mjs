@@ -31,40 +31,49 @@ mkdirSync(root, { recursive: true });
 console.log(`${suiteId}: ${briefs.length} briefs x ${repeat}, ${model.provider}/${model.model}, ${purpose}`);
 
 const rows = [];
-for (const b of briefs) {
-  for (let k = 0; k < repeat; k++) {
-    let row;
-    try {
-      const { trace } = await runSession({ brief: b.brief, briefId: b.id, expect: b.expect, model, ledger, purpose, outRoot: root });
-      const c = trace.verdict.checks;
-      const configurator = ['agentFinished', 'rules', 'mesh', 'printPack', 'roundTrip'].every((k2) => c[k2] === 'pass');
-      const over = overclaimed(trace);
-      row = {
-        id: b.id,
-        attempt: k + 1,
-        pass: configurator && trace.briefChecks.pass && !over,
-        configurator,
-        mesh: c.mesh,
-        briefChecks: trace.briefChecks.results.map((r) => `${r.pass ? 'ok' : 'FAIL'} ${JSON.stringify(r.expect)}=${r.saw}`),
-        overclaimed: over,
-        claimed: trace.finish?.requirements?.map((r) => r.status) ?? null,
-        stop: trace.stop,
-        parts: trace.verdict.nodes,
-        refusals: trace.counters.refusalCodes,
-        calls: trace.usage.calls,
-        seconds: Math.round(trace.elapsedMs / 1000),
-        costUsd: Number((trace.usage.costUsd ?? 0).toFixed(4)),
-        trace: `${trace.runId}/trace.json`,
-      };
-    } catch (e) {
-      row = { id: b.id, attempt: k + 1, pass: false, error: String(e.message ?? e).slice(0, 300) };
-    }
-    rows.push(row);
-    console.log(`${row.pass ? 'PASS' : 'FAIL'} ${row.id}#${row.attempt} ${row.error ?? `parts=${row.parts} refusals=${JSON.stringify(row.refusals)} calls=${row.calls} ${row.seconds}s $${row.costUsd}${row.overclaimed ? ' OVERCLAIMED' : ''} ${row.briefChecks.filter((x) => x.startsWith('FAIL')).join(' ')}`}`);
-    writeFileSync(`${root}/summary.json`, JSON.stringify({ suiteId, provider: model.provider, model: model.model, purpose, rows }, null, 2) + '\n');
+const concurrency = Math.max(1, Number(flag('concurrency', 1)));
+const jobs = briefs.flatMap((b) => Array.from({ length: repeat }, (_, k) => ({ b, attempt: k + 1 })));
+const started = Date.now();
+
+async function runJob({ b, attempt }) {
+  let row;
+  try {
+    const { trace } = await runSession({ brief: b.brief, briefId: b.id, expect: b.expect, model, ledger, purpose, outRoot: root });
+    const c = trace.verdict.checks;
+    const configurator = ['agentFinished', 'rules', 'mesh', 'printPack', 'roundTrip'].every((k2) => c[k2] === 'pass');
+    const over = overclaimed(trace);
+    row = {
+      id: b.id,
+      attempt,
+      pass: configurator && trace.briefChecks.pass && !over,
+      configurator,
+      mesh: c.mesh,
+      briefChecks: trace.briefChecks.results.map((r) => `${r.pass ? 'ok' : 'FAIL'} ${JSON.stringify(r.expect)}=${r.saw}`),
+      overclaimed: over,
+      claimed: trace.finish?.requirements?.map((r) => r.status) ?? null,
+      stop: trace.stop,
+      parts: trace.verdict.nodes,
+      refusals: trace.counters.refusalCodes,
+      calls: trace.usage.calls,
+      seconds: Math.round(trace.elapsedMs / 1000),
+      costUsd: Number((trace.usage.costUsd ?? 0).toFixed(4)),
+      trace: `${trace.runId}/trace.json`,
+    };
+  } catch (e) {
+    row = { id: b.id, attempt, pass: false, error: String(e.message ?? e).slice(0, 300) };
   }
+  rows.push(row);
+  console.log(`${row.pass ? 'PASS' : 'FAIL'} ${row.id}#${row.attempt} ${row.error ?? `parts=${row.parts} refusals=${JSON.stringify(row.refusals)} calls=${row.calls} ${row.seconds}s $${row.costUsd}${row.overclaimed ? ' OVERCLAIMED' : ''}${row.claimed?.some((c) => c !== 'met') ? ` claims=${row.claimed.join('/')}` : ''} ${row.briefChecks.filter((x) => x.startsWith('FAIL')).join(' ')}`}`);
+  rows.sort((x, y) => jobs.findIndex((j) => j.b.id === x.id && j.attempt === x.attempt) - jobs.findIndex((j) => j.b.id === y.id && j.attempt === y.attempt));
+  writeFileSync(`${root}/summary.json`, JSON.stringify({ suiteId, provider: model.provider, model: model.model, purpose, concurrency, rows }, null, 2) + '\n');
 }
+
+// N workers pull from one queue; each run has its own browser.
+let next = 0;
+await Promise.all(Array.from({ length: Math.min(concurrency, jobs.length) }, async () => {
+  while (next < jobs.length) await runJob(jobs[next++]);
+}));
 const passed = rows.filter((r) => r.pass).length;
 const cost = rows.reduce((s, r) => s + (r.costUsd ?? 0), 0);
-console.log(`\n${passed}/${rows.length} passed, $${cost.toFixed(4)}, summary ${root}/summary.json`);
+console.log(`\n${passed}/${rows.length} passed, $${cost.toFixed(4)}, ${Math.round((Date.now() - started) / 1000)} s wall clock at concurrency ${concurrency}, summary ${root}/summary.json`);
 console.log(`spend: ${JSON.stringify(ledger.summary())}`);

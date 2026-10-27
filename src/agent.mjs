@@ -16,7 +16,7 @@ Work like an engineer:
 
 Rules: cells are axial {q, r, level}. Never invent a ref. Keep builds modest (under about 40 parts) unless the brief needs more. This checks fit, not strength: do not claim load ratings.`;
 
-export async function runAgent({ hex, model, brief, budget = {}, onEvent = () => {} }) {
+export async function runAgent({ hex, model, brief, budget = {}, ledger = null, purpose = 'dev', runId = null, onEvent = () => {} }) {
   const maxTurns = budget.maxTurns ?? 30;
   const maxMs = budget.maxMs ?? 10 * 60_000;
   const maxUsd = budget.maxUsd ?? 2.0;
@@ -37,6 +37,7 @@ export async function runAgent({ hex, model, brief, budget = {}, onEvent = () =>
     if (Date.now() - started > maxMs) { stop = 'time budget'; break; }
     const spent = costUsd(model.model, usage);
     if (spent != null && spent > maxUsd) { stop = 'cost budget'; break; }
+    if (ledger && ledger.headroom(purpose) <= 0) { stop = `${purpose} credit budget`; break; }
 
     let res;
     try {
@@ -50,6 +51,9 @@ export async function runAgent({ hex, model, brief, budget = {}, onEvent = () =>
     usage.inputTokens += res.usage.inputTokens;
     usage.outputTokens += res.usage.outputTokens;
     usage.cachedInputTokens += res.usage.cachedInputTokens;
+    if (ledger && model.kind === 'live') {
+      ledger.add({ runId, purpose, provider: model.provider, model: model.model, ...res.usage, costUsd: costUsd(model.model, res.usage) });
+    }
     emit({ type: 'model', turn, responseId: res.id, text: res.text || undefined, calls: res.calls.map((c) => ({ name: c.name, arguments: c.arguments })), usage: res.usage });
 
     items.push(...res.output);

@@ -62,3 +62,12 @@ parts. See [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).
 The code in this repository: to be decided by the owner before publication.
 Hex Cluster, its configurator and the API are not covered by it; their use is
 governed by the [API terms](https://academy.onethousanddrones.com/hex/api).
+
+## Credit guard
+
+Each model call is priced from Meta's published Standard-mode rates and
+appended to `.spend/meta.jsonl`. Runs take `--purpose=dev|eval|demo`:
+dev ($45 cap, `muse-spark-1.3` by default) and eval ($40 cap,
+`muse-wonder-1.0`) stop before they would touch the $50 judging reserve;
+only `demo` may spend it. Limits live in `.env` (see `.env.example`).
+The estimate is not the bill: reconcile against the Meta console.

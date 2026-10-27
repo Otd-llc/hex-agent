@@ -8,6 +8,7 @@ import { openHex, HEX_ORIGIN } from '../src/bridge.mjs';
 import { metaModel } from '../src/model.mjs';
 import { runAgent, verify } from '../src/agent.mjs';
 import { loadEnv } from '../src/env.mjs';
+import { openLedger, PURPOSES } from '../src/ledger.mjs';
 
 loadEnv();
 const args = process.argv.slice(2);
@@ -23,13 +24,28 @@ if (!brief) {
   process.exit(2);
 }
 
-const model = metaModel({ model: flag('model', 'muse-wonder-1.0'), reasoningEffort: flag('effort', 'medium') });
+const purpose = flag('purpose', 'dev');
+if (!PURPOSES.includes(purpose)) {
+  console.error(`--purpose must be one of ${PURPOSES.join(', ')}`);
+  process.exit(2);
+}
+const ledger = openLedger();
+const headroom = ledger.headroom(purpose);
+if (headroom <= 0) {
+  console.error(`no ${purpose} budget left: ${JSON.stringify(ledger.summary())}`);
+  process.exit(3);
+}
+// Dev iterates on the cheap model; eval and demo use the planner model.
+const model = metaModel({
+  model: flag('model', purpose === 'dev' ? 'muse-spark-1.3' : 'muse-wonder-1.0'),
+  reasoningEffort: flag('effort', 'medium'),
+});
 const runId = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`;
 const dir = `runs/${runId}`;
 mkdirSync(dir, { recursive: true });
 
 const hex = await openHex({ headless: !!flag('headless', false) });
-console.log(`run ${runId}: ${model.provider}/${model.model} on ${HEX_ORIGIN} (hexAPI v${hex.version})`);
+console.log(`run ${runId}: ${model.provider}/${model.model} on ${HEX_ORIGIN} (hexAPI v${hex.version}), ${purpose}, $${headroom.toFixed(2)} ${purpose} headroom`);
 
 let result, verdict;
 try {
@@ -37,7 +53,10 @@ try {
     hex,
     model,
     brief,
-    budget: { maxTurns: Number(flag('max-turns', 30)), maxUsd: Number(flag('max-usd', 2)) },
+    budget: { maxTurns: Number(flag('max-turns', 30)), maxUsd: Math.min(Number(flag('max-usd', 3)), headroom) },
+    ledger,
+    purpose,
+    runId,
     onEvent: (e) => {
       if (e.type === 'model') console.log(`  [model] turn ${e.turn}: ${e.calls.map((c) => c.name).join(', ') || '(text)'}`);
       if (e.type === 'apply') console.log(`  [hex]   ${e.outcomes.map((o) => (o.ok ? `${o.op.op} ok` : `${o.op.op} ${o.code}`)).join('; ')}${e.rolledBack ? ' (rolled back)' : ''}`);
@@ -53,6 +72,7 @@ try {
 const shareUrl = `${HEX_ORIGIN}/#${verdict.fragment}`;
 const trace = {
   runId,
+  purpose,
   inference: model.kind,
   provider: model.provider,
   model: model.model,
@@ -78,4 +98,5 @@ console.log(`model calls ${result.usage.calls}, tokens in/out ${result.usage.inp
 console.log(`share: ${shareUrl}`);
 console.log(`pack:  ${verdict.bom.pack.url ?? `none (${verdict.bom.pack.why})`}`);
 console.log(`trace: ${dir}/trace.json`);
+console.log(`spend: ${JSON.stringify(ledger.summary())}`);
 process.exit(verdict.success ? 0 : 1);

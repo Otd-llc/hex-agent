@@ -23,9 +23,9 @@ export function modelFor({ modelId, purpose, effort = 'medium' }) {
     };
   }
   if (modelId.startsWith('meta-models/')) {
-    // Baseten: a Meta open-weights model; its reserve is the demo's backup if Meta's API is down.
+    // Baseten: a Meta open-weights model, spent on development (Meta's own credit covers the demo).
     const credit = Number(process.env.BASETEN_CREDIT_USD ?? 100);
-    const reserve = Number(process.env.BASETEN_RESERVE_USD ?? 20);
+    const reserve = Number(process.env.BASETEN_RESERVE_USD ?? 0);
     return {
       model: basetenModel({ model: modelId, effort }),
       ledger: openLedger({ path: '.spend/baseten.jsonl', creditUsd: credit, reserveUsd: reserve, caps: { dev: credit - reserve, eval: credit - reserve } }),

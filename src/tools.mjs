@@ -126,9 +126,13 @@ export const TOOL_SPECS = [
     description:
       'Every place one kind of part fits on the build now, each with an id (s1, s2, ...) you can pass to apply. ' +
       'An offered socket passes the placement rules; it is not yet proof the meshes clear. ' +
-      'Offers are valid one at a time: applying one can make others stale (a joint bolt is offered from both cells of the same joint, so take one of the pair), so ask again after a change. ' +
-      'Drawers (family drawer) sit on the cut face of a half base; notch drawers (family notch) stand in an empty spot ' +
-      'touching two bases that also touch each other; a handle needs a cover on its face; spikes stand where three cells meet.',
+      'Offers are valid one at a time: applying one can make others stale, so ask again after a change. ' +
+      'A joint bolt is offered from both cells of a wall: the bolt heads sit on the side you place from, and placing one fills the wall. ' +
+      'Drawers (family drawer) sit on the cut face of a half base. Notch drawers (family notch) stand in an empty spot beside two bases ' +
+      'that touch each other; a bay needs three; bases in a straight line or a cell apart offer none. ' +
+      'A pipe run passing sideways through a cell leaves room only for third-depth bins there (full and half-depth trays reach the pipe, ' +
+      'and the configurator refuses them only at the mesh check); -pvc bins are for a vertical riser through the floor. ' +
+      'A handle needs a cover on its face; spikes stand where three cells meet.',
     parameters: obj(
       {
         family: { type: 'string', enum: FAMILIES },

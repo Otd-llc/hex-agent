@@ -35,6 +35,26 @@ results in each suite's `rescore.json`, two flips read by hand and confirmed:
 | Haiku 5.5, 8 hard ×5 | 31/40 | **33/40** |
 | Opus 5.5, 12 briefs ×3 | 35/36 | **36/36** |
 
+### Cheap vs capable model, same tools (rescored, `bin/compare.mjs`)
+
+Haiku 5.5 ×5 and Opus 5.5 ×3 on all 20 briefs: **Haiku 89/100, Opus 60/60.**
+Everything Haiku passed, Opus passed. Haiku's misses concentrate in two
+briefs, and on reading the traces neither was a model failure:
+
+- vented-enclosure (Haiku 1/5): **tool bug**. `find_parts` required every
+  search word, so "louvre vent grate" found nothing although `hex-port-louvre`
+  exists; Haiku fell back to a grate cover and honestly said "partial". The
+  one run that searched "louvre vent" found the port. Fixed: any word matches,
+  ranked by how many do.
+- bay-bins (Haiku 0/5, Opus 3/3): **brief infeasible as worded** (fifth error
+  of ours). A bay stands in an empty spot beside three bases, not in half a
+  cell; Haiku said so (unmet / partial) every time, Opus passed by
+  reinterpreting the brief. Reworded.
+- three-storey and open-drawer (Haiku 4/5 each): single misses, not yet read.
+
+So far the data supports "if the cheap model passes, the capable one does",
+and shows the cheap model is the better detector of tool and brief problems.
+
 Note on the checks themselves: of the "failures" so far, three were our own
 brief or check being wrong (sewing-vague bar, gap-drawer infeasible wording,
 gap-drawer notch-only check), not the model. Every flagged overclaim is now

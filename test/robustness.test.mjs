@@ -157,3 +157,17 @@ test('field types and named values are checked before the page sees them', async
   assert.doesNotThrow(() => checkOpShape({ op: 'setSpikeAccessory', level: 0, junction: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 0, r: 1 }], accessory: null }));
   assert.doesNotThrow(() => checkOpShape({ op: 'addCover', at: { q: 0, r: 0, level: 0 }, variant: 'half-n', face: 'top', type: 'grate-pvc' }));
 });
+
+test('find_parts matches any word and ranks by how many match', async () => {
+  const { createTools } = await import('../src/tools.mjs');
+  const parts = [
+    { value: 'hex-cover-grate', op: 'x', field: 'f', family: 'cover', name: 'Grate cover', use: 'a vent face', box: null, released: true },
+    { value: 'hex-port-louvre', op: 'addPort', field: 'stem', family: 'port', name: 'Louvre port', use: 'vents a closed cell', box: null, released: true },
+    { value: 'hex-bin-full', op: 'addBin', field: 'stem', family: 'bin', name: 'Bin', use: 'holds things', box: null, released: true },
+  ];
+  const t = createTools({ call: async () => parts });
+  const r = await t.run('find_parts', { text: 'louvre vent grate' });
+  assert.deepEqual(r.parts.map((p) => p.value), ['hex-cover-grate', 'hex-port-louvre']);
+  const one = await t.run('find_parts', { text: 'louvre' });
+  assert.deepEqual(one.parts.map((p) => p.value), ['hex-port-louvre']);
+});

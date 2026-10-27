@@ -258,12 +258,16 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
 
     async find_parts({ family, text } = {}) {
       const all = await hex.call('listParts');
-      const words = (text ?? '').toLowerCase().split(/\s+/).filter(Boolean);
-      const hits = all.filter(
-        (p) =>
-          (!family || p.family === family) &&
-          words.every((w) => `${p.value} ${p.name} ${p.use ?? ''}`.toLowerCase().includes(w)),
-      );
+      // Any word may match; parts matching more of the words come first. (Requiring
+      // every word made "louvre vent grate" find nothing, though hex-port-louvre exists.)
+      const words = (text ?? '').toLowerCase().split(/[\s,]+/).filter(Boolean);
+      const score = (p) => words.filter((w) => `${p.value} ${p.name} ${p.use ?? ''}`.toLowerCase().includes(w)).length;
+      const hits = all
+        .filter((p) => !family || p.family === family)
+        .map((p) => ({ p, s: words.length ? score(p) : 1 }))
+        .filter((x) => x.s > 0)
+        .sort((a, b) => b.s - a.s)
+        .map((x) => x.p);
       return {
         total: hits.length,
         parts: hits.slice(0, LIMITS.partsShown).map((p) => ({

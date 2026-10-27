@@ -12,7 +12,7 @@ const summaryPath = args.find((a) => !a.startsWith('--'));
 const briefsArg = args.find((a) => a.startsWith('--briefs='))?.split('=')[1];
 const root = dirname(summaryPath);
 const summary = JSON.parse(readFileSync(summaryPath, 'utf8'));
-const briefs = [briefsArg, 'evals/briefs.json', 'evals/briefs-hard.json']
+const briefs = [briefsArg, 'evals/briefs.json', 'evals/briefs-hard.json', 'evals/briefs-wide.json']
   .filter(Boolean)
   .flatMap((p) => JSON.parse(readFileSync(p, 'utf8')));
 const byId = new Map(briefs.map((b) => [b.id, b]));

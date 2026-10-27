@@ -1,0 +1,285 @@
+<title>Hex Sandbox Round 2</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Saira:wght@400;600&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Layout: one column of build cards on a phone, two from tablet up; a sticky pick bar. */
+:root {
+  --bg: #f6f2e8; --surface: #fdfbf6; --ink: #121318; --muted: #5e5b52; --line: #ddd5c3; --gold: #8e651c; --ok: #2d6a38; --bad: #a3341f;
+  --display: 'Bebas Neue', 'Oswald', Impact, sans-serif; --body: 'Saira', system-ui, sans-serif; --mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #08090d; --surface: #101117; --ink: #faf7f0; --muted: #a29e93; --line: #26272e; --gold: #c8963e; --ok: #8fcf9a; --bad: #f2a07b; color-scheme: dark; } }
+:root[data-theme="dark"] { --bg: #08090d; --surface: #101117; --ink: #faf7f0; --muted: #a29e93; --line: #26272e; --gold: #c8963e; --ok: #8fcf9a; --bad: #f2a07b; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.5 var(--body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 96px; }
+.kicker { font: 12px/1.4 var(--mono); color: var(--gold); text-transform: uppercase; letter-spacing: .08em; }
+h1 { font: 400 clamp(36px, 9vw, 56px)/1 var(--display); letter-spacing: .02em; margin: 6px 0 10px; text-wrap: balance; }
+.lede { color: var(--muted); margin: 0; max-width: 62ch; }
+.grid { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 22px; }
+@media (min-width: 760px) { .grid { grid-template-columns: 1fr 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; }
+.card.kept { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+.shot { margin: 0; aspect-ratio: 4 / 3; max-width: 100%; overflow: hidden; border-bottom: 1px solid var(--line); background: var(--bg); }
+.shot img { width: 100%; height: 100%; object-fit: cover; object-position: 54% 52%; display: block; }
+.shot .dark { display: none; }
+:root[data-theme="dark"] .shot .dark { display: block; } :root[data-theme="dark"] .shot .light { display: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .shot .dark { display: block; } :root:not([data-theme="light"]) .shot .light { display: none; } }
+.body { padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.head { display: flex; align-items: center; gap: 12px; }
+h2 { font: 400 28px/1.05 var(--display); letter-spacing: .02em; margin: 0; flex: 1; text-wrap: balance; }
+.pick { display: flex; align-items: center; gap: 8px; font: 13px var(--mono); border: 1px solid var(--line); padding: 8px 12px; min-height: 44px; cursor: pointer; }
+.pick input { width: 20px; height: 20px; accent-color: var(--gold); margin: 0; }
+.pitch { margin: 0; }
+dl { margin: 0; display: grid; gap: 4px; font-size: 14px; }
+dl div { display: grid; grid-template-columns: 72px 1fr; gap: 8px; }
+dt { font: 11px/1.9 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+dd { margin: 0; min-width: 0; font-variant-numeric: tabular-nums; } dd.ok { color: var(--ok); } dd.bad { color: var(--bad); }
+.open { align-self: flex-start; color: var(--gold); font: 13px var(--mono); text-decoration: none; border-bottom: 1px solid currentColor; padding-block: 6px; }
+.open::after { content: ' ↗'; }
+a:focus-visible, button:focus-visible, .pick:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-top: 10px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; gap: 12px; }
+.bar .count { font: 13px var(--mono); flex: 1; min-width: 0; }
+.bar button { font: 14px var(--mono); color: var(--bg); background: var(--ink); border: 0; padding: 10px 14px; min-height: 44px; cursor: pointer; }
+.bar textarea { position: absolute; left: -9999px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+  <div class="kicker">Hex Cluster · sandbox round 2 · 10 builds</div>
+  <h1>Ten builds with a purpose</h1>
+  <p class="lede">Built by hand through the configurator's public browser API, not by the agent. Every build passed the placement rules and the collision check, reloads from its share link, and every drawer opens and faces the user. Tick Keep on the ones worth carrying forward, then copy your picks.</p>
+  <div class="grid">
+<article class="card" id="pit-case">
+  <figure class="shot">
+    <img class="light" src="img/pit-case-light.png" alt="Drone pit case in the configurator" loading="lazy" width="1440" height="900">
+    <img class="dark" src="img/pit-case-dark.png" alt="" loading="lazy" width="1440" height="900">
+  </figure>
+  <div class="body">
+    <div class="head">
+      <h2>Drone pit case</h2>
+      <label class="pick" for="pick-pit-case"><input type="checkbox" id="pick-pit-case" data-id="pit-case"><span>Keep</span></label>
+    </div>
+    <p class="pitch">The kit you carry to the flying field: two drawers on one front for spares, a top storey of divided trays holding screws, standoffs and batteries, a lid with a handle. Radio and goggles ride alongside.</p>
+    <dl>
+      <div><dt>Parts</dt><dd>50 · 2 storeys</dd></div>
+      <div><dt>Drawers</dt><dd>4 drawers, face south, all open</dd></div>
+      <div><dt>Mix</dt><dd>18 cap · 8 jointBolt · 8 piece · 4 drawer · 4 snap · 3 cover</dd></div>
+      <div><dt>Checks</dt><dd class="ok">rules ok · mesh clear · link reloads</dd></div>
+    </dl>
+    <a class="open" href="https://hex.onethousanddrones.com/#v2s=1ZPdjtowEIXfZbirxmgmzg8BtYr6GlUussQsboOdxoGthODZq_wBC16VvexV7OMzn0_G9hEOsGQEB8sj1FqtlYPljyP8hiUhNLAUjFCpg6p64VA0ujAtLGGzryo44Y2T_MZtUW2Emaz8NJSfhz4k5WeT8ieSfgi9T-qF5gjOFPV_1d0uc61_9VciR1jbg2q6MRAKRl51wFVra0AgJOTVUDhKfC91iKEDA4BWX1Yc0dnZSpc9YxQD9ojSo6V3GvuI7COyh8j3RPJEpIdN2JPwqvnE9E5jTzH7ivm-mB43pve4HEEbp5rWd3ArXtDXINrthDZObNSuqNS3y7ybXXtzqZH0-Zr4XyU5wrYwZaVuY06Xxhqj1q1txnvY7M000k5N6ovu1bFR5636I160EV0EUeqD7EhlU7xNV3hGSLP1vj27Lu-Mb2b8bo1v1nKEn1ab9rut2gtG8Ix6Rj-MxiHNeASPIl-tfLXyxcqTNUeoGzs8lLU26m1rbZ1xQIQSw4AoI6Q5S4q685-nKYeA8GpfXyvlMiEjWqBEThdpbww4DgdjEktA2KqiFq4tTGk3G9f3JuNQxsiRZBQLGWY0p4QDFDQnIh6_Qb9X0oWudG1F6DJOZIgck0SZcNY_GOx-pSlKbbMwliFKTINoCJzIGKmDpYtwAfnp9Bc" target="_blank" rel="noopener">Open in the configurator</a>
+  </div>
+</article>
+<article class="card" id="tiered-herbs">
+  <figure class="shot">
+    <img class="light" src="img/tiered-herbs-light.png" alt="Tiered kitchen herb garden in the configurator" loading="lazy" width="1440" height="900">
+    <img class="dark" src="img/tiered-herbs-dark.png" alt="" loading="lazy" width="1440" height="900">
+  </figure>
+  <div class="body">
+    <div class="head">
+      <h2>Tiered kitchen herb garden</h2>
+      <label class="pick" for="pick-tiered-herbs"><input type="checkbox" id="pick-tiered-herbs" data-id="tiered-herbs"><span>Keep</span></label>
+    </div>
+    <p class="pitch">A three-step staircase of draining planters so every herb gets light and every pot is in reach: front step one storey, middle two, back three. A grow light stands behind.</p>
+    <dl>
+      <div><dt>Parts</dt><dd>117 · 3 storeys</dd></div>
+      <div><dt>Drawers</dt><dd>none</dd></div>
+      <div><dt>Mix</dt><dd>54 cap · 27 jointBolt · 18 piece · 9 bin · 9 snap</dd></div>
+      <div><dt>Checks</dt><dd class="ok">rules ok · mesh clear · link reloads</dd></div>
+    </dl>
+    <a class="open" href="https://hex.onethousanddrones.com/#v2s=xVbBcpswEP0X5dYRM3qLXRxy8fQ3Oj4QR7XVEOECcZvJJN_eQTYShsVRD5neNE9v3-4-loVXcRQ5pGhE_ioORm91I_Lvr-KXyBNIUbvLUh91KXIlxbGoTWFbkYsfz2Up3qRjKkdMopkqlhihiOjciM0d3TdF56Z_63sgiVgrZ4kThz5gRkhOGv-AGSE5aZyi-5llTspkmBspGlsc_NR_wix_woj-18mLH6iYOekewME8ur2zkWJbHXXdn0_PRSSQkOruyx2W6r2pSvMgZAAJHJgx4G3AlEymkh4cSnowZbCxIjhFcIpgFMEoEqdInCKN2vbgOA2N0yjGCcX0ophWzthFXs7E6WMBYywYY8HYBcYucM6AcwaMM2CcAdMxmI65SeQGscfSQV5iXAgYB96OMDDB4ILBBI_9Is4vYvwKGAdepFETI3osZaARNvafGP97jAkNchspjG103Z6Xy76wD2XYOtbqbVv1m6d-tv3JNH4f3Rs72Efve_0nuTc26fZY8lAXxvo3bO5OScxdzSriiiLmFa_USFcUaU5xI8XPytj2W1U6C4W66Xy4UV31pyPcsXPgjLrj8nxUHlSeqfxtCOl1EHQQdOB14HXgdUIV1IcgFIRQEHxB8AUhpERICZ8SPiWCPAV56uM3Uhzq6vTtui8aUyb7oj7qpl0nWKSpXKaZXNFq7Tav7ARPrJfq2e7WtMpIEtJMqgFjuzdH3XghLNLM6dBitRzQdnX1OynNbt-ugUUmSSZLrGjAeDK2vZRBOqmnqvWusJXnuZocD1-X2YB4KOqm1C-B6Ioakeqq0U9FPWS5_pIRryl2-rK0E21FtwNWu3950gMpV1awqvufqEzpvDc2P3_83b-Ge4Pz8zfwAumWxQUwisEkBuOYSR6axFCI2by9_QU" target="_blank" rel="noopener">Open in the configurator</a>
+  </div>
+</article>
+<article class="card" id="angled-caddy">
+  <figure class="shot">
+    <img class="light" src="img/angled-caddy-light.png" alt="Angled drawer caddy in the configurator" loading="lazy" width="1440" height="900">
+    <img class="dark" src="img/angled-caddy-dark.png" alt="" loading="lazy" width="1440" height="900">
+  </figure>
+  <div class="body">
+    <div class="head">
+      <h2>Angled drawer caddy</h2>
+      <label class="pick" for="pick-angled-caddy"><input type="checkbox" id="pick-angled-caddy" data-id="angled-caddy"><span>Keep</span></label>
+    </div>
+    <p class="pitch">A desk-corner tower with drawers facing three ways at 60 degrees apart, two storeys each, so a seated person reaches every drawer without leaning: the canted fronts are the point.</p>
+    <dl>
+      <div><dt>Parts</dt><dd>45 · 3 storeys</dd></div>
+      <div><dt>Drawers</dt><dd>6 drawers, face west / south / east, all open</dd></div>
+      <div><dt>Mix</dt><dd>16 cap · 9 piece · 8 jointBolt · 6 drawer · 5 snap · 1 cover</dd></div>
+      <div><dt>Checks</dt><dd class="ok">rules ok · mesh clear · link reloads</dd></div>
+    </dl>
+    <a class="open" href="https://hex.onethousanddrones.com/#v2s=1ZLPboMwDMbfxb1VprKhiBUuaK8xcUA0XdmyhPH3ULXPPpFCWxba9bqb8-Wzf47jA7QQMkIF4QGKXGSigvDtAN8QOoxQQkgIUrRCmqhNyzxVNYSwT-XOEXBE46VH1l0j5dTID2qq0fo3vhutVqv8fKv8bKt2zbut2tbuHt618QlCpdLiP37EE8PtX1fkn2bPEoRMt6LsYyAkdKPeFNW6gP7uPARwGAkpWkYenSot8y3gWeOpRoPNZVubsW2mEs9kzgDYznSjZcS-rf2uZrTA1rwZaUabUNk8YUpl09xVSxByVYmyHma9T9VWXgevlMhqXQ7nslFjlFdiVLdl2o3_s-hnvsia-tSFlcy3oocuCNlolTmNDnFx8FwaT9LYSksQPnSu6lct61s4DcjbyL-0wVccDZDbyL-AuQcUpT6vl0yLWheOLoSKHf_FI_TQdQOOCWnlEQX9vqw2vhcAwlfzHvPaRXdNHlJsdgkZkuPxBw" target="_blank" rel="noopener">Open in the configurator</a>
+  </div>
+</article>
+<article class="card" id="bedside">
+  <figure class="shot">
+    <img class="light" src="img/bedside-light.png" alt="Bedside unit in the configurator" loading="lazy" width="1440" height="900">
+    <img class="dark" src="img/bedside-dark.png" alt="" loading="lazy" width="1440" height="900">
+  </figure>
+  <div class="body">
+    <div class="head">
+      <h2>Bedside unit</h2>
+      <label class="pick" for="pick-bedside"><input type="checkbox" id="pick-bedside" data-id="bedside"><span>Keep</span></label>
+    </div>
+    <p class="pitch">Two cells, two storeys: a drawer for the night things, a lamp, a stack of books and a mug on top.</p>
+    <dl>
+      <div><dt>Parts</dt><dd>46 · 2 storeys</dd></div>
+      <div><dt>Drawers</dt><dd>4 drawers, face south, all open</dd></div>
+      <div><dt>Mix</dt><dd>18 cap · 8 jointBolt · 8 piece · 4 cover · 4 drawer · 4 snap</dd></div>
+      <div><dt>Checks</dt><dd class="ok">rules ok · mesh clear · link reloads</dd></div>
+    </dl>
+    <a class="open" href="https://hex.onethousanddrones.com/#v2s=1ZLNkpswEITfZbilBtc0P-bvQu1rbHEgmI2JWUQAOweX99lTkmHtxUqVc8xJo1bPN12SznSiFEwjpWfqm7qqR0pfz_SLUmEaKHXB1NanujXCqRyaspsopbdj29KF75xiN-7L9s3tFiuehuJ56ENSPJsU_5D0r9B1Uiu0YBq7sv-vbldn7puD-RIFU6VO9aBrEnbByDQwm1RPTMLCyK6Ns4QHE9YmDb3eyRUp2bcMoXyMqm12hjqLHiyib9GSlQYbETYiLESsiWKJKA9DYEl402xistJgaYatGetmeRwsX3EFU9ON9TDNz7ovu117e-Ouq6tJDfN-OHZL1Yz1ou6G8vfyFRxhcarj9DHq23Bwt8OXM9ydFUw_VdNNL6qdPjEuHDEMU4ZzKQ5m8CziZsXNik8rFmvB1A_q-r2-K3Vwx6msDjkCEUYUROzGYZDLRiRKWC_w2ZWNRIHeJknkEdP78UeOWDxG4sccIsxlsw0S44QXm9WLEt2xTcKAmPq96uo80CMSdgNPd0C2MGyRwIzyYzMi8IlpKseD25bvfS6Mrfg6V5Sbz8ag4nL5Aw" target="_blank" rel="noopener">Open in the configurator</a>
+  </div>
+</article>
+<article class="card" id="monitor-riser">
+  <figure class="shot">
+    <img class="light" src="img/monitor-riser-light.png" alt="Monitor riser with drawers in the configurator" loading="lazy" width="1440" height="900">
+    <img class="dark" src="img/monitor-riser-dark.png" alt="" loading="lazy" width="1440" height="900">
+  </figure>
+  <div class="body">
+    <div class="head">
+      <h2>Monitor riser with drawers</h2>
+      <label class="pick" for="pick-monitor-riser"><input type="checkbox" id="pick-monitor-riser" data-id="monitor-riser"><span>Keep</span></label>
+    </div>
+    <p class="pitch">A four-cell bridge under a 27-inch monitor that lifts it to eye level, with drawers facing the user for cables and stationery; keyboard and mouse in front.</p>
+    <dl>
+      <div><dt>Parts</dt><dd>39 · 1 storey</dd></div>
+      <div><dt>Drawers</dt><dd>4 drawers, face south, all open</dd></div>
+      <div><dt>Mix</dt><dd>13 cap · 10 jointBolt · 8 piece · 4 cover · 4 drawer</dd></div>
+      <div><dt>Checks</dt><dd class="ok">rules ok · mesh clear · link reloads</dd></div>
+    </dl>
+    <a class="open" href="https://hex.onethousanddrones.com/#v2s=jZJLboMwEIbvMuyqQRrboU3IBvUaFQtKHIXWtaltqKooOXsF4REaL9jNfP8DacwZWkgZgoP0DHUlS-kgfTvDN6SEYCGNGYKSrVQ9aAtbFdpDCsdGKbjgnZPCxlOhjrEerWx1KVtfyleX8vWlYnWpWFOaIzhd1N11u7GuPuUwl6aVtpuBMGZI-657700NCOyB8Aci_pGu8vahsfBpzxK6OqOqA-AMOQtAEWC7e0YPhSyQZYEsD_h4wCcCvpmF4CJMy2yOUGknrR_OfSr0Qc2311qW3thht40ep8rJkR5s8TM-UURIUdn4q-uuEbHFxhebmLYc4cNU2r8a5aeamEXU-_oxGUaK2FA86WzW2aTzWeezzidd3GCOUFtz-xs-5e-7KewhE0SEAhNOlPUPil3my-jKGxvzl4xtRIJbEhhv-W5haZzMnjeheH0yWmYbQbs-eR_ML5c_" target="_blank" rel="noopener">Open in the configurator</a>
+  </div>
+</article>
+<article class="card" id="seed-station">
+  <figure class="shot">
+    <img class="light" src="img/seed-station-light.png" alt="Seed-starting station in the configurator" loading="lazy" width="1440" height="900">
+    <img class="dark" src="img/seed-station-dark.png" alt="" loading="lazy" width="1440" height="900">
+  </figure>
+  <div class="body">
+    <div class="head">
+      <h2>Seed-starting station</h2>
+      <label class="pick" for="pick-seed-station"><input type="checkbox" id="pick-seed-station" data-id="seed-station"><span>Keep</span></label>
+    </div>
+    <p class="pitch">A seven-cell honeycomb of draining trays with seedlings, raised one storey on a ring so it drains, under a grow light with a clip fan for airflow.</p>
+    <dl>
+      <div><dt>Parts</dt><dd>88 · 2 storeys</dd></div>
+      <div><dt>Drawers</dt><dd>none</dd></div>
+      <div><dt>Mix</dt><dd>36 cap · 24 jointBolt · 14 piece · 7 bin · 7 snap</dd></div>
+      <div><dt>Checks</dt><dd class="ok">rules ok · mesh clear · link reloads</dd></div>
+    </dl>
+    <a class="open" href="https://hex.onethousanddrones.com/#v2s=7ZXdcpswEIXfZXPXkTpaY2JDbjx9jQ4XGBRbiSxRgd3OeJxn7_AnESHH9L53O0fn6GMXCa5wgRQJ1JBeoRK84DWkP6_wC1KKBAykjIDkFy676pIbkasGUng9Swk3MnXiYyfrjHSxcwGcLWXjYva_Nu6cuHhEd52zET1wLoD7I7prnI3ogfNLdkagVnn1_zwtOU_tsCrx3t2-jEChL9yMdT9DoEgYYS_fXjBmH7WWogTixBUGxMTTMJTGUBpnaQyxMcQexI0nBuAYgg_iJM4IndOtGAW0xNN8thX9MPrheYcs0OCoRdFnzW-PBbsbHmWSxUBzTguJiadhIBykoB9ms-5GLQpInuY3N2oBm4tmBISquWmGE3_MVSndVVCKF40er4M5q7EStb0ke6HcJcGPI_9D90LR9nLR0uRC2bMVXutf_r21u1uy-zviFzvefciMwJsWqvmhZTcMYE9tR0-sZfUlujIeS3QGHAxtQ4PalfFQMisy62R2dUzjGEHHR8dHx0fHR8dHx0fHR8tHy0fLR8vHkZ8RqIzuP3_7vBaS1pyXUqjDDglG0YZQfI43u_YNMdJGi2NuyolrHT33xu1qO7VJUdHXXO3WSZyQiLB27fuGbdo3Q_sKCByM_k2lOBybHY3iiKwIXcfb1WSj91xyh6O4jtYhnuRNcy443Z-bhpsjz8tgiG5XySR1yo04aBnsx7NWvKq4mY3Hm06jT3mj6UkURs-8zBrbn5EWspu6UOnwQ-h-VGRU8LMyfDw_KcwXPAfOMhNQdrv9BQ" target="_blank" rel="noopener">Open in the configurator</a>
+  </div>
+</article>
+<article class="card" id="plant-pyramid">
+  <figure class="shot">
+    <img class="light" src="img/plant-pyramid-light.png" alt="Indoor plant pyramid in the configurator" loading="lazy" width="1440" height="900">
+    <img class="dark" src="img/plant-pyramid-dark.png" alt="" loading="lazy" width="1440" height="900">
+  </figure>
+  <div class="body">
+    <div class="head">
+      <h2>Indoor plant pyramid</h2>
+      <label class="pick" for="pick-plant-pyramid"><input type="checkbox" id="pick-plant-pyramid" data-id="plant-pyramid"><span>Keep</span></label>
+    </div>
+    <p class="pitch">A stepped stand for a sunny window: seven cells, three, then one, each top carrying a real pot with soil and a plant, trailing flowers low and fruit high.</p>
+    <dl>
+      <div><dt>Parts</dt><dd>81 · 3 storeys</dd></div>
+      <div><dt>Drawers</dt><dd>none</dd></div>
+      <div><dt>Mix</dt><dd>42 cap · 15 jointBolt · 12 piece · 7 cover · 5 snap</dd></div>
+      <div><dt>Checks</dt><dd class="ok">rules ok · mesh clear · link reloads</dd></div>
+    </dl>
+    <a class="open" href="https://hex.onethousanddrones.com/#v2s=xZTdbtswDIXfhb0bZIC0m7ZxboK-xmAEWqK13hzLlWQPQZA9-yD_W9IWbze7oz8f8pCU7Cs0kBIDDekVqlwchYb08xU-II2IgYIUGRSiEUUbNVzlvDSQwte6KODG5kq6r8RWGK1WrjDHtd602vtvB5-UtHacO0K6L_TGWe0d-8KMgS559Q9n_z_PacVS7WBV_r291RmDo2yEsjFExJDRzqp2RlbALCGGc4Is8giyeAloWYVsjkNwXsR20W266wF3n3a0wZ9aFvmpa6ODMQXg1mEUyqZQdgufAzAJsKUNhZqkUJM9nNn0O1ymjzAJsO2c-cMMLEl85qTGnm3H3HKx13PHkgAKsIWrvxYMbqWfP1ky9zgH5tZzD3NggXJzCwrsfWIhuHWY2-AI592M0K0Y7IdcG_TWNbAkgEaWMchLLZTpv_V3Xp6K6cMvS3E0UvXPqi6HKNdioN9kXppXWbQlAB_sEh7QLrMLaQo3Q0iTgHqBvco9bcNNH-IIcVTi-HbIpiGFJn8ac6jPyRhUSnb_kUqaqDgcjDxzI6OKm1xGF1mXb3tk8SMmDPf2riKzBaz4fDjw4qJ1fY7euWqENntkL5iwiJ42z774zFX-JovTqKbHZNMmvMRbX15ybWpl8ln56M8ZlagqoRw1PdmOgnptFP_xRSh1mQ3Q6sMDBPS_schut18" target="_blank" rel="noopener">Open in the configurator</a>
+  </div>
+</article>
+<article class="card" id="repair-station">
+  <figure class="shot">
+    <img class="light" src="img/repair-station-light.png" alt="Electronics repair station in the configurator" loading="lazy" width="1440" height="900">
+    <img class="dark" src="img/repair-station-dark.png" alt="" loading="lazy" width="1440" height="900">
+  </figure>
+  <div class="body">
+    <div class="head">
+      <h2>Electronics repair station</h2>
+      <label class="pick" for="pick-repair-station"><input type="checkbox" id="pick-repair-station" data-id="repair-station"><span>Keep</span></label>
+    </div>
+    <p class="pitch">A raised back row of drawers and divided trays behind a three-cell work surface: screws, nuts and standoffs within reach, multimeter and drivers on the bench, a task lamp overhead.</p>
+    <dl>
+      <div><dt>Parts</dt><dd>95 · 2 storeys</dd></div>
+      <div><dt>Drawers</dt><dd>6 drawers, face south, not all open</dd></div>
+      <div><dt>Mix</dt><dd>35 cap · 20 jointBolt · 17 piece · 7 cover · 7 snap · 6 drawer</dd></div>
+      <div><dt>Checks</dt><dd class="ok">rules ok · mesh clear · link reloads</dd></div>
+    </dl>
+    <a class="open" href="https://hex.onethousanddrones.com/#v2s=xZRBb6MwEIX_i3NbjSM_myQluaD9GysONHEVbwmw4KSVqva3r6AQJ2HapYdqb-b503vjsYcXcRJrkGjE-kVUzm5tI9a_XsQfsZYgUYu1IpHbk8271SmrXVZ4sRYPxzwXr9SRqgOlnkyCJ_dZ_iCLa3ZCPCbH4wvxk0-vJ8frL8Sbr_Y0kJjcffzr-FNcR039xHXUqw9dR736xHXUK8Y1JdEUWXV-3d_zZr_nKf6_F9Z2rXKP3U8hJbEtT7Zu10KCFKlNS218WQkSiiQIm_eMs3YDgYFGTpqBDElNCFRbzPttDqX82GCh3poydztBQdTgxBUjxkHrznJr2R9wJGqO1KPws2gYLb7R2BhwjmAcces4boViOgGmQjAVgskFk8tdAXcDg2Yu_DRTi2Zq0UwtmqnFnK9kxYiG0zjx1hGcIxhHcI5XNaYkXNHY2vezts-KXR4Gryjs1pd1_10fi2HlGjuo965T-0fwtrfP8t4Vsh0auXMnc74ndkt_tJWS2NXZUz_5atYOwmx79G9N-5BmuP7Ul5-4hnEN4xJOSfwuXeF_lrnvg9ohnKnOtbPBsNRB1bNFvxxQBBQBRUB1AHQA9AAghCGEIYQhRCBEIEQgRCBEYIhISVR1-f7zenB5drCFl01VlnmCaKkJRi9oFa0SNdcmjkmquVIgNe821DxeYiVI7G1WyeLom-6WEkRmQTGWJHV0t0y6AScMXLOt7VNPKooRkTQG0RX2vKvdydaysT5RdKcMqYv9wzH37mC9rRPZZbWAvNPxBeOz5lHm2aFKIqMWhGWLXBDp6-tf" target="_blank" rel="noopener">Open in the configurator</a>
+  </div>
+</article>
+<article class="card" id="charging-station">
+  <figure class="shot">
+    <img class="light" src="img/charging-station-light.png" alt="Drone charging station in the configurator" loading="lazy" width="1440" height="900">
+    <img class="dark" src="img/charging-station-dark.png" alt="" loading="lazy" width="1440" height="900">
+  </figure>
+  <div class="body">
+    <div class="head">
+      <h2>Drone charging station</h2>
+      <label class="pick" for="pick-charging-station"><input type="checkbox" id="pick-charging-station" data-id="charging-station"><span>Keep</span></label>
+    </div>
+    <p class="pitch">A ring of six landing pads around a vented charger bay: each pad carries a drone, batteries sit in the centre trays, louvred ports let the charger breathe.</p>
+    <dl>
+      <div><dt>Parts</dt><dd>47 · 1 storey</dd></div>
+      <div><dt>Drawers</dt><dd>none</dd></div>
+      <div><dt>Mix</dt><dd>18 cap · 12 jointBolt · 7 piece · 6 cover · 3 port · 1 bin</dd></div>
+      <div><dt>Checks</dt><dd class="ok">rules ok · mesh clear · link reloads</dd></div>
+    </dl>
+    <a class="open" href="https://hex.onethousanddrones.com/#v2s=jZLbjpswEIbfxXtXjdGMD4DJDeprVLlgE6p1F9ksJLRSlH32ajjksKFqrhh98__z23hOYhAFgehFcRKtr3d1L4ofJ_EhCkkgOlEgiKYe6mashqrzVTiIQvw8No04w62S_q_EUSifVj4Rjs9m09PZT1x8C6IPVcs_i8vWv9dzvYtD3XEtJAECbtiwOcRWABO6JwjygXwB9CD5MpdDp6Mskd82ZPGzj43fT6kTVLQC3R2jNTetuWeYXeF8l3v7BeoV5m7ZYwquhszjbubRSsaVrUF3y_AhZGF6BV3YFoQPfd0d5od_q8K-WbagjRMX-MKRL-rzrf4jmcomHoeu5qtMLf3vlnlojQsWQr07xG6O6o5hqXxfL_TVhymfzz2OefVB8s7IvR80D_oVfTh8j83dQfGaTtfSLiVdBTQL-DVnOpZ2LvEC8aLES3dx02ThX9bFaYl3PtS_32JsS0lGWciNhlzpEhNEcoCJRcUfVDYFTPLUCLg1WXDGAKXGsEVnrHUuU2xJ9ehEzO48ZCgDQiLIlSoxIUILmBiH6ehSOUhOUnzoxrdRpn2pnINMO5DWlch9ROQ1Yc3HsdpL60NpU0TQoBGxRMBE2TyHUe1S6wSIrtr7WEprLIEGladu1FGmU366xOUmF9vz-S8" target="_blank" rel="noopener">Open in the configurator</a>
+  </div>
+</article>
+<article class="card" id="coffee-station">
+  <figure class="shot">
+    <img class="light" src="img/coffee-station-light.png" alt="Coffee station in the configurator" loading="lazy" width="1440" height="900">
+    <img class="dark" src="img/coffee-station-dark.png" alt="" loading="lazy" width="1440" height="900">
+  </figure>
+  <div class="body">
+    <div class="head">
+      <h2>Coffee station</h2>
+      <label class="pick" for="pick-coffee-station"><input type="checkbox" id="pick-coffee-station" data-id="coffee-station"><span>Keep</span></label>
+    </div>
+    <p class="pitch">A stepped counter unit: a raised back shelf for mugs and glasses, a front row of drawers for pods and spoons, a working top in between.</p>
+    <dl>
+      <div><dt>Parts</dt><dd>82 · 2 storeys</dd></div>
+      <div><dt>Drawers</dt><dd>3 drawers, face south, all open</dd></div>
+      <div><dt>Mix</dt><dd>35 cap · 19 jointBolt · 14 piece · 7 cover · 4 snap · 3 drawer</dd></div>
+      <div><dt>Checks</dt><dd class="ok">rules ok · mesh clear · link reloads</dd></div>
+    </dl>
+    <a class="open" href="https://hex.onethousanddrones.com/#v2s=nZTLcptAEEX_pbVLNaruHh4Cbaj8RooFlrBNgoHwkBcq-dtTSIKRoV0hWWnmzpnuo4HhDCeIGKGF6Ax1nh2yFqIfZ_gNESE0EDmCUGSnrLgGp7TJ07KDCJ77ooALPpK8liQdfE2LZ6ccUV7dnle35_XtZXV7Wd1e1rc3_3r4luS_nNMKcvHnvyQXngqZILRlWv_Hi7X-HVj_uNac7GBc57-udyFBOFSnrBnGQOgw0n6g9l1VAw6JID8mvGB4wciCkQVjZskgcjvFUePbnj36aKsiP95MbqHwp1A0Ur4mjZKFs4y1iqxVvIaBEs7b8LwNLbxZUWRFkTUb1mxYsWHFRsazNeZTuNARRUc0HdF0RNERVYfmjc30TAMl1ECjheEsm2sbTdso2jbTwqlNgpCXbdZ096v2mpbHwt67sswOXdXc501fjqO8zcb02KTv4_XcENLm0Hcf7fAKbfjTTKZZgvCzysvue1V000aHN3TlrkO2Q28cigVkSumOsi3AtgDbAmwLsC3AUwGxu8TuErtLxl1sZdiW5ZFNEOqmun0pnqr3ImbX-LjzfXR2gRvTlgIj6NCWiHc4_BhB2oZhYADh0NdO1789FVkTu4Y8ZJ8MOjsJ4-udxEHxpUjbdsLYNSMm7s5_4N76l5hduS8aw-5s0RCb-yr7XvCw2tZVVcaGB3Ui9LxBnIgHcTY-D-A2DCmA5HL5Aw" target="_blank" rel="noopener">Open in the configurator</a>
+  </div>
+</article></div>
+</div>
+<div class="bar" role="region" aria-label="Your picks">
+  <span class="count" id="count" aria-live="polite">0 kept</span>
+  <button type="button" id="copy">Copy picks</button>
+  <textarea id="fallback" aria-hidden="true" tabindex="-1"></textarea>
+</div>
+<script>
+(() => {
+  const KEY = 'hex-sandbox-2-picks';
+  const boxes = [...document.querySelectorAll('.pick input')];
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) {}
+  const picks = () => boxes.filter((b) => b.checked).map((b) => b.dataset.id);
+  const sync = () => {
+    const p = picks();
+    boxes.forEach((b) => b.closest('.card').classList.toggle('kept', b.checked));
+    document.getElementById('count').textContent = p.length + ' kept';
+    try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (e) {}
+  };
+  boxes.forEach((b) => { b.checked = saved.includes(b.dataset.id); b.addEventListener('change', sync); });
+  sync();
+  const btn = document.getElementById('copy');
+  btn.addEventListener('click', () => {
+    const text = 'Sandbox round 2 picks: ' + (picks().join(', ') || '(none)');
+    const done = (label) => { btn.textContent = label; setTimeout(() => (btn.textContent = 'Copy picks'), 1600); };
+    navigator.clipboard.writeText(text).then(() => done('Copied'), () => {
+      const t = document.getElementById('fallback'); t.value = text; t.select(); done('Selected, copy it');
+    });
+  });
+})();
+</script>

@@ -36,3 +36,10 @@ test('overclaiming: all "met" while code finds a gap', () => {
   assert.equal(overclaimed({ finish, briefChecks: { pass: true } }), false);
   assert.equal(overclaimed({ finish: { requirements: [{ status: 'unmet' }] }, briefChecks: { pass: false } }), false);
 });
+
+test('drawers counts cut-face drawers and notch drawer frames, not notch bins', () => {
+  const nodes = [{ family: 'drawer', at: null }, { family: 'notch', at: null }, { family: 'notch', at: null }];
+  const bom = { lines: [{ key: 'hex-drawer-frame-notch-mf', qty: 1 }, { key: 'hex-bin-notch-mf-solid', qty: 1 }] };
+  const r = checkBrief([{ drawers: 2 }, { drawers: 3 }], { state: { nodes }, verdict: { bom, validation: { issues: [] } }, finish: null });
+  assert.deepEqual(r.results.map((x) => x.pass), [true, false]);
+});

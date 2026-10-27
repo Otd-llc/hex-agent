@@ -22,6 +22,19 @@ stand-in, not a model.
 | 2026-10-27 | live, **Meta open weights via Baseten** (dev) | `meta-models/muse-spark-open-1026` ("[HACKATHON] Muse Spark Open", 816B-A42B NVFP4): electronics-organizer | **success, 6/6 checks**; 13 parts (full + two half bases, 2 drawers, 2 divided half bins, cover, handle, joint bolt), 0 refusals, 16 model calls, 178k in / 4k out tokens, **$0.0614**. First Meta-model run. Not the Model API's `muse-spark-1.3` | `runs/2026-10-27T17-11-41-241Z-1cd55e4a/trace.json` |
 | — | live, Meta Model API (`muse-spark-1.3` / `muse-wonder-1.0`) | — | not run: no Meta key yet | — |
 
+Check fix (fourth one of ours): drawer checks counted only cut-face drawers
+(family `drawer`), so builds with **notch drawers** were failed or flagged as
+overclaims. Now `{drawers: N}` counts cut-face drawers plus notch drawer frames
+in the BOM (family `notch` alone would also count notch bins). Earlier suites
+were rescored from their traces with `bin/rescore.mjs`; originals untouched,
+results in each suite's `rescore.json`, two flips read by hand and confirmed:
+
+| Volume suite (same tools, 2026-10-27) | As first scored | Rescored |
+|---|---|---|
+| Haiku 5.5, 12 briefs ×5 | 47/60 | **56/60** |
+| Haiku 5.5, 8 hard ×5 | 31/40 | **33/40** |
+| Opus 5.5, 12 briefs ×3 | 35/36 | **36/36** |
+
 Note on the checks themselves: of the "failures" so far, three were our own
 brief or check being wrong (sewing-vague bar, gap-drawer infeasible wording,
 gap-drawer notch-only check), not the model. Every flagged overclaim is now

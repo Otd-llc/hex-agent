@@ -16,6 +16,14 @@ export function checkBrief(expect, { state, verdict, finish }) {
       const n = nodes.filter((x) => x.family === e.family).length;
       return { expect: e, saw: n, pass: n >= (e.min ?? 1) };
     }
+    if (e.drawers) {
+      // Any kind of drawer: drawers on a half base's cut face (family drawer)
+      // plus notch drawers, counted by their frames in the BOM. Family "notch"
+      // alone would also count notch bins, which are not drawers.
+      const cut = nodes.filter((x) => x.family === 'drawer').length;
+      const notch = verdict.bom.lines.filter((l) => l.key.includes('drawer-frame-notch')).reduce((s, l) => s + l.qty, 0);
+      return { expect: e, saw: `${cut} cut-face + ${notch} notch`, pass: cut + notch >= e.drawers };
+    }
     if (e.bom) {
       const n = verdict.bom.lines.filter((l) => l.key.includes(e.bom)).reduce((s, l) => s + l.qty, 0);
       return { expect: e, saw: n, pass: n >= (e.min ?? 1) };

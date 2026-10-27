@@ -4,10 +4,11 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { builder, finish } from './lib.mjs';
 import { dismissCookies } from '../src/bridge.mjs';
-const SET = process.env.SANDBOX_SET === '2' ? './configs2.mjs' : './configs.mjs';
+const SETN = process.env.SANDBOX_SET ?? '1';
+const SET = SETN === '1' ? './configs.mjs' : `./configs${SETN}.mjs`;
 const { CONFIGS } = await import(SET);
 
-const OUT = process.env.SANDBOX_SET === '2' ? 'sandbox/out2' : 'sandbox/out';
+const OUT = SETN === '1' ? 'sandbox/out' : `sandbox/out${SETN}`;
 mkdirSync(OUT, { recursive: true });
 for (const id of process.argv.slice(2)) {
   const c = CONFIGS.find((x) => x.id === id);

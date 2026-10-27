@@ -2,9 +2,11 @@
 //   SANDBOX_SET=2 node sandbox/mobile-page.mjs  ->  sandbox/mobile/index.html
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
-const SET2 = process.env.SANDBOX_SET === '2';
-const { CONFIGS } = await import(SET2 ? './configs2.mjs' : './configs.mjs');
-const OUT = SET2 ? 'sandbox/out2' : 'sandbox/out';
+const SETN = process.env.SANDBOX_SET ?? '1';
+const { CONFIGS } = await import(SETN === '1' ? './configs.mjs' : `./configs${SETN}.mjs`);
+const OUT = SETN === '1' ? 'sandbox/out' : `sandbox/out${SETN}`;
+const HEADS = { 1: 'Ten Hex Cluster builds', 2: 'Ten builds with a purpose', 3: 'Planter builds, reviewed' };
+const OUTDIR = `sandbox/mobile${SETN === '2' ? '' : SETN}`;
 const reports = CONFIGS.map((c) => JSON.parse(readFileSync(`${OUT}/${c.id}.json`, 'utf8')));
 const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const mix = (f) => Object.entries(f).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, v]) => `${v} ${k}`).join(' · ');
@@ -36,7 +38,7 @@ const card = (r) => {
 </article>`;
 };
 
-const html = `<title>Hex Sandbox Round ${SET2 ? 2 : 1}</title>
+const html = `<title>Hex Sandbox Round ${SETN}</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Saira:wght@400;600&family=JetBrains+Mono:wght@400&display=swap">
@@ -86,8 +88,8 @@ a:focus-visible, button:focus-visible, .pick:focus-within { outline: 2px solid v
 </style>
 
 <div class="wrap">
-  <div class="kicker">Hex Cluster · sandbox round ${SET2 ? 2 : 1} · ${reports.length} builds</div>
-  <h1>${SET2 ? 'Ten builds with a purpose' : 'Ten Hex Cluster builds'}</h1>
+  <div class="kicker">Hex Cluster · sandbox round ${SETN} · ${reports.length} builds</div>
+  <h1>${HEADS[SETN]}</h1>
   <p class="lede">Built by hand through the configurator's public browser API, not by the agent. Every build passed the placement rules and the collision check, reloads from its share link, and every drawer opens and faces the user. Tick Keep on the ones worth carrying forward, then copy your picks.</p>
   <div class="grid">${reports.map(card).join('')}</div>
 </div>
@@ -98,7 +100,7 @@ a:focus-visible, button:focus-visible, .pick:focus-within { outline: 2px solid v
 </div>
 <script>
 (() => {
-  const KEY = 'hex-sandbox-${SET2 ? 2 : 1}-picks';
+  const KEY = 'hex-sandbox-${SETN}-picks';
   const boxes = [...document.querySelectorAll('.pick input')];
   let saved = [];
   try { saved = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) {}
@@ -113,7 +115,7 @@ a:focus-visible, button:focus-visible, .pick:focus-within { outline: 2px solid v
   sync();
   const btn = document.getElementById('copy');
   btn.addEventListener('click', () => {
-    const text = 'Sandbox round ${SET2 ? 2 : 1} picks: ' + (picks().join(', ') || '(none)');
+    const text = 'Sandbox round ${SETN} picks: ' + (picks().join(', ') || '(none)');
     const done = (label) => { btn.textContent = label; setTimeout(() => (btn.textContent = 'Copy picks'), 1600); };
     navigator.clipboard.writeText(text).then(() => done('Copied'), () => {
       const t = document.getElementById('fallback'); t.value = text; t.select(); done('Selected, copy it');
@@ -122,6 +124,6 @@ a:focus-visible, button:focus-visible, .pick:focus-within { outline: 2px solid v
 })();
 </script>
 `;
-mkdirSync('sandbox/mobile', { recursive: true });
-writeFileSync('sandbox/mobile/index.html', html);
+mkdirSync(OUTDIR, { recursive: true });
+writeFileSync(`${OUTDIR}/index.html`, html);
 console.log(JSON.stringify(Object.fromEntries(reports.flatMap((r) => ['light', 'dark'].map((t) => [`img/${r.id}-${t}.png`, `${OUT}/${r.id}-${t}.png`])))));

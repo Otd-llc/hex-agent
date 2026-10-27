@@ -1,0 +1,145 @@
+<title>Hex Sandbox Round 3</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Saira:wght@400;600&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Layout: one column of build cards on a phone, two from tablet up; a sticky pick bar. */
+:root {
+  --bg: #f6f2e8; --surface: #fdfbf6; --ink: #121318; --muted: #5e5b52; --line: #ddd5c3; --gold: #8e651c; --ok: #2d6a38; --bad: #a3341f;
+  --display: 'Bebas Neue', 'Oswald', Impact, sans-serif; --body: 'Saira', system-ui, sans-serif; --mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #08090d; --surface: #101117; --ink: #faf7f0; --muted: #a29e93; --line: #26272e; --gold: #c8963e; --ok: #8fcf9a; --bad: #f2a07b; color-scheme: dark; } }
+:root[data-theme="dark"] { --bg: #08090d; --surface: #101117; --ink: #faf7f0; --muted: #a29e93; --line: #26272e; --gold: #c8963e; --ok: #8fcf9a; --bad: #f2a07b; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.5 var(--body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 96px; }
+.kicker { font: 12px/1.4 var(--mono); color: var(--gold); text-transform: uppercase; letter-spacing: .08em; }
+h1 { font: 400 clamp(36px, 9vw, 56px)/1 var(--display); letter-spacing: .02em; margin: 6px 0 10px; text-wrap: balance; }
+.lede { color: var(--muted); margin: 0; max-width: 62ch; }
+.grid { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 22px; }
+@media (min-width: 760px) { .grid { grid-template-columns: 1fr 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; }
+.card.kept { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+.shot { margin: 0; aspect-ratio: 4 / 3; max-width: 100%; overflow: hidden; border-bottom: 1px solid var(--line); background: var(--bg); }
+.shot img { width: 100%; height: 100%; object-fit: cover; object-position: 54% 52%; display: block; }
+.shot .dark { display: none; }
+:root[data-theme="dark"] .shot .dark { display: block; } :root[data-theme="dark"] .shot .light { display: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .shot .dark { display: block; } :root:not([data-theme="light"]) .shot .light { display: none; } }
+.body { padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.head { display: flex; align-items: center; gap: 12px; }
+h2 { font: 400 28px/1.05 var(--display); letter-spacing: .02em; margin: 0; flex: 1; text-wrap: balance; }
+.pick { display: flex; align-items: center; gap: 8px; font: 13px var(--mono); border: 1px solid var(--line); padding: 8px 12px; min-height: 44px; cursor: pointer; }
+.pick input { width: 20px; height: 20px; accent-color: var(--gold); margin: 0; }
+.pitch { margin: 0; }
+dl { margin: 0; display: grid; gap: 4px; font-size: 14px; }
+dl div { display: grid; grid-template-columns: 72px 1fr; gap: 8px; }
+dt { font: 11px/1.9 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+dd { margin: 0; min-width: 0; font-variant-numeric: tabular-nums; } dd.ok { color: var(--ok); } dd.bad { color: var(--bad); }
+.open { align-self: flex-start; color: var(--gold); font: 13px var(--mono); text-decoration: none; border-bottom: 1px solid currentColor; padding-block: 6px; }
+.open::after { content: ' ↗'; }
+a:focus-visible, button:focus-visible, .pick:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-top: 10px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; gap: 12px; }
+.bar .count { font: 13px var(--mono); flex: 1; min-width: 0; }
+.bar button { font: 14px var(--mono); color: var(--bg); background: var(--ink); border: 0; padding: 10px 14px; min-height: 44px; cursor: pointer; }
+.bar textarea { position: absolute; left: -9999px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+  <div class="kicker">Hex Cluster · sandbox round 3 · 3 builds</div>
+  <h1>Planter builds, reviewed</h1>
+  <p class="lede">Built by hand through the configurator's public browser API, not by the agent. Every build passed the placement rules and the collision check, reloads from its share link, and every drawer opens and faces the user. Tick Keep on the ones worth carrying forward, then copy your picks.</p>
+  <div class="grid">
+<article class="card" id="strawberry-pyramid">
+  <figure class="shot">
+    <img class="light" src="img/strawberry-pyramid-light.png" alt="Strawberry pyramid in the configurator" loading="lazy" width="1440" height="900">
+    <img class="dark" src="img/strawberry-pyramid-dark.png" alt="" loading="lazy" width="1440" height="900">
+  </figure>
+  <div class="body">
+    <div class="head">
+      <h2>Strawberry pyramid</h2>
+      <label class="pick" for="pick-strawberry-pyramid"><input type="checkbox" id="pick-strawberry-pyramid" data-id="strawberry-pyramid"><span>Keep</span></label>
+    </div>
+    <p class="pitch">A nineteen-cell strawberry patch stepping three, two and one storeys from the centre so every plant gets sun: fruiting strawberries on the inner tier, younger plants on the outer tier and in the rim notches, and a nasturtium crowning it.</p>
+    <dl>
+      <div><dt>Parts</dt><dd>120 · 3 storeys</dd></div>
+      <div><dt>Drawers</dt><dd>none</dd></div>
+      <div><dt>Mix</dt><dd>54 jointBolt · 27 piece · 19 bin · 12 notch · 8 fused</dd></div>
+      <div><dt>Checks</dt><dd class="ok">rules ok · mesh clear · link reloads</dd></div>
+    </dl>
+    <a class="open" href="https://hex.onethousanddrones.com/#v2s=jZfNcpswEMffRblKM9oVGOxeMn2Njg_YwTUtBhewm0wmffYOGLQCjNibtPrtX_sFxp_iLnYgRS12n-Kapce0Frsfn-KP2CmUohI7LUWe3tO8W92TKkuKRuzE6Zbn4ku6JLBJZJDQkYojCuxAgR0ocAPVjzj5JON2zU1Ic_PR3HSAnQ6_Qez-sNuD7CiRHSV_3Kf5AHveFsnZbKyQjMuns7EIzhq5QrLvJhDn4F6Kukiu7eumXV6z32m_Ppb3tBrWlsiKOq2afnNOirec-KJIj005-FS3YlhltVU6ZJ1VKJAKpP53Tt_VIStUG416q5KsELI91BKenKl3fByD_xgXlVFqz9lyRLisqdtMlsPRUnlctcSnnqY79esuyoI_IvBE5K88LFcIPf1Ez4WLDdlLcbrV6Vs_LVrqb93I9v23u678zk6PN0AbB4ORk6O-l-JXmRXN9zLvplzol25UX3Qr0a_BWYfDWhOiidAEOBqOhKOABOAAIOki6SLpIuki6SLpIumi1dWUkqaMNCXUTi0BaK3aGrV10vaUNEmSFIfLnXo65XSqCXQ50OVUYqowFZiKiiSEgzdQh4A6BNQhoA4BdQioUEDVAVsHsHUAWwew2cOQ016Ka1V2r1CR5B91fbuoj_JW_HxVGMdbGWqpjMHNaze9svWdYIHBsMViiBYhjLd6kAoXqUFJxWbrQEVSN7eqyW4XdU6qe1o3rygRTCS1Q9VNlfw9pFX1YSkFgTESjImkinHLhmOM_SwEJuLqErsqi70mbMKIRS6DfW-6nMJWE4N4w0MxiMM1ctO2KYDNGhgGXT8DCP0kxpvtI87VlCy60PwpxhCMoI3SGOMHaTwD790QmJBTn24yWM2x5FpvIAjDoeKBD8THxcYAA1ul4khzKohxhLwuW9JbaEutydErip7AvRRF2RzPqfNTii-dKbS_-d1WnS70VdRy5oGBF-te9Qw55MkZ2avpCXY5jTFkYCBVf2ngx3ox9FHIE8MhAa-YsVUzvnIY26tFrP3LUGZ529xDVuzU-LOqNznfYL0FZhaceKH7Gddbpso49Xp8iE8sM0ZLHBtmPhMXmMnCTHaWJUzDxVlpcKYyyrrOmnQ3fmRG1mGiHaPzOIysT1Aa9ZERZ0ZnjF3jMLRkw2cgDSTZnPEbGYdhE_uvr_8" target="_blank" rel="noopener">Open in the configurator</a>
+  </div>
+</article>
+<article class="card" id="salad-theatre">
+  <figure class="shot">
+    <img class="light" src="img/salad-theatre-light.png" alt="Succession salad theatre in the configurator" loading="lazy" width="1440" height="900">
+    <img class="dark" src="img/salad-theatre-dark.png" alt="" loading="lazy" width="1440" height="900">
+  </figure>
+  <div class="body">
+    <div class="head">
+      <h2>Succession salad theatre</h2>
+      <label class="pick" for="pick-salad-theatre"><input type="checkbox" id="pick-salad-theatre" data-id="salad-theatre"><span>Keep</span></label>
+    </div>
+    <p class="pitch">Three rows stepping down to the front, each a stage of the same salad bed: harvest-size kale, oakleaf lettuce and bok choy at the back, young lettuces and bok choy in the middle, the next sowing of lettuce, spinach and microgreens in front.</p>
+    <dl>
+      <div><dt>Parts</dt><dd>63 · 3 storeys</dd></div>
+      <div><dt>Drawers</dt><dd>none</dd></div>
+      <div><dt>Mix</dt><dd>27 jointBolt · 18 piece · 9 bin · 9 fused</dd></div>
+      <div><dt>Checks</dt><dd class="ok">rules ok · mesh clear · link reloads</dd></div>
+    </dl>
+    <a class="open" href="https://hex.onethousanddrones.com/#v2s=lZTBkqMgEED_pecKVTTGmHUvqf2NrRyIISMbB7KoqZlKZb99S1QwMeMwt5Z-_boB9QoXyJFADfkVzkoWsob89xX-Qk6RgHXJSl5kBTkjcBFWCd1ADse2quBGHMkcSKNJFgtGGDG6N8b2jt43j-7Nv7fviRJjj_JTcHZCX5ARytnGvyAjlLON8-j9fErOxnxC7gjUWpy7t74Lz-okh7gwF2nH2BNK19I2w0Mp9KEKvNayaMxYY1s9Rqr2pr1yq0CRIGH_SvlO90rTbhh6sEJpIMAIRcKf5Oh74tKM4NMsd9lPvbjsxUXvwrx82csXvDsCx7aWh-5I3LbZT3cvwyFgeGIhhXcg3oE4BfkdyO9AHsAdgT9G6eaXqdzNAnvpyBfWNe5DdGE307DqwnQImV9knmQ-G0pGDwYPBg96D3oPek-Ygo8lGAbCMBD6gdAPhKElhpboW6JviUHPg56P9TsCZ2vcxwB7cypK80FLYS-ybrZ8k3HCMckI27r7Ip1wpD5Mq1-3uEoygkmSkQ3fTKiTqGQQ9RaK6zSbMJVsmraQdN82jbSlFIdBSnGVJCSdSccCI06VFEfvd0P0LTb8x0JBr-f9wOwJaM2bUFqOYHcAjn2Y_E0V1rxaKXU9HWJN1mlG-GqTTtj6rLQoSt87fdR1vymjKncDSuf9j2R8q7uV_vdxv8LCi98vPNTgrAYfa2Z9-KyGh5rd7fYf" target="_blank" rel="noopener">Open in the configurator</a>
+  </div>
+</article>
+<article class="card" id="tomato-companions">
+  <figure class="shot">
+    <img class="light" src="img/tomato-companions-light.png" alt="Tomatoes with companions in the configurator" loading="lazy" width="1440" height="900">
+    <img class="dark" src="img/tomato-companions-dark.png" alt="" loading="lazy" width="1440" height="900">
+  </figure>
+  <div class="body">
+    <div class="head">
+      <h2>Tomatoes with companions</h2>
+      <label class="pick" for="pick-tomato-companions"><input type="checkbox" id="pick-tomato-companions" data-id="tomato-companions"><span>Keep</span></label>
+    </div>
+    <p class="pitch">A patio bed in two rows: three-storey planters, the deepest the system makes, carrying micro tomatoes and a pepper at the back, and a low front row of companions that help them: basil, marigold and nasturtium.</p>
+    <dl>
+      <div><dt>Parts</dt><dd>37 · 3 storeys</dd></div>
+      <div><dt>Drawers</dt><dd>none</dd></div>
+      <div><dt>Mix</dt><dd>13 jointBolt · 12 piece · 6 bin · 6 fused</dd></div>
+      <div><dt>Checks</dt><dd class="ok">rules ok · mesh clear · link reloads</dd></div>
+    </dl>
+    <a class="open" href="https://hex.onethousanddrones.com/#v2s=lZPdUsMgEIXfZXsLMyyxtsabjq_h5IK21KIUIpCMTqc-uwPNX42t8e6w--3ZDUuOUEOOBDzkRyiV3EgP-fMR3iGnSMBBzghoWUudVC2cEiZADrtKaziRRLIERn4aOcESJ1tOnpL_c8oBiZPHvEqOul8lR9355O5XyVH3X8iCgDeijPuPslRvstEbW0vX6o5QxksXmsNemK3ueWPkJti2xlWmVcp3TmuVokCRMMK-9vKDrpWhcRi6dUIZIMAIRcJ_ydGPLKWvVuLtyhs9-a3KgsCu8nIbB0_Dscd0e82o2J7wIocXOX6R44NcQeDVKhOerE4XC2wW0RmL_meJScZmTTTJeSNZF2xJ7EnsydYJeyfsUd5HeRstCJTOpt3DWnil6V64WvqwoniXZWSeLQhd8odV2gmJ5gfh1IvV247kiWIDxAgfKhdUdaCftjIvK7zLFola8uWAK2VZStcZJYrjuGWwBxEsPaiNs4O2ZxTv54s_2eWiwfsx499glU5frkx-fq_t-mLk_EovIz8QHCEjFz5AitPpGw" target="_blank" rel="noopener">Open in the configurator</a>
+  </div>
+</article></div>
+</div>
+<div class="bar" role="region" aria-label="Your picks">
+  <span class="count" id="count" aria-live="polite">0 kept</span>
+  <button type="button" id="copy">Copy picks</button>
+  <textarea id="fallback" aria-hidden="true" tabindex="-1"></textarea>
+</div>
+<script>
+(() => {
+  const KEY = 'hex-sandbox-3-picks';
+  const boxes = [...document.querySelectorAll('.pick input')];
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) {}
+  const picks = () => boxes.filter((b) => b.checked).map((b) => b.dataset.id);
+  const sync = () => {
+    const p = picks();
+    boxes.forEach((b) => b.closest('.card').classList.toggle('kept', b.checked));
+    document.getElementById('count').textContent = p.length + ' kept';
+    try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (e) {}
+  };
+  boxes.forEach((b) => { b.checked = saved.includes(b.dataset.id); b.addEventListener('change', sync); });
+  sync();
+  const btn = document.getElementById('copy');
+  btn.addEventListener('click', () => {
+    const text = 'Sandbox round 3 picks: ' + (picks().join(', ') || '(none)');
+    const done = (label) => { btn.textContent = label; setTimeout(() => (btn.textContent = 'Copy picks'), 1600); };
+    navigator.clipboard.writeText(text).then(() => done('Copied'), () => {
+      const t = document.getElementById('fallback'); t.value = text; t.select(); done('Selected, copy it');
+    });
+  });
+})();
+</script>

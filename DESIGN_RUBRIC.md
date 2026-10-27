@@ -1,38 +1,126 @@
 # Design rubric
 
-What makes a Hex Cluster build good, from the owner's sandbox reviews. The
-agent reads this; each review round adds to it. Rules marked **[checked]** are
-enforced in code; the rest are for the model and the critique step.
+What makes a Hex Cluster build good. The agent reads this when it plans and
+when it reviews its own result; each owner review round adds to it.
 
-## Purpose
-- One purpose and one setting per build (a desk, a sunny window, a flying
-  field, a kitchen counter). If you cannot say who uses it and where, it is
-  not designed yet. (Round 1: "Is it meant to display books? Potted plants?
-  Inside, outside?")
-- No tool walls. (Round 1)
+Three kinds of rule live here and are kept apart on purpose:
 
-## Shape
-- A silhouette that reads at a glance: a row, a staircase, a tower, a
-  pyramid, a symmetric block. Irregular piles of cells read as "odd".
-  (Round 1: field kit, workbench, enclosure, sorter)
-- Use height. Single-storey builds read as boring. (Round 1: herb garden,
-  desk station)
-- Full bases cannot stand on half bases; above a drawer cell goes another
-  half base, which gives a taller drawer front. **[checked by the
-  configurator: KIND_MISMATCH_BELOW]**
+- **A. Engineering constraints**: the configurator enforces them, or a
+  printed part would not fit or drain. Breaking one is a defect.
+- **B. Design guidance**: taste. Breaking one makes a build weaker, not
+  wrong. These are never turned into safety rules or hard gates.
+- **C. Where each rule came from**: the owner's sandbox reviews in this
+  project, or design knowledge observed in OTD's existing (private) catalog
+  pipeline. Pipeline-derived lines are marked **[catalog]** and are
+  paraphrased observations, not copied code or configurations.
 
-## Drawers
-- Drawer orientation matters: every drawer faces the user, on one consistent
-  front, and must open. **[checked: every drawer opened and closed through
-  setDrawerOpen; facing reported]** (Round 1)
-- Canted drawer fronts read as "use me at an angle": a good primitive for
-  desk and ergonomic storage, fanned around a corner. (Round 1, drawer tower)
+Nothing here certifies strength, drainage performance or print quality. The
+configurator checks fit and collisions only.
 
-## Staging
-- Staging tells the story of use: things sit where a person would put them.
-  No props perched on handles or balanced on odd parts. (Round 1: battery on
-  the handle)
-- Plants go in soil: in a planter bin, or in a real pot that is filled and
-  planted. Bare plant props read as "naked plant cubes". (Round 1)
-- Keep the build visible: staging never hides the unit from the viewer.
-  (Round 2: laptop in front of the caddy)
+## A. Engineering constraints
+
+- Full bases cannot stand on half bases (`KIND_MISMATCH_BELOW`): above a
+  half cell goes another half cell. *[configurator]*
+- A tall column is one fused base (`place` with `storeys: 2|3`), and its bin
+  is keyed on the top storey with a depth suffix (`-x2`, `-x3`); a one-storey
+  part has no suffix. *[configurator; catalog]*
+- Every living-plant bin is a drain variant. *[catalog]*
+- Plant depth follows bin depth: one storey (about 69 mm of soil) suits
+  seedlings, microgreens and succulents; most crops want two storeys; deep
+  crops want three. The largest bin holds about 4.5 L, so full-size tomatoes
+  and peppers belong in pots, not bins. *[catalog]*
+- A pot wider than a bin's inner opening (about 126 mm for a full bin) perches
+  on the rim: big pots stand on lids or the floor, never on an open bin.
+  *[catalog]*
+- Pockets, ports and notch parts never sit over a planter's rim (they
+  clash). *[catalog]*
+- Every drawer must open (`setDrawerOpen` accepted). *[checked in code]*
+- A joint bolt locks every load surface; notch and bay parts count as locks.
+  *[catalog; configurator LOOSE_BODY]*
+- A straight run of half cells cannot be locked: no joint bolts are offered
+  between them and side connectors clash. *[observed round 3]*
+- Notch planters stand at ground level, one tall part per site. Stacked
+  single notches roof the one below, which then cannot be planted.
+  *[observed round 3]*
+- Above three storeys, a column is a second fused part stacked on the first
+  (`place` at level 3); its planter takes the top part's depth. *[observed
+  round 3]*
+
+## B. Design guidance
+
+### Purpose
+- One purpose and one setting per build, stated in one sentence a viewer can
+  check by opening the build (a kitchen windowsill, a sunny patio, a desk).
+  *[owner R1: "Is it meant to display books? Potted plants? Inside,
+  outside?"; catalog: every variation has a one-sentence note]*
+- No tool walls. *[owner R1]*
+
+### Shape
+- One recognisable silhouette: a staircase, a pyramid, a spiral, a ring, a
+  slim trough. Irregular piles of cells read as "odd". *[owner R1]*
+- Height is the organising idea, and every tier is used. *[owner R2 picks]*
+- Flat walls: half cells on the flanks with the cut face outward.
+  *[catalog]*
+- Prefer tall fused columns to stacked single storeys. *[catalog]*
+- No empty hex: every binnable cell holds a planter, or there is a stated
+  reason. Fill gaps the footprint leaves: two touching neighbours take a
+  notch planter, three take a bay. *[catalog; owner on the film tables:
+  "you're wasting space by not having bins"]*
+- Populate the obvious faces; no wasted perimeter. *[owner on the film
+  tables: "The obvious places to put bolt on bins and such aren't
+  populated"]*
+- No legs that lift a build for no reason, no "foot hexes", no lower shelf
+  under a top. *[owner on the film tables: "the legs are too long", "look
+  ridiculous", "a table under the table", "Just do normal legs man"]*
+
+### Planting and staging
+- Plants go in soil, at rim height: in a drained planter filled with soil, or
+  in a real pot that is filled and planted. Never on a lid, never a bare
+  plant. *[owner R1: "naked plant cubes"; catalog audit: 88% of plant
+  requests went into unsoiled bins]*
+- Plant stage matches depth, and plant choice matches position: a herb spiral
+  puts dry-loving herbs at the crown and moisture-loving ones at the foot;
+  trailing plants low, fruit high. *[owner R2 pick; garden practice]*
+- Vary the planting: more than one flower, crops chosen for the build's
+  purpose. *[catalog audit: marigold was the only flower]*
+- Staging is where a person would put it, and it never hides the unit. No
+  props on handles, nothing floating. *[owner R1: battery on the handle;
+  owner on the film props: "props are just floating there"; R2: laptop in
+  front of the caddy]*
+- Foliage must not bury the structure: younger, smaller plants on the outer
+  tiers keep the steps of a tiered build readable. *[review round 3]*
+- Plant scale matters on screen: very large models (romaine, cabbage, chard
+  at harvest) overhang their neighbours and dominate; a pepper without fruit
+  does not read as a pepper. *[review round 3]*
+- Check the purpose against geometry: a one-cell gap is too small to stand
+  in; a sixty-degree wedge does not fit a ninety-degree corner. *[review
+  round 3: both builds dropped]*
+- A tall single column with a plant on top reads as a bare monolith; height
+  should step, so each storey is visible as a change. *[review round 3]*
+- Put the tallest part at the back of the expected view so the descent faces
+  the viewer. *[review round 3]*
+- Drawers face the user, on one consistent front. Canted fronts read as
+  "use me at an angle", a good primitive for ergonomic desk storage.
+  *[owner R1]*
+
+## What the owner picked
+
+- **Round 2: tiered-herbs and plant-pyramid.** Height is the organising
+  idea, the silhouette reads at a glance and is symmetric, every planting
+  surface is used, and the staging is alive (soil, real pots). Drawer, desk
+  and device builds were not picked in either round.
+
+## Using this in the agent (proposal)
+
+Which criteria can steer the agent without becoming a rule engine:
+
+- **Plan step** (cheap, model-read): purpose sentence, silhouette, tier plan
+  and planting plan written before the first op. The rubric's B section is
+  the prompt material.
+- **Code checks** (measurable, few): the A constraints the configurator
+  does not already enforce: every drawer opens; living plants sit in soil or
+  in a filled pot; no empty binnable hex without a stated reason; plant stage
+  versus bin depth. Reported in the verdict, fed back before finish.
+- **Critique step** (taste): a vision-capable model compares a screenshot
+  against section B and the owner-picked examples, and the agent revises once.
+  Aesthetic misses are reported, never gated.

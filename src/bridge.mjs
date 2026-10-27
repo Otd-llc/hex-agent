@@ -58,3 +58,9 @@ async function call(page, method, ...args) {
 }
 
 export const isWrite = (method) => WRITE.has(method);
+
+// Our own fresh session: decline optional cookies so the banner does not cover the scene.
+export async function dismissCookies(page) {
+  const reject = page.getByRole('button', { name: /reject all/i });
+  if (await reject.isVisible().catch(() => false)) await reject.click().catch(() => {});
+}

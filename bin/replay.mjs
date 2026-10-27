@@ -6,7 +6,7 @@
 // matches the original's parts list and families.
 //   node bin/replay.mjs runs/<run-id>/trace.json [--step-ms=1200] [--headless]
 import { readFileSync } from 'node:fs';
-import { openHex } from '../src/bridge.mjs';
+import { openHex, dismissCookies } from '../src/bridge.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name, dflt) => {
@@ -43,9 +43,7 @@ function stepsOf(events) {
 
 const hex = await openHex({ headless: !!flag('headless', false) });
 try {
-  // Our own fresh session: decline optional cookies so the banner does not cover the scene.
-  const reject = hex.page.getByRole('button', { name: /reject all/i });
-  if (await reject.isVisible().catch(() => false)) await reject.click();
+  await dismissCookies(hex.page);
   await hex.page.evaluate((text) => {
     const el = document.createElement('div');
     el.textContent = text;

@@ -42,6 +42,9 @@ const { trace, dir } = await runSession({
   ledger,
   purpose,
   headless: !!flag('headless', false),
+  // Panel on by default in a visible browser; --overlay=false hides it, --overlay shows it headless (for screenshots).
+  overlay: String(flag('overlay', !flag('headless', false))) !== 'false',
+  holdMs: Number(flag('hold-ms', flag('headless', false) ? 0 : 10_000)),
   maxTurns: Number(flag('max-turns', 30)),
   maxUsd: Number(flag('max-usd', 3)),
   onEvent: (e) => {

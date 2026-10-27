@@ -106,7 +106,18 @@ configurator checks fit and collisions only.
   should step, so each storey is visible as a change. *[review round 3]*
 - Put the tallest part at the back of the expected view so the descent faces
   the viewer. *[review round 3]*
-- Drawers face the user, on one consistent front. Canted fronts read as
+- Props are placed where they rest; a prop is only ever dropped INTO a
+  container (a bin or grab bin), never onto a lid or the floor, where it
+  tumbles (a lamp lying on the floor, a tilted mug). If it does not rest,
+  leave it out. *[review round 4]*
+- Deep bins hide what is in them: a tray that should show its parts is a
+  shallow one-storey bin on top of a tall column, with that reason stated.
+  *[review round 4]*
+- A bench needs bench proportions: a seat several cells long, nothing on the
+  seat, arms at both ends, mirrored. Three cells reads as a stool or a table.
+  *[review round 4]*
+- Drawers face the user, on one consistent front (or, for a two-sided piece,
+  say so in its purpose). Canted fronts read as
   "use me at an angle", a good primitive for ergonomic desk storage.
   *[owner R1]*
 

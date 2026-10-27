@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 const SETN = process.env.SANDBOX_SET ?? '1';
 const { CONFIGS } = await import(SETN === '1' ? './configs.mjs' : `./configs${SETN}.mjs`);
 const OUT = SETN === '1' ? 'sandbox/out' : `sandbox/out${SETN}`;
-const HEADS = { 1: 'Ten Hex Cluster builds', 2: 'Ten builds with a purpose', 3: 'Planter builds, reviewed' };
+const HEADS = { 1: 'Ten Hex Cluster builds', 2: 'Ten builds with a purpose', 3: 'Planter builds, reviewed', 4: 'Toolboxes, benches, workstations' };
 const OUTDIR = `sandbox/mobile${SETN === '2' ? '' : SETN}`;
 const reports = CONFIGS.map((c) => JSON.parse(readFileSync(`${OUT}/${c.id}.json`, 'utf8')));
 const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));

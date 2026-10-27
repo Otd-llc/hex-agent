@@ -5,6 +5,8 @@
 // Meta Model API, Responses protocol, Standard mode only: a model id ending in
 // -contributor is refused here, because Contributor mode may train on input.
 
+import { claudeCostUsd } from './claude.mjs';
+
 export const META_BASE = 'https://api.meta.ai/v1';
 
 // USD per 1M tokens, Standard mode, from https://dev.meta.ai/docs/pricing-rate-limits (2026-10-27).
@@ -14,6 +16,7 @@ export const PRICES = {
 };
 
 export function costUsd(model, usage) {
+  if (model.startsWith('claude-')) return claudeCostUsd(model, usage);
   const p = PRICES[model];
   if (!p || !usage) return null;
   const cached = usage.cachedInputTokens ?? 0;

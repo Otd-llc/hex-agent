@@ -71,3 +71,12 @@ dev ($45 cap, `muse-spark-1.3` by default) and eval ($40 cap,
 `muse-wonder-1.0`) stop before they would touch the $50 judging reserve;
 only `demo` may spend it. Limits live in `.env` (see `.env.example`).
 The estimate is not the bill: reconcile against the Meta console.
+
+## Developing on Claude
+
+`--model=claude-opus-5-5` (or `claude-sonnet-5-5`, `claude-haiku-5-5`) runs
+the same loop, tools and checks on the Claude API through the official SDK.
+It exists to harden the model-agnostic parts on credit that would otherwise
+expire. Its spend goes to `.spend/anthropic.jsonl`, its traces say
+`provider: "anthropic"`, it refuses `--purpose=demo`, and no Claude run is
+reported as a Muse result. Prompts are tuned again on Muse before eval.

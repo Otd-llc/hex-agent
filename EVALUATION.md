@@ -19,3 +19,9 @@ stand-in, not a model.
 met per the model, refusals by code, repairs, rule and mesh verdicts, BOM and
 round trip, latency, tokens and cost. Includes a drawer-beside-spike brief and
 a stud-spike-facing-down brief, run as ordinary briefs, not staged failures.
+
+## Provider labels
+
+Every trace names its provider and the model that served each turn
+(`servedBy`). Claude runs are development or an explicitly labeled baseline;
+only `provider: "meta"` runs count as results for this entry.

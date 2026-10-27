@@ -6,6 +6,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { randomUUID, createHash } from 'node:crypto';
 import { openHex, HEX_ORIGIN } from '../src/bridge.mjs';
 import { metaModel } from '../src/model.mjs';
+import { claudeModel } from '../src/claude.mjs';
 import { runAgent, verify } from '../src/agent.mjs';
 import { loadEnv } from '../src/env.mjs';
 import { openLedger, PURPOSES } from '../src/ledger.mjs';
@@ -29,17 +30,31 @@ if (!PURPOSES.includes(purpose)) {
   console.error(`--purpose must be one of ${PURPOSES.join(', ')}`);
   process.exit(2);
 }
-const ledger = openLedger();
+// Dev iterates on the cheap model; eval and demo use the planner model.
+const modelId = flag('model', purpose === 'dev' ? 'muse-spark-1.3' : 'muse-wonder-1.0');
+const isClaude = modelId.startsWith('claude-');
+if (isClaude && purpose === 'demo') {
+  console.error('Claude runs are development and baseline only: never --purpose=demo');
+  process.exit(2);
+}
+// Each provider has its own credit, so its own ledger. Claude credit expires
+// unused, so it has no reserve.
+const ledger = isClaude
+  ? openLedger({
+      path: '.spend/anthropic.jsonl',
+      creditUsd: Number(process.env.CLAUDE_CREDIT_USD ?? 100),
+      reserveUsd: 0,
+      caps: { dev: Number(process.env.CLAUDE_CREDIT_USD ?? 100), eval: Number(process.env.CLAUDE_CREDIT_USD ?? 100) },
+    })
+  : openLedger();
 const headroom = ledger.headroom(purpose);
 if (headroom <= 0) {
   console.error(`no ${purpose} budget left: ${JSON.stringify(ledger.summary())}`);
   process.exit(3);
 }
-// Dev iterates on the cheap model; eval and demo use the planner model.
-const model = metaModel({
-  model: flag('model', purpose === 'dev' ? 'muse-spark-1.3' : 'muse-wonder-1.0'),
-  reasoningEffort: flag('effort', 'medium'),
-});
+const model = isClaude
+  ? claudeModel({ model: modelId, effort: flag('effort', 'medium') })
+  : metaModel({ model: modelId, reasoningEffort: flag('effort', 'medium') });
 const runId = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`;
 const dir = `runs/${runId}`;
 mkdirSync(dir, { recursive: true });

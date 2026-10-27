@@ -54,7 +54,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     if (ledger && model.kind === 'live') {
       ledger.add({ runId, purpose, provider: model.provider, model: model.model, ...res.usage, costUsd: costUsd(model.model, res.usage) });
     }
-    emit({ type: 'model', turn, responseId: res.id, text: res.text || undefined, calls: res.calls.map((c) => ({ name: c.name, arguments: c.arguments })), usage: res.usage });
+    emit({ type: 'model', turn, responseId: res.id, servedBy: res.servedBy ?? model.model, text: res.text || undefined, calls: res.calls.map((c) => ({ name: c.name, arguments: c.arguments })), usage: res.usage });
 
     items.push(...res.output);
     if (res.calls.length === 0) {

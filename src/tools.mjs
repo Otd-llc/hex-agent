@@ -47,6 +47,41 @@ const NO_OFFERS =
   'beside or below it), then ask again. Guessing raw ops for a part with no offers rarely works.';
 const STREAK_LIMIT = 6;
 
+// The value lists the public contract publishes (its `values` table, hash
+// 9bb662c8…): the only names the configurator places for these fields.
+export const VALUES = {
+  variant: ['full', 'half-n', 'half-s', 'half-e', 'half-w', 'quarter-nw', 'quarter-ne', 'quarter-sw', 'quarter-se'],
+  coverType: ['plain', 'solid', 'grate', 'pill', 'radial', 'pvc', 'bolt', 'cable', 'grate-pvc', 'pill-pvc', 'radial-pvc', 'socket'],
+  capVariant: ['solid', '1h', 'solid-bolt', '1h-bolt', 'socket-bolt'],
+  spikeVariant: ['solid', 'mount', 'stud'],
+  spikeAccessory: ['platform-sm', 'platform-lrg'],
+  runMode: ['potable', 'irrigation', 'structural'],
+  drawerStyle: ['classic', 'slide', 'swing', 'long', 'longbin'],
+};
+// Which value list governs which field of which op.
+const VALUE_OF = {
+  variant: 'variant',
+  'addCover.type': 'coverType',
+  'setCoverType.type': 'coverType',
+  capVariant: 'capVariant',
+  'addSpike.variant': 'spikeVariant',
+  accessory: 'spikeAccessory',
+  mode: 'runMode',
+  style: 'drawerStyle',
+};
+
+const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
+const isSite = (v) => v && typeof v === 'object' && isNum(v.q) && isNum(v.r);
+const isCell = (v) => isSite(v) && isNum(v.level);
+const SHAPES = {
+  at: [isCell, 'a cell {q, r, level}'],
+  start: [isSite, 'a site {q, r}'],
+  junction: [(v) => Array.isArray(v) && v.length === 3 && v.every(isSite), 'an array of three sites [{q, r}, {q, r}, {q, r}]'],
+  edge: [(v) => Array.isArray(v) && v.length === 2 && v.every(isSite), 'an array of two sites [{q, r}, {q, r}]'],
+  through: [(v) => Array.isArray(v) && v.every(isSite), 'an array of sites'],
+  level: [isNum, 'a number'],
+};
+
 export function checkOpShape(item) {
   const [required, optional] = OP_FIELDS[item.op];
   const takes = `${item.op} takes ${required.join(', ')}${optional.length ? ` (optional: ${optional.join(', ')})` : ''}`;
@@ -54,6 +89,14 @@ export function checkOpShape(item) {
   if (missing.length) throw new Error(`${item.op} is missing ${missing.join(', ')}: ${takes}`);
   const extra = Object.keys(item).filter((k) => k !== 'op' && !required.includes(k) && !optional.includes(k));
   if (extra.length) throw new Error(`${extra.join(', ')} is not a field of ${item.op}: ${takes}`);
+  for (const [k, [ok, says]] of Object.entries(SHAPES)) {
+    if (k in item && !ok(item[k])) throw new Error(`${item.op}.${k} must be ${says}`);
+  }
+  for (const k of Object.keys(item)) {
+    const list = VALUE_OF[`${item.op}.${k}`] ?? (k.includes('.') ? null : VALUE_OF[k]);
+    if (!list || item[k] == null) continue;
+    if (!VALUES[list].includes(item[k])) throw new Error(`${item.op}.${k} "${item[k]}" is not a ${list}: use one of ${VALUES[list].join(', ')}`);
+  }
 }
 const FAMILIES = ['piece', 'snap', 'spike', 'cover', 'cap', 'insert', 'handle', 'accessory', 'port', 'bin', 'binBolt',
   'connector', 'run', 'riser', 'coverHub', 'drawer', 'jointBolt', 'notch', 'bay'];
@@ -107,7 +150,9 @@ export const TOOL_SPECS = [
       'Change the build. Each item is either {"socket":"s12"} (an offer from find_sockets) or a full op object. ' +
       'Atomic by default: if any op is refused, the whole batch is taken back. Refusals carry a code, a message and ' +
       'nearby alternatives (also given socket ids). Never invent a ref: take refs from get_build or an outcome. ' +
-      `Ops and their fields (? = optional): ${OP_TABLE}.`,
+      `Ops and their fields (? = optional): ${OP_TABLE}. ` +
+      `Named values: ${Object.entries(VALUES).filter(([k]) => k !== 'variant').map(([k, v]) => `${k}: ${v.join('|')}`).join('; ')}. ` +
+      'Cover magnets are setCoverMagnets on a fitted cover, not a cover type.',
     parameters: obj(
       {
         ops: {

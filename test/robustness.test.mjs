@@ -9,7 +9,7 @@ test('op shapes are checked against the contract before reaching the page', () =
     /missing level, junction: setSpikeAccessory takes level, junction, accessory/,
   );
   assert.throws(() => checkOpShape({ op: 'addBin', at: { q: 0, r: 0, level: 0 }, stem: 'x', colour: 'red' }), /colour is not a field of addBin/);
-  assert.doesNotThrow(() => checkOpShape({ op: 'addSpike', level: 0, junction: [], variant: 'stud', facing: 'down' }));
+  assert.doesNotThrow(() => checkOpShape({ op: 'addSpike', level: 0, junction: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 0, r: 1 }], variant: 'stud', facing: 'down' }));
 });
 
 test('a malformed op comes back as a tool error, not a page call', async () => {
@@ -145,4 +145,15 @@ test('six refusals in a row bring a plain warning', async () => {
   assert.equal(first.warning, undefined);
   const sixth = await t.run('apply', { ops: [op], atomic: false });
   assert.match(sixth.warning, /6 refusals in a row/);
+});
+
+test('field types and named values are checked before the page sees them', async () => {
+  const { checkOpShape } = await import('../src/tools.mjs');
+  assert.throws(() => checkOpShape({ op: 'addSpike', level: 0, junction: { q: 0, r: 0, corner: 0 } }), /junction must be an array of three sites/);
+  assert.throws(() => checkOpShape({ op: 'setRunMode', id: 'run-1', mode: 'drip' }), /"drip" is not a runMode: use one of potable, irrigation, structural/);
+  assert.throws(() => checkOpShape({ op: 'addCover', at: { q: 0, r: 0, level: 0 }, variant: 'full', face: 'top', type: 'magnet' }), /not a coverType/);
+  assert.throws(() => checkOpShape({ op: 'addSpike', level: 0, junction: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 0, r: 1 }], variant: 'full' }), /not a spikeVariant/);
+  assert.throws(() => checkOpShape({ op: 'place', at: { q: 0, r: 0 }, variant: 'full' }), /at must be a cell/);
+  assert.doesNotThrow(() => checkOpShape({ op: 'setSpikeAccessory', level: 0, junction: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 0, r: 1 }], accessory: null }));
+  assert.doesNotThrow(() => checkOpShape({ op: 'addCover', at: { q: 0, r: 0, level: 0 }, variant: 'half-n', face: 'top', type: 'grate-pvc' }));
 });

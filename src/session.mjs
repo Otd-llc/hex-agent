@@ -6,20 +6,32 @@ import { openHex, dismissCookies, HEX_ORIGIN } from './bridge.mjs';
 import { installOverlay, pushLines, linesFor } from './overlay.mjs';
 import { metaModel } from './model.mjs';
 import { claudeModel } from './claude.mjs';
+import { basetenModel } from './baseten.mjs';
 import { openLedger } from './ledger.mjs';
 import { runAgent, verify } from './agent.mjs';
 import { checkBrief } from './checks.mjs';
 
 export function modelFor({ modelId, purpose, effort = 'medium' }) {
-  const isClaude = modelId.startsWith('claude-');
-  if (isClaude && purpose === 'demo') throw new Error('Claude runs are development and baseline only: never --purpose=demo');
-  // Each provider has its own credit, so its own ledger. Claude credit expires unused: no reserve.
-  const claudeCredit = Number(process.env.CLAUDE_CREDIT_USD ?? 100);
-  const ledger = isClaude
-    ? openLedger({ path: '.spend/anthropic.jsonl', creditUsd: claudeCredit, reserveUsd: 0, caps: { dev: claudeCredit, eval: claudeCredit } })
-    : openLedger();
-  const model = isClaude ? claudeModel({ model: modelId, effort }) : metaModel({ model: modelId, reasoningEffort: effort });
-  return { model, ledger };
+  // Each provider has its own credit, so its own ledger.
+  if (modelId.startsWith('claude-')) {
+    if (purpose === 'demo') throw new Error('Claude runs are development and baseline only: never --purpose=demo');
+    // Claude credit expires unused: no reserve.
+    const credit = Number(process.env.CLAUDE_CREDIT_USD ?? 100);
+    return {
+      model: claudeModel({ model: modelId, effort }),
+      ledger: openLedger({ path: '.spend/anthropic.jsonl', creditUsd: credit, reserveUsd: 0, caps: { dev: credit, eval: credit } }),
+    };
+  }
+  if (modelId.startsWith('meta-models/')) {
+    // Baseten: a Meta open-weights model; its reserve is the demo's backup if Meta's API is down.
+    const credit = Number(process.env.BASETEN_CREDIT_USD ?? 100);
+    const reserve = Number(process.env.BASETEN_RESERVE_USD ?? 20);
+    return {
+      model: basetenModel({ model: modelId, effort }),
+      ledger: openLedger({ path: '.spend/baseten.jsonl', creditUsd: credit, reserveUsd: reserve, caps: { dev: credit - reserve, eval: credit - reserve } }),
+    };
+  }
+  return { model: metaModel({ model: modelId, reasoningEffort: effort }), ledger: openLedger() };
 }
 
 export async function runSession({ brief, briefId = null, expect = null, model, ledger, purpose, headless = true, overlay = !headless, holdMs = 0, maxTurns = 30, maxUsd = 3, outRoot = 'runs', onEvent = () => {} }) {

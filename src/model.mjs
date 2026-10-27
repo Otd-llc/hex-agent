@@ -6,6 +6,7 @@
 // -contributor is refused here, because Contributor mode may train on input.
 
 import { claudeCostUsd } from './claude.mjs';
+import { basetenCostUsd } from './baseten.mjs';
 
 export const META_BASE = 'https://api.meta.ai/v1';
 
@@ -17,6 +18,7 @@ export const PRICES = {
 
 export function costUsd(model, usage) {
   if (model.startsWith('claude-')) return claudeCostUsd(model, usage);
+  if (model.startsWith('meta-models/')) return basetenCostUsd(model, usage);
   const p = PRICES[model];
   if (!p || !usage) return null;
   const cached = usage.cachedInputTokens ?? 0;

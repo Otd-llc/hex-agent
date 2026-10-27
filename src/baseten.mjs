@@ -4,9 +4,14 @@
 // a Meta model, but not the Model API's muse-spark-1.3, and reported as such.
 
 export const BASETEN_BASE = 'https://inference.baseten.co/v1';
-export const BASETEN_MODEL = 'meta-models/muse-spark-open';
-// USD per 1M tokens, from https://www.baseten.co/library/muse-spark-open/ (2026-10-27).
-export const BASETEN_PRICES = { [BASETEN_MODEL]: { input: 1.25, cached: 0.15, output: 4.25 } };
+// "[HACKATHON] Muse Spark Open" (Muse-Spark-Open-816B-A42B-NVFP4) is the id
+// this account can call; the general meta-models/muse-spark-open returns 403
+// for it (checked 2026-10-27 against /v1/models and a live call).
+export const BASETEN_MODEL = 'meta-models/muse-spark-open-1026';
+// USD per 1M tokens, from https://www.baseten.co/library/muse-spark-open/ and
+// the /v1/models pricing field (both models list the same rates), 2026-10-27.
+const MUSE_SPARK_OPEN = { input: 1.25, cached: 0.15, output: 4.25 };
+export const BASETEN_PRICES = { 'meta-models/muse-spark-open-1026': MUSE_SPARK_OPEN, 'meta-models/muse-spark-open': MUSE_SPARK_OPEN };
 
 export function basetenModel({ model = BASETEN_MODEL, apiKey = process.env.BASETEN_API_KEY, effort = 'medium', timeoutMs = 120_000, fetchImpl = fetch } = {}) {
   if (!apiKey) throw new Error('BASETEN_API_KEY is not set (see .env.example)');

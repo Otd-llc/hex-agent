@@ -21,7 +21,7 @@ test('requests go to the chat endpoint with a bearer key and function tools', as
   assert.equal(seen[0].url, 'https://inference.baseten.co/v1/chat/completions');
   assert.equal(seen[0].init.headers.Authorization, 'Bearer k');
   const body = JSON.parse(seen[0].init.body);
-  assert.equal(body.model, 'meta-models/muse-spark-open');
+  assert.equal(body.model, 'meta-models/muse-spark-open-1026');
   assert.equal(body.messages[0].role, 'system');
   assert.equal(body.tools[0].function.name, 'get_build');
   assert.deepEqual(r.calls, [{ callId: 'c1', name: 'get_build', arguments: '{}' }]);

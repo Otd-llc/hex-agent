@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 
 const port = Number(process.argv[2] ?? 5381);
-const root = 'sandbox/out';
+const root = process.argv[3] ?? 'sandbox/out';
 const types = { '.html': 'text/html; charset=utf-8', '.png': 'image/png', '.json': 'application/json' };
 createServer(async (req, res) => {
   const path = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname)).replace(/^([/\\])+/, '');

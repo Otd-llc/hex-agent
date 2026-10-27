@@ -4,9 +4,11 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { builder, finish } from './lib.mjs';
 import { dismissCookies } from '../src/bridge.mjs';
-import { CONFIGS } from './configs.mjs';
+const SET = process.env.SANDBOX_SET === '2' ? './configs2.mjs' : './configs.mjs';
+const { CONFIGS } = await import(SET);
 
-mkdirSync('sandbox/out', { recursive: true });
+const OUT = process.env.SANDBOX_SET === '2' ? 'sandbox/out2' : 'sandbox/out';
+mkdirSync(OUT, { recursive: true });
 for (const id of process.argv.slice(2)) {
   const c = CONFIGS.find((x) => x.id === id);
   if (!c) throw new Error(`no config ${id}`);
@@ -25,11 +27,11 @@ for (const id of process.argv.slice(2)) {
     report.log = lines;
     // Both themes, from the same page: the configurator has its own theme button.
     await b.hex.page.waitForTimeout(800);
-    await b.hex.page.screenshot({ path: `sandbox/out/${id}-light.png` });
+    await b.hex.page.screenshot({ path: `${OUT}/${id}-light.png` });
     await b.hex.page.getByRole('button', { name: 'Switch to dark theme' }).click();
     await b.hex.page.waitForTimeout(1200);
-    await b.hex.page.screenshot({ path: `sandbox/out/${id}-dark.png` });
-    writeFileSync(`sandbox/out/${id}.json`, JSON.stringify(report, null, 2) + '\n');
+    await b.hex.page.screenshot({ path: `${OUT}/${id}-dark.png` });
+    writeFileSync(`${OUT}/${id}.json`, JSON.stringify(report, null, 2) + '\n');
     log(`DONE ${report.parts} parts, levels ${report.levels.join('/')}, rules ${report.rulesOk}, mesh ${JSON.stringify(report.meshClash)}, roundTrip ${report.roundTrip}, issues ${report.issues.join(' ')}`);
   } catch (e) {
     log(`ERROR ${e.stack ?? e}`);

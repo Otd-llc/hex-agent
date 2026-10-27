@@ -1,10 +1,12 @@
 // Generate the sandbox review page from sandbox/out/*.json.
 //   node sandbox/page.mjs   ->  sandbox/out/index.html
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { CONFIGS } from './configs.mjs';
+const SET2 = process.env.SANDBOX_SET === '2';
+const { CONFIGS } = await import(SET2 ? './configs2.mjs' : './configs.mjs');
+const OUT = SET2 ? 'sandbox/out2' : 'sandbox/out';
 
 const reports = CONFIGS.map((c) => {
-  try { return JSON.parse(readFileSync(`sandbox/out/${c.id}.json`, 'utf8')); } catch { return null; }
+  try { return JSON.parse(readFileSync(`${OUT}/${c.id}.json`, 'utf8')); } catch { return null; }
 }).filter(Boolean);
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
@@ -80,8 +82,8 @@ const html = `<!doctype html>
 <div class="wrap">
   <div class="top">
     <div>
-      <div class="kicker">Sandbox round · reference configurations · built ${new Date().toISOString().slice(0, 10)}</div>
-      <h1>Ten Hex Cluster builds</h1>
+      <div class="kicker">Sandbox round ${SET2 ? 2 : 1} · reference configurations · built ${new Date().toISOString().slice(0, 10)}</div>
+      <h1>${SET2 ? 'Round 2: ten builds with a purpose' : 'Ten Hex Cluster builds'}</h1>
       <p class="lede">Built by hand through the public browser API (window.hexAPI) on the live configurator, not by the agent. Each was checked the way an agent build is: placement rules, the mesh collision gate, the share link reloaded in a fresh session, and every drawer opened and closed. Tick the ones worth keeping.</p>
     </div>
     <div class="tools"><button id="theme" type="button">Theme</button><button id="copy" type="button">Copy picks</button><span id="count">0 picked</span></div>
@@ -91,7 +93,7 @@ const html = `<!doctype html>
 </div>
 <script>
   const root = document.documentElement;
-  const KEY = 'hex-sandbox-picks';
+  const KEY = 'hex-sandbox-picks-${SET2 ? 2 : 1}';
   let picks = [];
   try { picks = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch {}
   const boxes = [...document.querySelectorAll('.pick input')];
@@ -116,5 +118,5 @@ const html = `<!doctype html>
 </body>
 </html>
 `;
-writeFileSync('sandbox/out/index.html', html);
-console.log(`sandbox/out/index.html: ${reports.length} configurations`);
+writeFileSync(`${OUT}/index.html`, html);
+console.log(`${OUT}/index.html: ${reports.length} configurations`);

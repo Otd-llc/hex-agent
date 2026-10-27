@@ -28,7 +28,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     onEvent(ev);
   };
   const tools = createTools(hex, { onEvent: emit });
-  const usage = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, calls: 0 };
+  const usage = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, calls: 0 };
   const items = [{ role: 'user', content: brief }];
   let finish = null;
   let stop = null;
@@ -51,6 +51,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     usage.inputTokens += res.usage.inputTokens;
     usage.outputTokens += res.usage.outputTokens;
     usage.cachedInputTokens += res.usage.cachedInputTokens;
+    usage.cacheWriteTokens += res.usage.cacheWriteTokens ?? 0;
     if (ledger && model.kind === 'live') {
       ledger.add({ runId, purpose, provider: model.provider, model: model.model, ...res.usage, costUsd: costUsd(model.model, res.usage) });
     }

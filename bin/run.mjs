@@ -1,15 +1,11 @@
 #!/usr/bin/env node
 // Run one brief end to end:
 //   node bin/run.mjs "a portable electronics organizer with removable bins and a carry handle"
-// Flags: --headless, --model=muse-wonder-1.0, --effort=medium, --max-turns=30, --max-usd=2
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { randomUUID, createHash } from 'node:crypto';
-import { openHex, HEX_ORIGIN } from '../src/bridge.mjs';
-import { metaModel } from '../src/model.mjs';
-import { claudeModel } from '../src/claude.mjs';
-import { runAgent, verify } from '../src/agent.mjs';
+// Flags: --purpose=dev|eval|demo, --model=<id> (muse-spark-1.3 for dev, muse-wonder-1.0
+// otherwise; claude-* for development only), --effort=medium, --max-turns=30, --max-usd=3, --headless
 import { loadEnv } from '../src/env.mjs';
-import { openLedger, PURPOSES } from '../src/ledger.mjs';
+import { PURPOSES } from '../src/ledger.mjs';
+import { modelFor, runSession } from '../src/session.mjs';
 
 loadEnv();
 const args = process.argv.slice(2);
@@ -21,97 +17,46 @@ const flag = (name, dflt) => {
 };
 const brief = args.filter((a) => !a.startsWith('--')).join(' ').trim();
 if (!brief) {
-  console.error('usage: node bin/run.mjs "<design brief>" [--headless] [--model=muse-wonder-1.0]');
+  console.error('usage: node bin/run.mjs "<design brief>" [--purpose=dev] [--model=...] [--headless]');
   process.exit(2);
 }
-
 const purpose = flag('purpose', 'dev');
 if (!PURPOSES.includes(purpose)) {
   console.error(`--purpose must be one of ${PURPOSES.join(', ')}`);
   process.exit(2);
 }
-// Dev iterates on the cheap model; eval and demo use the planner model.
 const modelId = flag('model', purpose === 'dev' ? 'muse-spark-1.3' : 'muse-wonder-1.0');
-const isClaude = modelId.startsWith('claude-');
-if (isClaude && purpose === 'demo') {
-  console.error('Claude runs are development and baseline only: never --purpose=demo');
+
+let model, ledger;
+try {
+  ({ model, ledger } = modelFor({ modelId, purpose, effort: flag('effort', 'medium') }));
+} catch (e) {
+  console.error(e.message);
   process.exit(2);
 }
-// Each provider has its own credit, so its own ledger. Claude credit expires
-// unused, so it has no reserve.
-const ledger = isClaude
-  ? openLedger({
-      path: '.spend/anthropic.jsonl',
-      creditUsd: Number(process.env.CLAUDE_CREDIT_USD ?? 100),
-      reserveUsd: 0,
-      caps: { dev: Number(process.env.CLAUDE_CREDIT_USD ?? 100), eval: Number(process.env.CLAUDE_CREDIT_USD ?? 100) },
-    })
-  : openLedger();
-const headroom = ledger.headroom(purpose);
-if (headroom <= 0) {
-  console.error(`no ${purpose} budget left: ${JSON.stringify(ledger.summary())}`);
-  process.exit(3);
-}
-const model = isClaude
-  ? claudeModel({ model: modelId, effort: flag('effort', 'medium') })
-  : metaModel({ model: modelId, reasoningEffort: flag('effort', 'medium') });
-const runId = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`;
-const dir = `runs/${runId}`;
-mkdirSync(dir, { recursive: true });
+console.log(`${model.provider}/${model.model}, ${purpose}, $${ledger.headroom(purpose).toFixed(2)} headroom`);
 
-const hex = await openHex({ headless: !!flag('headless', false) });
-console.log(`run ${runId}: ${model.provider}/${model.model} on ${HEX_ORIGIN} (hexAPI v${hex.version}), ${purpose}, $${headroom.toFixed(2)} ${purpose} headroom`);
-
-let result, verdict;
-try {
-  result = await runAgent({
-    hex,
-    model,
-    brief,
-    budget: { maxTurns: Number(flag('max-turns', 30)), maxUsd: Math.min(Number(flag('max-usd', 3)), headroom) },
-    ledger,
-    purpose,
-    runId,
-    onEvent: (e) => {
-      if (e.type === 'model') console.log(`  [model] turn ${e.turn}: ${e.calls.map((c) => c.name).join(', ') || '(text)'}`);
-      if (e.type === 'apply') console.log(`  [hex]   ${e.outcomes.map((o) => (o.ok ? `${o.op.op} ok` : `${o.op.op} ${o.code}`)).join('; ')}${e.rolledBack ? ' (rolled back)' : ''}`);
-      if (e.type === 'model_error') console.log(`  [error] ${e.message}`);
-    },
-  });
-  verdict = await verify({ hex, openFresh: () => openHex({ headless: true }), finish: result.finish });
-  await hex.page.screenshot({ path: `${dir}/final.png` });
-} finally {
-  await hex.close();
-}
-
-const shareUrl = `${HEX_ORIGIN}/#${verdict.fragment}`;
-const trace = {
-  runId,
-  purpose,
-  inference: model.kind,
-  provider: model.provider,
-  model: model.model,
-  hexApiVersion: hex.version,
-  origin: HEX_ORIGIN,
+const { trace, dir } = await runSession({
   brief,
-  briefSha256: createHash('sha256').update(brief).digest('hex'),
-  stop: result.stop,
-  elapsedMs: result.elapsedMs,
-  usage: result.usage,
-  costSource: 'https://dev.meta.ai/docs/pricing-rate-limits (Standard mode, 2026-10-27)',
-  opsUsed: result.opsUsed,
-  counters: result.counters,
-  finish: result.finish,
-  verdict: { ...verdict, shareUrl },
-  events: result.events,
-};
-writeFileSync(`${dir}/trace.json`, JSON.stringify(trace, null, 2) + '\n');
+  model,
+  ledger,
+  purpose,
+  headless: !!flag('headless', false),
+  maxTurns: Number(flag('max-turns', 30)),
+  maxUsd: Number(flag('max-usd', 3)),
+  onEvent: (e) => {
+    if (e.type === 'model') console.log(`  [model] turn ${e.turn}: ${e.calls.map((c) => c.name).join(', ') || '(text)'}`);
+    if (e.type === 'apply') console.log(`  [hex]   ${e.outcomes.map((o) => (o.ok ? `${o.op.op} ok` : `${o.op.op} ${o.code}`)).join('; ')}${e.rolledBack ? ' (rolled back)' : ''}`);
+    if (e.type === 'model_error') console.log(`  [error] ${e.message}`);
+  },
+});
 
-console.log(`\n${verdict.success ? 'SUCCESS' : 'NOT VERIFIED'}: ${JSON.stringify(verdict.checks)}`);
-console.log(`parts ${verdict.nodes}, printed ${verdict.bom.printedInstances}, refusals ${JSON.stringify(result.counters.refusalCodes)}`);
-console.log(`model calls ${result.usage.calls}, tokens in/out ${result.usage.inputTokens}/${result.usage.outputTokens}, cost $${result.usage.costUsd?.toFixed(4) ?? '?'}`);
-console.log(`share: ${shareUrl}`);
-console.log(`pack:  ${verdict.bom.pack.url ?? `none (${verdict.bom.pack.why})`}`);
+const v = trace.verdict;
+console.log(`\n${v.success ? 'SUCCESS' : 'NOT VERIFIED'}: ${JSON.stringify(v.checks)}`);
+console.log(`parts ${v.nodes}, printed ${v.bom.printedInstances}, refusals ${JSON.stringify(trace.counters.refusalCodes)}`);
+console.log(`model calls ${trace.usage.calls}, tokens in/out ${trace.usage.inputTokens}/${trace.usage.outputTokens}, cost $${trace.usage.costUsd?.toFixed(4) ?? '?'}`);
+console.log(`share: ${v.shareUrl}`);
+console.log(`pack:  ${v.bom.pack.url ?? `none (${v.bom.pack.why})`}`);
 console.log(`trace: ${dir}/trace.json`);
 console.log(`spend: ${JSON.stringify(ledger.summary())}`);
-process.exit(verdict.success ? 0 : 1);
+process.exit(v.success ? 0 : 1);

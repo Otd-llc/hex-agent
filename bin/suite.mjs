@@ -1,0 +1,70 @@
+#!/usr/bin/env node
+// Run the brief set and report every attempt.
+//   node bin/suite.mjs --model=claude-opus-5-5 --purpose=dev [--repeat=1] [--only=id,id]
+// A brief passes when the configurator's checks pass (rules, mesh, pack, round
+// trip, agent finished), the code-side brief checks pass, and the model did
+// not claim "met" for something code says is missing. Negative briefs expect
+// an honest "unmet" rather than a claim that everything is met.
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { loadEnv } from '../src/env.mjs';
+import { modelFor, runSession } from '../src/session.mjs';
+import { overclaimed } from '../src/checks.mjs';
+
+loadEnv();
+const args = process.argv.slice(2);
+const flag = (name, dflt) => {
+  const a = args.find((x) => x.startsWith(`--${name}`));
+  if (!a) return dflt;
+  const [, v] = a.split('=');
+  return v ?? true;
+};
+const purpose = flag('purpose', 'dev');
+const modelId = flag('model', purpose === 'dev' ? 'muse-spark-1.3' : 'muse-wonder-1.0');
+const repeat = Number(flag('repeat', 1));
+const only = flag('only', null)?.split(',');
+const briefs = JSON.parse(readFileSync(flag('briefs', 'evals/briefs.json'), 'utf8')).filter((b) => !only || only.includes(b.id));
+
+const { model, ledger } = modelFor({ modelId, purpose, effort: flag('effort', 'medium') });
+const suiteId = `suite-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+const root = `runs/${suiteId}`;
+mkdirSync(root, { recursive: true });
+console.log(`${suiteId}: ${briefs.length} briefs x ${repeat}, ${model.provider}/${model.model}, ${purpose}`);
+
+const rows = [];
+for (const b of briefs) {
+  for (let k = 0; k < repeat; k++) {
+    let row;
+    try {
+      const { trace } = await runSession({ brief: b.brief, briefId: b.id, expect: b.expect, model, ledger, purpose, outRoot: root });
+      const c = trace.verdict.checks;
+      const configurator = ['agentFinished', 'rules', 'mesh', 'printPack', 'roundTrip'].every((k2) => c[k2] === 'pass');
+      const over = overclaimed(trace);
+      row = {
+        id: b.id,
+        attempt: k + 1,
+        pass: configurator && trace.briefChecks.pass && !over,
+        configurator,
+        mesh: c.mesh,
+        briefChecks: trace.briefChecks.results.map((r) => `${r.pass ? 'ok' : 'FAIL'} ${JSON.stringify(r.expect)}=${r.saw}`),
+        overclaimed: over,
+        claimed: trace.finish?.requirements?.map((r) => r.status) ?? null,
+        stop: trace.stop,
+        parts: trace.verdict.nodes,
+        refusals: trace.counters.refusalCodes,
+        calls: trace.usage.calls,
+        seconds: Math.round(trace.elapsedMs / 1000),
+        costUsd: Number((trace.usage.costUsd ?? 0).toFixed(4)),
+        trace: `${trace.runId}/trace.json`,
+      };
+    } catch (e) {
+      row = { id: b.id, attempt: k + 1, pass: false, error: String(e.message ?? e).slice(0, 300) };
+    }
+    rows.push(row);
+    console.log(`${row.pass ? 'PASS' : 'FAIL'} ${row.id}#${row.attempt} ${row.error ?? `parts=${row.parts} refusals=${JSON.stringify(row.refusals)} calls=${row.calls} ${row.seconds}s $${row.costUsd}${row.overclaimed ? ' OVERCLAIMED' : ''} ${row.briefChecks.filter((x) => x.startsWith('FAIL')).join(' ')}`}`);
+    writeFileSync(`${root}/summary.json`, JSON.stringify({ suiteId, provider: model.provider, model: model.model, purpose, rows }, null, 2) + '\n');
+  }
+}
+const passed = rows.filter((r) => r.pass).length;
+const cost = rows.reduce((s, r) => s + (r.costUsd ?? 0), 0);
+console.log(`\n${passed}/${rows.length} passed, $${cost.toFixed(4)}, summary ${root}/summary.json`);
+console.log(`spend: ${JSON.stringify(ledger.summary())}`);

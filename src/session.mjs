@@ -29,15 +29,22 @@ export async function runSession({ brief, briefId = null, expect = null, model, 
   mkdirSync(dir, { recursive: true });
 
   const hex = await openHex({ headless });
-  let result, verdict, state, checks;
+  let result, verdict, state, checks, harnessError = null;
   try {
     result = await runAgent({ hex, model, brief, ledger, purpose, runId, budget: { maxTurns, maxUsd: Math.min(maxUsd, headroom) }, onEvent });
     verdict = await verify({ hex, openFresh: () => openHex({ headless: true }), finish: result.finish });
     state = await hex.call('getState');
     checks = expect ? checkBrief(expect, { state, verdict, finish: result.finish }) : null;
     await hex.page.screenshot({ path: `${dir}/final.png` });
+  } catch (e) {
+    // Our own failure, not the model's: keep whatever the run produced.
+    harnessError = String(e.stack ?? e).slice(0, 1000);
   } finally {
     await hex.close();
+  }
+  if (harnessError) {
+    writeFileSync(`${dir}/trace.json`, JSON.stringify({ runId, briefId, purpose, provider: model.provider, model: model.model, brief, harnessError, partial: result ?? null }, null, 2) + '\n');
+    throw new Error(`harness error (trace kept at ${dir}/trace.json): ${harnessError.split('\n')[0]}`);
   }
 
   const trace = {

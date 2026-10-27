@@ -71,11 +71,11 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     for (const call of res.calls) {
       let result;
       if (call.name === 'finish') {
-        try {
-          finish = JSON.parse(call.arguments || '{}');
+        const parsed = parseFinish(call.arguments);
+        if (parsed.error) result = { error: parsed.error };
+        else {
+          finish = parsed.finish;
           result = { ok: true };
-        } catch {
-          result = { error: 'arguments were not valid JSON' };
         }
       } else {
         result = await tools.run(call.name, call.arguments);
@@ -147,6 +147,29 @@ export async function verify({ hex, openFresh, finish }) {
     fragment,
     roundTrip,
   };
+}
+
+// finish must carry an array of {requirement, status, evidence}. A model that
+// sends the array as a JSON string gets it parsed; anything else is sent back
+// as an error so the model can call finish again.
+const STATUSES = new Set(['met', 'partial', 'unmet']);
+export function parseFinish(raw) {
+  let f;
+  try {
+    f = typeof raw === 'string' ? JSON.parse(raw || '{}') : raw;
+  } catch {
+    return { error: 'arguments were not valid JSON' };
+  }
+  let reqs = f?.requirements;
+  if (typeof reqs === 'string') {
+    try { reqs = JSON.parse(reqs); } catch { /* falls through to the check below */ }
+  }
+  const valid = Array.isArray(reqs) && reqs.length > 0 &&
+    reqs.every((r) => r && typeof r.requirement === 'string' && STATUSES.has(r.status) && typeof r.evidence === 'string');
+  if (!valid) {
+    return { error: 'finish needs requirements: a non-empty array of {requirement, status: met|partial|unmet, evidence}. Call finish again.' };
+  }
+  return { finish: { requirements: reqs, summary: typeof f.summary === 'string' ? f.summary : '' } };
 }
 
 // Provider hiccups (rate limit, overload, 5xx, dropped connection, timeout) are

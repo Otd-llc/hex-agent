@@ -40,8 +40,8 @@ test('every live model call is recorded', async () => {
   const l = fresh();
   const model = {
     kind: 'live', provider: 'meta', model: 'muse-spark-1.3',
-    next: async () => ({ id: 'r', output: [{ type: 'function_call', call_id: 'c', name: 'finish', arguments: '{"requirements":[],"summary":"s"}' }],
-      calls: [{ callId: 'c', name: 'finish', arguments: '{"requirements":[],"summary":"s"}' }], text: '',
+    next: async () => ({ id: 'r', output: [{ type: 'function_call', call_id: 'c', name: 'finish', arguments: '{"requirements":[{"requirement":"r","status":"met","evidence":"e"}],"summary":"s"}' }],
+      calls: [{ callId: 'c', name: 'finish', arguments: '{"requirements":[{"requirement":"r","status":"met","evidence":"e"}],"summary":"s"}' }], text: '',
       usage: { inputTokens: 100000, outputTokens: 10000, cachedInputTokens: 0 } }),
   };
   await runAgent({ hex: { call: async () => ({}) }, model, brief: 'x', ledger: l, purpose: 'eval', runId: 'r1' });

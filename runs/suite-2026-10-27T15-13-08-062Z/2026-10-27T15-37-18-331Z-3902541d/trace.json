@@ -1,0 +1,1089 @@
+{
+  "runId": "2026-10-27T15-37-18-331Z-3902541d",
+  "briefId": "load-rating",
+  "purpose": "dev",
+  "inference": "live",
+  "provider": "anthropic",
+  "model": "claude-opus-5-5",
+  "hexApiVersion": 1,
+  "origin": "https://hex.onethousanddrones.com",
+  "brief": "A shelf unit rated to hold 50 kg of books, with two drawers.",
+  "briefSha256": "e3c2532d4551337007db24557c25bd0bc5a56f643b50ac27cc4921f7cd69eb75",
+  "stop": null,
+  "elapsedMs": 22018,
+  "usage": {
+    "inputTokens": 32563,
+    "outputTokens": 1559,
+    "cachedInputTokens": 28685,
+    "cacheWriteTokens": 3862,
+    "calls": 7,
+    "costUsd": 0.056291
+  },
+  "costSource": "Anthropic first-party rates (claude-api skill, cached 2026-10-06)",
+  "opsUsed": 7,
+  "counters": {
+    "applied": 7,
+    "refused": 0,
+    "refusalCodes": {}
+  },
+  "finish": {
+    "requirements": [
+      {
+        "requirement": "Shelf unit for books",
+        "status": "partial",
+        "evidence": "A full hex base stacks three levels high (piece 0,0,0 / 0,0,1 / 0,0,2, joined by snaps), with half bases on each side at ground level. This gives tiers you can shelve on. I didn't add covers, caps or bins, and I didn't check that books of any size fit."
+      },
+      {
+        "requirement": "Rated to hold 50 kg of books",
+        "status": "unmet",
+        "evidence": "The configurator checks whether parts fit, not how strong they are. I can't check or claim any load rating, including 50 kg."
+      },
+      {
+        "requirement": "Two drawers",
+        "status": "met",
+        "evidence": "drawer:0#-1,0#cut and drawer:0#1,0#cut sit on the cut faces of the half bases piece:-1,0,0;half-n and piece:1,0,0;half-n."
+      }
+    ],
+    "summary": "Build: three full hex bases stacked into a tower, with a north-half base on each side at ground level. Each half base holds one drawer, and a joint bolt (jointBolt:0#0,0#0) joins the centre to the right-hand half. The configurator offered no bolt for the left joint. check_build found no rule errors and no mesh clashes. It noted 22 open faces that could take caps. The two drawers are done. The 50 kg rating can't be confirmed because this tool only checks fit."
+  },
+  "verdict": {
+    "success": false,
+    "checks": {
+      "agentFinished": "pass",
+      "requirementsClaimedMet": "fail",
+      "rules": "pass",
+      "mesh": "pass",
+      "printPack": "pass",
+      "roundTrip": "pass"
+    },
+    "validation": {
+      "ok": true,
+      "meshClash": "clear",
+      "issues": [
+        {
+          "severity": "info",
+          "code": "OPEN_CAP_FACE",
+          "refs": []
+        }
+      ]
+    },
+    "nodes": 10,
+    "families": {
+      "drawer": 2,
+      "jointBolt": 1,
+      "piece": 5,
+      "snap": 2
+    },
+    "bom": {
+      "lines": [
+        {
+          "key": "hex-main",
+          "qty": 3,
+          "kind": "printed",
+          "label": "Hex base · Full"
+        },
+        {
+          "key": "hex-half-n",
+          "qty": 2,
+          "kind": "printed",
+          "label": "Hex base · North half"
+        },
+        {
+          "key": "hex-drawer-body-s",
+          "qty": 2,
+          "kind": "printed",
+          "label": "Drawer (south half)"
+        },
+        {
+          "key": "hex-drawer-frame-s",
+          "qty": 2,
+          "kind": "printed",
+          "label": "Drawer frame (south half)"
+        },
+        {
+          "key": "hex-drawer-lid-s",
+          "qty": 2,
+          "kind": "printed",
+          "label": "Drawer lid (south half)"
+        },
+        {
+          "key": "hex-drawer-runner-s",
+          "qty": 2,
+          "kind": "printed",
+          "label": "Drawer runner (south half)"
+        },
+        {
+          "key": "hex-main-stack-collar",
+          "qty": 2,
+          "kind": "printed",
+          "label": "Stacking collar"
+        },
+        {
+          "key": "hex-stack-double-snap",
+          "qty": 12,
+          "kind": "printed",
+          "label": "Double snap, stacking"
+        },
+        {
+          "key": "iso10642-m3x10",
+          "qty": 10,
+          "kind": "stock",
+          "label": "M3 x 10 countersunk screw, ISO 10642"
+        },
+        {
+          "key": "iso4032-m6",
+          "qty": 12,
+          "kind": "stock",
+          "label": "M6 hex nut, ISO 4032"
+        },
+        {
+          "key": "iso4762-m3x10",
+          "qty": 2,
+          "kind": "stock",
+          "label": "M3 x 10 socket head screw, ISO 4762"
+        },
+        {
+          "key": "iso4762-m6x20",
+          "qty": 8,
+          "kind": "stock",
+          "label": "M6 x 20 socket head screw, ISO 4762"
+        },
+        {
+          "key": "iso4762-m6x25",
+          "qty": 4,
+          "kind": "stock",
+          "label": "M6 x 25 socket head screw, ISO 4762"
+        }
+      ],
+      "printedInstances": 27,
+      "maxPackInstances": 1000,
+      "notes": [
+        "Tighten every M6 to 2 N.m: HAND TOOLS ONLY, never a cordless driver. These bolts clamp printed PETG, not metal: at the bolt's own 10.4 N.m rating the head crushes the plastic under it and the joint fails silently, looking tight while holding nothing. Snug, then a nudge. Re-check the bolts after the first few weeks: PETG relaxes under load and the clamp will have eased."
+      ],
+      "cuts": [],
+      "pack": {
+        "url": "https://academy.onethousanddrones.com/api/printable-pack?release=2026-10-14&parts=hex-drawer-body-s:2,hex-drawer-frame-s:2,hex-drawer-lid-s:2,hex-drawer-runner-s:2,hex-half-n:2,hex-main:3,hex-main-stack-collar:2,hex-stack-double-snap:12&plate=220x220",
+        "format": "3mf",
+        "bed": {
+          "x": 220,
+          "y": 220
+        },
+        "bedZ": 250,
+        "why": null
+      }
+    },
+    "fragment": "v2s=pZDNCsIwEITfZXrdQuoxR19Dcgg1pdGwqUlaD6U-u9hfUJSCtxn4dnZ2e3SQBSFC9misKU2EPPW4QeYFIUAKgjOdcaPqdLCaEyRq7aqcMdDIil9o1Tq3gH9kFt8y38HDJ6gIkXWz3ra7744Sr-zGXsfHKULpOxMWPa1UBMvRhDSbWvPZbTyzKZNfZkLLi7JxTToHfZ8MRJYXJLKyTY8Igsg2pwgXbzkdvUszK0hkAmoYng",
+    "roundTrip": {
+      "loaded": {
+        "ok": true
+      },
+      "nodes": [
+        10,
+        10
+      ],
+      "familiesMatch": true,
+      "bomMatch": true
+    },
+    "shareUrl": "https://hex.onethousanddrones.com/#v2s=pZDNCsIwEITfZXrdQuoxR19Dcgg1pdGwqUlaD6U-u9hfUJSCtxn4dnZ2e3SQBSFC9misKU2EPPW4QeYFIUAKgjOdcaPqdLCaEyRq7aqcMdDIil9o1Tq3gH9kFt8y38HDJ6gIkXWz3ra7744Sr-zGXsfHKULpOxMWPa1UBMvRhDSbWvPZbTyzKZNfZkLLi7JxTToHfZ8MRJYXJLKyTY8Igsg2pwgXbzkdvUszK0hkAmoYng"
+  },
+  "briefChecks": {
+    "pass": true,
+    "results": [
+      {
+        "expect": {
+          "family": "drawer",
+          "min": 2
+        },
+        "saw": 2,
+        "pass": true
+      },
+      {
+        "expect": {
+          "reportsUnmet": true
+        },
+        "saw": 2,
+        "pass": true
+      }
+    ]
+  },
+  "events": [
+    {
+      "t": 2288,
+      "type": "model",
+      "turn": 0,
+      "responseId": "msg_011CgSzPg99ndmFQF8pSNRnZ",
+      "servedBy": "claude-opus-5-5",
+      "calls": [
+        {
+          "name": "get_build",
+          "arguments": "{}"
+        },
+        {
+          "name": "find_parts",
+          "arguments": "{\"family\":\"piece\"}"
+        }
+      ],
+      "usage": {
+        "inputTokens": 2277,
+        "cachedInputTokens": 2273,
+        "cacheWriteTokens": 0,
+        "outputTokens": 141
+      }
+    },
+    {
+      "t": 2295,
+      "type": "tool",
+      "name": "get_build",
+      "result": {
+        "nodes": [
+          {
+            "ref": "piece:0,0,0;full",
+            "family": "piece",
+            "at": {
+              "q": 0,
+              "r": 0,
+              "level": 0
+            },
+            "stem": null
+          }
+        ],
+        "total": 1,
+        "counts": {
+          "piece": 1
+        }
+      }
+    },
+    {
+      "t": 2410,
+      "type": "tool",
+      "name": "find_parts",
+      "result": {
+        "total": 9,
+        "parts": [
+          {
+            "value": "full",
+            "op": "place",
+            "field": "variant",
+            "family": "piece",
+            "name": "Hex base · Full",
+            "use": "The block everything else hangs off. Set one down where you want structure, close its faces with covers, finish any edge that has no neighbor with a cap, and...",
+            "boxMm": {
+              "x": 190.762,
+              "y": 169.205,
+              "z": 80
+            },
+            "released": true
+          },
+          {
+            "value": "half-n",
+            "op": "place",
+            "field": "variant",
+            "family": "piece",
+            "name": "Hex base · North half",
+            "use": "The block everything else hangs off. Set one down where you want structure, close its faces with covers, finish any edge that has no neighbor with a cap, and...",
+            "boxMm": {
+              "x": 190.772,
+              "y": 85.96,
+              "z": 80
+            },
+            "released": true
+          },
+          {
+            "value": "half-s",
+            "op": "place",
+            "field": "variant",
+            "family": "piece",
+            "name": "Hex base · South half",
+            "use": "The block everything else hangs off. Set one down where you want structure, close its faces with covers, finish any edge that has no neighbor with a cap, and...",
+            "boxMm": {
+              "x": 176.003,
+              "y": 86.444,
+              "z": 80
+            },
+            "released": true
+          },
+          {
+            "value": "half-e",
+            "op": "place",
+            "field": "variant",
+            "family": "piece",
+            "name": "Hex base · East half",
+            "use": "The block everything else hangs off. Set one down where you want structure, close its faces with covers, finish any edge that has no neighbor with a cap, and...",
+            "boxMm": {
+              "x": 99.258,
+              "y": 169.205,
+              "z": 80
+            },
+            "released": true
+          },
+          {
+            "value": "half-w",
+            "op": "place",
+            "field": "variant",
+            "family": "piece",
+            "name": "Hex base · West half",
+            "use": "The block everything else hangs off. Set one down where you want structure, close its faces with covers, finish any edge that has no neighbor with a cap, and...",
+            "boxMm": {
+              "x": 95.256,
+              "y": 169.205,
+              "z": 80
+            },
+            "released": true
+          },
+          {
+            "value": "quarter-nw",
+            "op": "place",
+            "field": "variant",
+            "family": "piece",
+            "name": "Hex base · Northwest quarter",
+            "use": "The block everything else hangs off. Set one down where you want structure, close its faces with covers, finish any edge that has no neighbor with a cap, and...",
+            "boxMm": {
+              "x": 95.259,
+              "y": 86.203,
+              "z": 80
+            },
+            "released": true
+          },
+          {
+            "value": "quarter-ne",
+            "op": "place",
+            "field": "variant",
+            "family": "piece",
+            "name": "Hex base · Northeast quarter",
+            "use": "The block everything else hangs off. Set one down where you want structure, close its faces with covers, finish any edge that has no neighbor with a cap, and...",
+            "boxMm": {
+              "x": 99.261,
+              "y": 86.203,
+              "z": 80
+            },
+            "released": true
+          },
+          {
+            "value": "quarter-sw",
+            "op": "place",
+            "field": "variant",
+            "family": "piece",
+            "name": "Hex base · Southwest quarter",
+            "use": "The block everything else hangs off. Set one down where you want structure, close its faces with covers, finish any edge that has no neighbor with a cap, and...",
+            "boxMm": {
+              "x": 87.492,
+              "y": 86.444,
+              "z": 80
+            },
+            "released": true
+          },
+          {
+            "value": "quarter-se",
+            "op": "place",
+            "field": "variant",
+            "family": "piece",
+            "name": "Hex base · Southeast quarter",
+            "use": "The block everything else hangs off. Set one down where you want structure, close its faces with covers, finish any edge that has no neighbor with a cap, and...",
+            "boxMm": {
+              "x": 91.493,
+              "y": 86.444,
+              "z": 80
+            },
+            "released": true
+          }
+        ]
+      }
+    },
+    {
+      "t": 4388,
+      "type": "model",
+      "turn": 1,
+      "responseId": "msg_011CgSzPr8RatbFv1pUxXGSK",
+      "servedBy": "claude-opus-5-5",
+      "calls": [
+        {
+          "name": "find_sockets",
+          "arguments": "{\"family\":\"piece\"}"
+        },
+        {
+          "name": "find_sockets",
+          "arguments": "{\"family\":\"drawer\"}"
+        }
+      ],
+      "usage": {
+        "inputTokens": 3651,
+        "cachedInputTokens": 2273,
+        "cacheWriteTokens": 1376,
+        "outputTokens": 135
+      }
+    },
+    {
+      "t": 4394,
+      "type": "tool",
+      "name": "find_sockets",
+      "result": {
+        "total": 7,
+        "sockets": [
+          {
+            "socket": "s1",
+            "at": {
+              "q": -1,
+              "r": 0,
+              "level": 0
+            },
+            "slot": null,
+            "op": {
+              "op": "place",
+              "at": {
+                "q": -1,
+                "r": 0,
+                "level": 0
+              },
+              "variant": "full"
+            }
+          },
+          {
+            "socket": "s2",
+            "at": {
+              "q": -1,
+              "r": 1,
+              "level": 0
+            },
+            "slot": null,
+            "op": {
+              "op": "place",
+              "at": {
+                "q": -1,
+                "r": 1,
+                "level": 0
+              },
+              "variant": "full"
+            }
+          },
+          {
+            "socket": "s3",
+            "at": {
+              "q": 0,
+              "r": -1,
+              "level": 0
+            },
+            "slot": null,
+            "op": {
+              "op": "place",
+              "at": {
+                "q": 0,
+                "r": -1,
+                "level": 0
+              },
+              "variant": "full"
+            }
+          },
+          {
+            "socket": "s4",
+            "at": {
+              "q": 0,
+              "r": 1,
+              "level": 0
+            },
+            "slot": null,
+            "op": {
+              "op": "place",
+              "at": {
+                "q": 0,
+                "r": 1,
+                "level": 0
+              },
+              "variant": "full"
+            }
+          },
+          {
+            "socket": "s5",
+            "at": {
+              "q": 1,
+              "r": -1,
+              "level": 0
+            },
+            "slot": null,
+            "op": {
+              "op": "place",
+              "at": {
+                "q": 1,
+                "r": -1,
+                "level": 0
+              },
+              "variant": "full"
+            }
+          },
+          {
+            "socket": "s6",
+            "at": {
+              "q": 1,
+              "r": 0,
+              "level": 0
+            },
+            "slot": null,
+            "op": {
+              "op": "place",
+              "at": {
+                "q": 1,
+                "r": 0,
+                "level": 0
+              },
+              "variant": "full"
+            }
+          },
+          {
+            "socket": "s7",
+            "at": {
+              "q": 0,
+              "r": 0,
+              "level": 1
+            },
+            "slot": null,
+            "op": {
+              "op": "place",
+              "at": {
+                "q": 0,
+                "r": 0,
+                "level": 1
+              },
+              "variant": "full"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "t": 4396,
+      "type": "tool",
+      "name": "find_sockets",
+      "result": {
+        "total": 0,
+        "sockets": []
+      }
+    },
+    {
+      "t": 7663,
+      "type": "model",
+      "turn": 2,
+      "responseId": "msg_011CgSzPzbAY2ibSGuSFRqYU",
+      "servedBy": "claude-opus-5-5",
+      "calls": [
+        {
+          "name": "apply",
+          "arguments": "{\"ops\":[{\"op\":\"place\",\"at\":{\"q\":1,\"r\":0,\"level\":0},\"variant\":\"half-n\"},{\"op\":\"place\",\"at\":{\"q\":-1,\"r\":0,\"level\":0},\"variant\":\"half-n\"},{\"op\":\"place\",\"at\":{\"q\":0,\"r\":0,\"level\":1},\"variant\":\"full\"},{\"op\":\"place\",\"at\":{\"q\":0,\"r\":0,\"level\":2},\"variant\":\"full\"}]}"
+        }
+      ],
+      "usage": {
+        "inputTokens": 4372,
+        "cachedInputTokens": 3649,
+        "cacheWriteTokens": 721,
+        "outputTokens": 321
+      }
+    },
+    {
+      "t": 7832,
+      "type": "apply",
+      "ops": [
+        {
+          "op": "place",
+          "at": {
+            "q": 1,
+            "r": 0,
+            "level": 0
+          },
+          "variant": "half-n"
+        },
+        {
+          "op": "place",
+          "at": {
+            "q": -1,
+            "r": 0,
+            "level": 0
+          },
+          "variant": "half-n"
+        },
+        {
+          "op": "place",
+          "at": {
+            "q": 0,
+            "r": 0,
+            "level": 1
+          },
+          "variant": "full"
+        },
+        {
+          "op": "place",
+          "at": {
+            "q": 0,
+            "r": 0,
+            "level": 2
+          },
+          "variant": "full"
+        }
+      ],
+      "outcomes": [
+        {
+          "ok": true,
+          "op": {
+            "op": "place",
+            "at": {
+              "q": 1,
+              "r": 0,
+              "level": 0
+            },
+            "variant": "half-n"
+          },
+          "added": [
+            "piece:1,0,0;half-n"
+          ],
+          "removed": [],
+          "warnings": [
+            {
+              "severity": "warning",
+              "code": "LOOSE_BODY",
+              "refs": [
+                "piece:1,0,0;half-n"
+              ],
+              "message": "1 part(s) could slide apart (1 piece(s)); joint bolts lock them."
+            }
+          ]
+        },
+        {
+          "ok": true,
+          "op": {
+            "op": "place",
+            "at": {
+              "q": -1,
+              "r": 0,
+              "level": 0
+            },
+            "variant": "half-n"
+          },
+          "added": [
+            "piece:-1,0,0;half-n"
+          ],
+          "removed": [],
+          "warnings": []
+        },
+        {
+          "ok": true,
+          "op": {
+            "op": "place",
+            "at": {
+              "q": 0,
+              "r": 0,
+              "level": 1
+            },
+            "variant": "full"
+          },
+          "added": [
+            "piece:0,0,1;full",
+            "snap:0,0,0;full"
+          ],
+          "removed": [],
+          "warnings": []
+        },
+        {
+          "ok": true,
+          "op": {
+            "op": "place",
+            "at": {
+              "q": 0,
+              "r": 0,
+              "level": 2
+            },
+            "variant": "full"
+          },
+          "added": [
+            "piece:0,0,2;full",
+            "snap:0,0,1;full"
+          ],
+          "removed": [],
+          "warnings": []
+        }
+      ],
+      "rolledBack": false
+    },
+    {
+      "t": 7832,
+      "type": "tool",
+      "name": "apply",
+      "result": {
+        "rolledBack": false,
+        "outcomes": [
+          {
+            "ok": true,
+            "op": "place",
+            "added": [
+              "piece:1,0,0;half-n"
+            ],
+            "removed": [],
+            "warnings": [
+              "LOOSE_BODY"
+            ]
+          },
+          {
+            "ok": true,
+            "op": "place",
+            "added": [
+              "piece:-1,0,0;half-n"
+            ],
+            "removed": [],
+            "warnings": []
+          },
+          {
+            "ok": true,
+            "op": "place",
+            "added": [
+              "piece:0,0,1;full",
+              "snap:0,0,0;full"
+            ],
+            "removed": [],
+            "warnings": []
+          },
+          {
+            "ok": true,
+            "op": "place",
+            "added": [
+              "piece:0,0,2;full",
+              "snap:0,0,1;full"
+            ],
+            "removed": [],
+            "warnings": []
+          }
+        ]
+      }
+    },
+    {
+      "t": 9514,
+      "type": "model",
+      "turn": 3,
+      "responseId": "msg_011CgSzQFFDuvn4CQExcXfR9",
+      "servedBy": "claude-opus-5-5",
+      "calls": [
+        {
+          "name": "find_sockets",
+          "arguments": "{\"family\":\"drawer\"}"
+        },
+        {
+          "name": "find_sockets",
+          "arguments": "{\"family\":\"jointBolt\"}"
+        }
+      ],
+      "usage": {
+        "inputTokens": 4944,
+        "cachedInputTokens": 4370,
+        "cacheWriteTokens": 572,
+        "outputTokens": 101
+      }
+    },
+    {
+      "t": 9521,
+      "type": "tool",
+      "name": "find_sockets",
+      "result": {
+        "total": 2,
+        "sockets": [
+          {
+            "socket": "s8",
+            "at": {
+              "q": -1,
+              "r": 0,
+              "level": 0
+            },
+            "slot": "s",
+            "op": {
+              "op": "addDrawer",
+              "at": {
+                "q": -1,
+                "r": 0,
+                "level": 0
+              },
+              "key": "s"
+            }
+          },
+          {
+            "socket": "s9",
+            "at": {
+              "q": 1,
+              "r": 0,
+              "level": 0
+            },
+            "slot": "s",
+            "op": {
+              "op": "addDrawer",
+              "at": {
+                "q": 1,
+                "r": 0,
+                "level": 0
+              },
+              "key": "s"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "t": 9525,
+      "type": "tool",
+      "name": "find_sockets",
+      "result": {
+        "total": 2,
+        "sockets": [
+          {
+            "socket": "s10",
+            "at": {
+              "q": 0,
+              "r": 0,
+              "level": 0
+            },
+            "slot": "0",
+            "op": {
+              "op": "addJointBolt",
+              "at": {
+                "q": 0,
+                "r": 0,
+                "level": 0
+              },
+              "slot": 0
+            }
+          },
+          {
+            "socket": "s11",
+            "at": {
+              "q": 1,
+              "r": 0,
+              "level": 0
+            },
+            "slot": "3",
+            "op": {
+              "op": "addJointBolt",
+              "at": {
+                "q": 1,
+                "r": 0,
+                "level": 0
+              },
+              "slot": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "t": 11789,
+      "type": "model",
+      "turn": 4,
+      "responseId": "msg_011CgSzQNVHyADmNmHLkdBef",
+      "servedBy": "claude-opus-5-5",
+      "calls": [
+        {
+          "name": "apply",
+          "arguments": "{\"ops\":[{\"socket\":\"s8\"},{\"socket\":\"s9\"},{\"socket\":\"s10\"}]}"
+        }
+      ],
+      "usage": {
+        "inputTokens": 5427,
+        "cachedInputTokens": 4942,
+        "cacheWriteTokens": 483,
+        "outputTokens": 157
+      }
+    },
+    {
+      "t": 13368,
+      "type": "apply",
+      "ops": [
+        {
+          "op": "addDrawer",
+          "at": {
+            "q": -1,
+            "r": 0,
+            "level": 0
+          },
+          "key": "s"
+        },
+        {
+          "op": "addDrawer",
+          "at": {
+            "q": 1,
+            "r": 0,
+            "level": 0
+          },
+          "key": "s"
+        },
+        {
+          "op": "addJointBolt",
+          "at": {
+            "q": 0,
+            "r": 0,
+            "level": 0
+          },
+          "slot": 0
+        }
+      ],
+      "outcomes": [
+        {
+          "ok": true,
+          "op": {
+            "op": "addDrawer",
+            "at": {
+              "q": -1,
+              "r": 0,
+              "level": 0
+            },
+            "key": "s"
+          },
+          "added": [
+            "drawer:0#-1,0#cut"
+          ],
+          "removed": [],
+          "warnings": []
+        },
+        {
+          "ok": true,
+          "op": {
+            "op": "addDrawer",
+            "at": {
+              "q": 1,
+              "r": 0,
+              "level": 0
+            },
+            "key": "s"
+          },
+          "added": [
+            "drawer:0#1,0#cut"
+          ],
+          "removed": [],
+          "warnings": []
+        },
+        {
+          "ok": true,
+          "op": {
+            "op": "addJointBolt",
+            "at": {
+              "q": 0,
+              "r": 0,
+              "level": 0
+            },
+            "slot": 0
+          },
+          "added": [
+            "jointBolt:0#0,0#0"
+          ],
+          "removed": [],
+          "warnings": []
+        }
+      ],
+      "rolledBack": false
+    },
+    {
+      "t": 13368,
+      "type": "tool",
+      "name": "apply",
+      "result": {
+        "rolledBack": false,
+        "outcomes": [
+          {
+            "ok": true,
+            "op": "addDrawer",
+            "added": [
+              "drawer:0#-1,0#cut"
+            ],
+            "removed": [],
+            "warnings": []
+          },
+          {
+            "ok": true,
+            "op": "addDrawer",
+            "added": [
+              "drawer:0#1,0#cut"
+            ],
+            "removed": [],
+            "warnings": []
+          },
+          {
+            "ok": true,
+            "op": "addJointBolt",
+            "added": [
+              "jointBolt:0#0,0#0"
+            ],
+            "removed": [],
+            "warnings": []
+          }
+        ]
+      }
+    },
+    {
+      "t": 14943,
+      "type": "model",
+      "turn": 5,
+      "responseId": "msg_011CgSzQevW2ecgzHVpkDNKF",
+      "servedBy": "claude-opus-5-5",
+      "calls": [
+        {
+          "name": "find_sockets",
+          "arguments": "{\"family\":\"jointBolt\"}"
+        },
+        {
+          "name": "check_build",
+          "arguments": "{}"
+        }
+      ],
+      "usage": {
+        "inputTokens": 5755,
+        "cachedInputTokens": 5425,
+        "cacheWriteTokens": 328,
+        "outputTokens": 76
+      }
+    },
+    {
+      "t": 14944,
+      "type": "tool",
+      "name": "find_sockets",
+      "result": {
+        "total": 0,
+        "sockets": []
+      }
+    },
+    {
+      "t": 14954,
+      "type": "tool",
+      "name": "check_build",
+      "result": {
+        "ok": true,
+        "meshClash": "clear",
+        "issues": [
+          {
+            "severity": "info",
+            "code": "OPEN_CAP_FACE",
+            "refs": [],
+            "message": "22 face(s) could take a cap: 0,0,0;*;30 0,0,0;*;90 0,0,0;*;150 0,0,0;*;210 0,0,0;*;270 1,0,0;*;30 1,0,0;*;90 -1,0,0;*;30 -1,0,0;*;90 -1,0,0;*;150 0,0,1;*;330 0,0,1;*;30 …"
+          }
+        ],
+        "note": "ok covers rule errors only. meshClash must read \"clear\" for the meshes to be checked and clear."
+      }
+    },
+    {
+      "t": 22018,
+      "type": "model",
+      "turn": 6,
+      "responseId": "msg_011CgSzQmi39MTUyhYLMP4pV",
+      "servedBy": "claude-opus-5-5",
+      "calls": [
+        {
+          "name": "finish",
+          "arguments": "{\"requirements\":[{\"requirement\":\"Shelf unit for books\",\"status\":\"partial\",\"evidence\":\"A full hex base stacks three levels high (piece 0,0,0 / 0,0,1 / 0,0,2, joined by snaps), with half bases on each side at ground level. This gives tiers you can shelve on. I didn't add covers, caps or bins, and I didn't check that books of any size fit.\"},{\"requirement\":\"Rated to hold 50 kg of books\",\"status\":\"unmet\",\"evidence\":\"The configurator checks whether parts fit, not how strong they are. I can't check or claim any load rating, including 50 kg.\"},{\"requirement\":\"Two drawers\",\"status\":\"met\",\"evidence\":\"drawer:0#-1,0#cut and drawer:0#1,0#cut sit on the cut faces of the half bases piece:-1,0,0;half-n and piece:1,0,0;half-n.\"}],\"summary\":\"Build: three full hex bases stacked into a tower, with a north-half base on each side at ground level. Each half base holds one drawer, and a joint bolt (jointBolt:0#0,0#0) joins the centre to the right-hand half. The configurator offered no bolt for the left joint. check_build found no rule errors and no mesh clashes. It noted 22 open faces that could take caps. The two drawers are done. The 50 kg rating can't be confirmed because this tool only checks fit.\"}"
+        }
+      ],
+      "usage": {
+        "inputTokens": 6137,
+        "cachedInputTokens": 5753,
+        "cacheWriteTokens": 382,
+        "outputTokens": 628
+      }
+    },
+    {
+      "t": 22018,
+      "type": "tool",
+      "name": "finish",
+      "result": {
+        "ok": true
+      }
+    }
+  ]
+}

@@ -55,7 +55,7 @@ test('cost counts cache reads cheap and cache writes at 1.25x', () => {
 
 test('the full loop runs on the Claude adapter and replays thinking blocks unchanged', async () => {
   const seen = [];
-  const finish = { requirements: [], summary: 's' };
+  const finish = { requirements: [{ requirement: 'r', status: 'met', evidence: 'e' }], summary: 's' };
   const m = claudeModel({ client: fakeClient([toolTurn(1, 'get_build', {}), toolTurn(2, 'finish', finish)], seen) });
   const hex = { call: async () => ({ state: {}, nodes: [], staging: {} }) };
   const r = await runAgent({ hex, model: m, brief: 'x' });

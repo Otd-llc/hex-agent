@@ -66,6 +66,13 @@ configurator checks fit and collisions only.
   reason. Fill gaps the footprint leaves: two touching neighbours take a
   notch planter, three take a bay. *[catalog; owner on the film tables:
   "you're wasting space by not having bins"]*
+- **End caps on every open face, staggered, the tallest that fit.**
+  Neighbouring faces alternate where their seams fall (brickwork), and within
+  that each cap is as tall as it can be (2-storey caps over 1-storey): a
+  3-storey face is capped 2+1 or 1+2, a 2-storey face 2 or 1+1. It gives the
+  builds a futurist rhythm. Where every open face is one storey (a stepped
+  pyramid's bands), single caps are all that fit. *[owner R3: "Always the
+  tallest you can and always staggered when you can"]*
 - Populate the obvious faces; no wasted perimeter. *[owner on the film
   tables: "The obvious places to put bolt on bins and such aren't
   populated"]*

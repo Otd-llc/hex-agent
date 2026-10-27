@@ -45,6 +45,55 @@ async function gapPlanters(b) {
   b.log(`  notch planters: ${n}`);
 }
 
+// Owner rule (round 3): end caps on every open face, the tallest that fit,
+// staggered between neighbouring faces so the seams never line up. Faces
+// alternate round each cell by bearing (30, 90, 150 ... -> index 0..5): even
+// faces start with the tall cap, odd faces start one storey up, below a short
+// cap, so a column of height h is capped 2+2+...(+1) or 1+2+2+...(+1).
+const capPlan = (h, odd) => {
+  const out = [];
+  let level = 0;
+  if (odd && h >= 2) out.push({ level: level++, storeys: 1 });
+  while (level < h) {
+    const s = h - level >= 2 ? 2 : 1;
+    out.push({ level, storeys: s });
+    level += s;
+  }
+  return out;
+};
+async function staggeredCaps(b) {
+  const offers = await b.offers({ family: 'cap' });
+  const faces = new Map(); // "q,r,bearing" -> {q, r, face, bearing, levels:Set}
+  for (const o of offers) {
+    const k = `${o.at.q},${o.at.r},${o.op.bearingDeg}`;
+    const f = faces.get(k) ?? { q: o.at.q, r: o.at.r, face: o.op.face, bearing: o.op.bearingDeg, levels: new Set() };
+    f.levels.add(o.at.level);
+    faces.set(k, f);
+  }
+  let tall = 0;
+  let short = 0;
+  for (const f of faces.values()) {
+    const levels = [...f.levels].sort((a, z) => a - z);
+    const base = levels[0];
+    const h = levels.length; // contiguous open storeys on this face
+    const odd = (((f.bearing + 30) / 60) % 6) % 2 === 1;
+    for (const { level, storeys } of capPlan(h, odd)) {
+      const op = { op: 'addCap', at: at(f.q, f.r, base + level), face: f.face, bearingDeg: f.bearing, ...(storeys === 2 ? { storeys: 2 } : {}) };
+      let r = await b.hex.call('apply', op);
+      if (!r.ok && storeys === 2) {
+        // A tall cap that does not fit falls back to two short ones.
+        const a1 = await b.hex.call('apply', { ...op, storeys: undefined });
+        const a2 = await b.hex.call('apply', { ...op, at: at(f.q, f.r, base + level + 1), storeys: undefined });
+        short += (a1.ok ? 1 : 0) + (a2.ok ? 1 : 0);
+        continue;
+      }
+      if (r.ok) storeys === 2 ? tall++ : short++;
+    }
+  }
+  await b.hex.call('settle');
+  b.log(`  staggered caps: ${tall} tall + ${short} short on ${faces.size} faces`);
+}
+
 async function lock(b) {
   await b.fillOffers({ family: 'jointBolt' }, () => true, { label: 'joint bolts' });
 }
@@ -86,6 +135,7 @@ export const CONFIGS = [
       await planters(b, cols);
       await gapPlanters(b);
       await lock(b);
+      await staggeredCaps(b);
       let k = 0;
       await plantAll(b, (n) => {
         if (n.family !== 'bin') return k++ % 3 === 2 ? 'alyssum-young' : 'strawberry-young';
@@ -108,6 +158,7 @@ export const CONFIGS = [
       await columns(b, cols);
       await planters(b, cols);
       await lock(b);
+      await staggeredCaps(b);
       const rows = { '-1': ['kale-harvest', 'lettuce-oakleaf-harvest', 'bokchoy-harvest'], 0: ['lettuce-oakleaf-young', 'bokchoy-young', 'lettuce-romaine-young'], 1: ['lettuce-butterhead-young', 'spinach-young', 'microgreens-harvest'] };
       const used = { '-1': 0, 0: 0, 1: 0 };
       await plantAll(b, (n) => rows[n.at.r][used[n.at.r]++ % 3]);
@@ -124,6 +175,7 @@ export const CONFIGS = [
       await columns(b, [...back, ...front]);
       await planters(b, [...back, ...front]);
       await lock(b);
+      await staggeredCaps(b);
       const pick = { '-1': ['tomato-micro-harvest', 'pepper-harvest', 'tomato-micro-harvest'], 0: ['basil-harvest', 'marigold-harvest', 'nasturtium-young'] };
       const used = { '-1': 0, 0: 0 };
       await plantAll(b, (n) => pick[n.at.r][used[n.at.r]++ % 3]);

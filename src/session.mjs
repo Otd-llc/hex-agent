@@ -34,7 +34,7 @@ export function modelFor({ modelId, purpose, effort = 'medium' }) {
   return { model: metaModel({ model: modelId, reasoningEffort: effort }), ledger: openLedger() };
 }
 
-export async function runSession({ brief, briefId = null, expect = null, model, ledger, purpose, headless = true, overlay = !headless, holdMs = 0, maxTurns = 30, maxUsd = 3, outRoot = 'runs', onEvent = () => {} }) {
+export async function runSession({ brief, briefId = null, expect = null, model, ledger, purpose, headless = true, overlay = !headless, holdMs = 0, strategy = 'interactive', maxTurns = 30, maxUsd = 3, outRoot = 'runs', onEvent = () => {} }) {
   const headroom = ledger.headroom(purpose);
   if (headroom <= 0) throw new Error(`no ${purpose} budget left: ${JSON.stringify(ledger.summary())}`);
   const runId = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`;
@@ -53,7 +53,7 @@ export async function runSession({ brief, briefId = null, expect = null, model, 
         pushLines(hex.page, linesFor(e), e.t / 1000);
       };
     }
-    result = await runAgent({ hex, model, brief, ledger, purpose, runId, budget: { maxTurns, maxUsd: Math.min(maxUsd, headroom) }, onEvent: events });
+    result = await runAgent({ hex, model, brief, ledger, purpose, runId, strategy, budget: { maxTurns, maxUsd: Math.min(maxUsd, headroom) }, onEvent: events });
     verdict = await verify({ hex, openFresh: () => hex.fresh(), finish: result.finish });
     state = await hex.call('getState');
     checks = expect ? checkBrief(expect, { state, verdict, finish: result.finish }) : null;
@@ -81,6 +81,7 @@ export async function runSession({ brief, briefId = null, expect = null, model, 
     runId,
     briefId,
     purpose,
+    strategy,
     inference: model.kind,
     provider: model.provider,
     model: model.model,

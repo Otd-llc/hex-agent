@@ -11,11 +11,13 @@ for (const p of process.argv.slice(2)) {
   const s = JSON.parse(readFileSync(p, 'utf8'));
   const re = join(dirname(p), 'rescore.json');
   const rows = existsSync(re) ? JSON.parse(readFileSync(re, 'utf8')).rows.map((r) => ({ id: r.id, pass: r.after })) : s.rows;
-  if (!models.includes(s.model)) models.push(s.model);
+  // One column per model and working method: strategy and effort shown when not the default.
+  const label = [s.model.replace(/^meta-models\//, ''), s.strategy && s.strategy !== 'interactive' ? s.strategy : '', s.effort && s.effort !== 'medium' ? `effort ${s.effort}` : ''].filter(Boolean).join(' · ');
+  if (!models.includes(label)) models.push(label);
   for (const r of rows) {
     const m = table.get(r.id) ?? new Map();
-    const [ok, n] = m.get(s.model) ?? [0, 0];
-    m.set(s.model, [ok + (r.pass ? 1 : 0), n + 1]);
+    const [ok, n] = m.get(label) ?? [0, 0];
+    m.set(label, [ok + (r.pass ? 1 : 0), n + 1]);
     table.set(r.id, m);
   }
 }

@@ -21,7 +21,17 @@ const WRAP_UP = (n) =>
   `${n} turns left. Stop starting new work: run check_build, then call finish with an honest status for every requirement. Anything you could not do is "unmet", with the reason.`;
 const OUT_OF_TURNS = 'You are out of turns. Call finish now: say for each requirement whether the build meets it, and report anything not done as unmet with the reason.';
 
-export async function runAgent({ hex, model, brief, budget = {}, ledger = null, purpose = 'dev', runId = null, onEvent = () => {} }) {
+// Strategy ablation: same tools and checks, different working method.
+export const STRATEGIES = {
+  interactive: '',
+  plan: `
+
+Working method for this session: plan, then batch. First survey with get_build, find_parts and find_sockets until you can write the whole build as a list of ops. Then apply it in as few apply calls as you can (whole stages at once, atomic). Only when a batch is refused, read the refusal, revise that part of the plan and apply again. Do not place parts one at a time.`,
+};
+
+export async function runAgent({ hex, model, brief, budget = {}, ledger = null, purpose = 'dev', runId = null, strategy = 'interactive', onEvent = () => {} }) {
+  if (!(strategy in STRATEGIES)) throw new Error(`unknown strategy ${strategy}: ${Object.keys(STRATEGIES).join(', ')}`);
+  const instructions = INSTRUCTIONS + STRATEGIES[strategy];
   const maxTurns = budget.maxTurns ?? 30;
   const maxMs = budget.maxMs ?? 10 * 60_000;
   const maxUsd = budget.maxUsd ?? 2.0;
@@ -43,7 +53,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     let res = null;
     for (let attempt = 0; ; attempt++) {
       try {
-        res = await model.next({ instructions: INSTRUCTIONS, items, tools: toolSpecs });
+        res = await model.next({ instructions, items, tools: toolSpecs });
         break;
       } catch (e) {
         const message = String(e.message ?? e).slice(0, 300);

@@ -21,6 +21,7 @@ const flag = (name, dflt) => {
 const purpose = flag('purpose', 'dev');
 const modelId = flag('model', purpose === 'dev' ? 'muse-spark-1.3' : 'muse-wonder-1.0');
 const repeat = Number(flag('repeat', 1));
+const strategy = flag('strategy', 'interactive');
 const only = flag('only', null)?.split(',');
 const briefs = JSON.parse(readFileSync(flag('briefs', 'evals/briefs.json'), 'utf8')).filter((b) => !only || only.includes(b.id));
 
@@ -28,7 +29,7 @@ const { model, ledger } = modelFor({ modelId, purpose, effort: flag('effort', 'm
 const suiteId = `suite-${new Date().toISOString().replace(/[:.]/g, '-')}`;
 const root = `runs/${suiteId}`;
 mkdirSync(root, { recursive: true });
-console.log(`${suiteId}: ${briefs.length} briefs x ${repeat}, ${model.provider}/${model.model}, ${purpose}`);
+console.log(`${suiteId}: ${briefs.length} briefs x ${repeat}, ${model.provider}/${model.model}, ${purpose}, strategy ${strategy}, effort ${flag('effort', 'medium')}`);
 
 const rows = [];
 const concurrency = Math.max(1, Number(flag('concurrency', 1)));
@@ -38,7 +39,7 @@ const started = Date.now();
 async function runJob({ b, attempt }) {
   let row;
   try {
-    const { trace } = await runSession({ brief: b.brief, briefId: b.id, expect: b.expect, model, ledger, purpose, outRoot: root });
+    const { trace } = await runSession({ brief: b.brief, briefId: b.id, expect: b.expect, model, ledger, purpose, strategy, outRoot: root });
     const c = trace.verdict.checks;
     const configurator = ['agentFinished', 'rules', 'mesh', 'printPack', 'roundTrip'].every((k2) => c[k2] === 'pass');
     const over = overclaimed(trace);
@@ -66,7 +67,7 @@ async function runJob({ b, attempt }) {
   rows.push(row);
   console.log(`${row.pass ? 'PASS' : 'FAIL'} ${row.id}#${row.attempt} ${row.error ?? `parts=${row.parts} refusals=${JSON.stringify(row.refusals)} calls=${row.calls} ${row.seconds}s $${row.costUsd}${row.overclaimed ? ' OVERCLAIMED' : ''}${row.forcedFinish ? ' FORCED-FINISH' : ''}${row.claimed?.some((c) => c !== 'met') ? ` claims=${row.claimed.join('/')}` : ''} ${row.briefChecks.filter((x) => x.startsWith('FAIL')).join(' ')}`}`);
   rows.sort((x, y) => jobs.findIndex((j) => j.b.id === x.id && j.attempt === x.attempt) - jobs.findIndex((j) => j.b.id === y.id && j.attempt === y.attempt));
-  writeFileSync(`${root}/summary.json`, JSON.stringify({ suiteId, provider: model.provider, model: model.model, purpose, concurrency, rows }, null, 2) + '\n');
+  writeFileSync(`${root}/summary.json`, JSON.stringify({ suiteId, provider: model.provider, model: model.model, purpose, strategy, effort: flag('effort', 'medium'), concurrency, rows }, null, 2) + '\n');
 }
 
 // N workers pull from one queue; each run has its own browser.

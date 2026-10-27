@@ -3,7 +3,7 @@
 // live build, and socket ids map back to the exact op the configurator offered.
 // The model never gets load(), so it cannot replace the build.
 
-// Fields each op takes, from the public contract (hex-api.d.ts, hash 9bb662c8…):
+// Fields each op takes, from the public contract (hex-api.d.ts, hash 202cf501…, unchanged from 9bb662c8…):
 // [required, optional]. Checked before anything reaches the page.
 const OP_FIELDS = {
   place: [['at', 'variant'], ['storeys']],
@@ -48,7 +48,7 @@ const NO_OFFERS =
 const STREAK_LIMIT = 6;
 
 // The value lists the public contract publishes (its `values` table, hash
-// 9bb662c8…): the only names the configurator places for these fields.
+// 202cf501…, unchanged since 9bb662c8…): the only names the configurator places for these fields.
 export const VALUES = {
   variant: ['full', 'half-n', 'half-s', 'half-e', 'half-w', 'quarter-nw', 'quarter-ne', 'quarter-sw', 'quarter-se'],
   coverType: ['plain', 'solid', 'grate', 'pill', 'radial', 'pvc', 'bolt', 'cable', 'grate-pvc', 'pill-pvc', 'radial-pvc', 'socket'],
@@ -130,8 +130,9 @@ export const TOOL_SPECS = [
       'A joint bolt is offered from both cells of a wall: the bolt heads sit on the side you place from, and placing one fills the wall. ' +
       'Drawers (family drawer) sit on the cut face of a half base. Notch drawers (family notch) stand in an empty spot beside two bases ' +
       'that touch each other; a bay needs three; bases in a straight line or a cell apart offer none. ' +
-      'A pipe run passing sideways through a cell leaves room only for third-depth bins there (full and half-depth trays reach the pipe, ' +
-      'and the configurator refuses them only at the mesh check); -pvc bins are for a vertical riser through the floor. ' +
+      'A pipe run passing sideways through a cell leaves room only for third-depth bins there: deeper trays are refused ' +
+      'PIPE_THROUGH_CELL, and a run is refused ROUTE_BIN_IN_WAY where a deep bin already sits, so lay the run first or use ' +
+      'third-depth bins on its path; -pvc bins are for a vertical riser through the floor. ' +
       'A handle needs a cover on its face; spikes stand where three cells meet.',
     parameters: obj(
       {

@@ -14,7 +14,9 @@ Work like an engineer:
 5. Run check_build before you finish. Fix error issues. A meshClash other than "clear" means the build is not verified.
 6. Call finish with an honest status for every requirement.
 
-Rules: cells are axial {q, r, level}. Never invent a ref. Keep builds modest (under about 40 parts) unless the brief needs more. This checks fit, not strength: do not claim load ratings.`;
+Rules: cells are axial {q, r, level}. Never invent a ref. Keep builds modest (under about 40 parts) unless the brief needs more. This checks fit, not strength: do not claim load ratings.
+
+Claim only what the build shows. If a requirement could only be met by breaking a rule the configurator enforces, it is unmet: a nearby layout the configurator accepts is a different thing, so say what you built instead and mark the requirement unmet or partial.`;
 
 const WRAP_TURNS = 4;
 const WRAP_UP = (n) =>

@@ -35,6 +35,22 @@ results in each suite's `rescore.json`, two flips read by hand and confirmed:
 | Haiku 5.5, 8 hard ×5 | 31/40 | **33/40** |
 | Opus 5.5, 12 briefs ×3 | 35/36 | **36/36** |
 
+### F5 ruling (product triage, 2026-10-27): the same-corner "passes" were overclaims
+
+Both drawer+spike layouts Muse called "the same corner" were checked in the
+configurator source (`drawer.ts` spikeCornerInDrawer) and live: in each, the
+spike stands at a corner in a quarter the drawer does not fill, and a spike at
+a corner the drawer does fill is refused `SPIKE_CLASH` (positive control). No
+rule gap; the brief cannot be built, so "unmet" is the only honest answer and
+the suite's OVERCLAIMED flags on those runs stand. Change made after the
+ruling: the instructions now say a requirement that would break an enforced
+rule is unmet, and a nearby accepted layout must be reported as what it is.
+
+Interrupted run: a low-effort interactive vs plan A/B (36 briefs ×5) was
+stopped after 58 runs so the F1+F2 viz deploy could go out; it restarts in
+full after the deploy so both arms run on the same site version
+(`runs/ablation2-muse.log`, first suite partial).
+
 ### Ablation: strategy and reasoning effort (Muse Spark Open, 20 briefs ×3 each, same code)
 
 | Variant | Pass | Calls/run | s/run | $/run | Overclaims |

@@ -54,6 +54,24 @@ briefs, and on reading the traces neither was a model failure:
 - After the fixes, Haiku ×5: vented-enclosure **5/5**, bay-bins **5/5** ($0.06 total;
   `runs/suite-2026-10-27T17-52-23-888Z`, `runs/suite-2026-10-27T17-54-16-542Z`).
 
+**Muse Spark Open (Meta open weights, via Baseten), 20 briefs ×3: 50/60**
+(`runs/suite-2026-10-27T17-46-15-256Z`, `runs/suite-2026-10-27T18-04-03-256Z`;
+$4.68; started before the find_parts and bay fixes, and still passed
+vented-enclosure and bay-bins 3/3). Read in the traces:
+
+- **8 of the 10 fails ran out of turns without calling finish** (impossible-five-drawers
+  0/3, pipe-planter 2, gap-drawer 1, two-storey-drawers 1, same-corner 1). Muse
+  keeps retrying where Claude concludes "unmet". Fixed in the loop: a wrap-up
+  note 4 turns before the limit, then one last call that can only finish,
+  marked `forcedFinish` in the trace.
+- same-corner-conflict: two runs claimed the drawer and spike share a corner.
+  Attempt 2 is a real overclaim (the notch at (1,1) does not reach the spike's
+  corner). Attempt 1 (half-s at (0,0), drawer key n, spike at
+  (0,0)|(0,1)|(1,0), both accepted) is either an overclaim or a SPIKE_CLASH
+  rule gap; sent to product triage as F5.
+
+Unlike the Claude comparison, these are model behaviours, not our checks.
+
 So far the data supports "if the cheap model passes, the capable one does",
 and shows the cheap model is the better detector of tool and brief problems.
 

@@ -95,6 +95,7 @@ export async function runSession({ brief, briefId = null, expect = null, model, 
     opsUsed: result.opsUsed,
     counters: result.counters,
     finish: result.finish,
+    forcedFinish: result.forcedFinish,
     verdict: { ...verdict, shareUrl: `${HEX_ORIGIN}/#${verdict.fragment}` },
     briefChecks: checks,
     // The final nodes (no opaque detail), so checks can be re-run on the trace later.

@@ -171,3 +171,23 @@ test('find_parts matches any word and ranks by how many match', async () => {
   const one = await t.run('find_parts', { text: 'louvre' });
   assert.deepEqual(one.parts.map((p) => p.value), ['hex-port-louvre']);
 });
+
+test('a model that keeps going is told 4 turns before the end, then can only finish', async () => {
+  const report = { requirements: [{ requirement: 'five drawers', status: 'unmet', evidence: 'a base takes at most two' }], summary: 's' };
+  const seenTools = [];
+  const model = {
+    kind: 'mock', provider: 'mock', model: 'scripted',
+    next: async ({ tools }) => {
+      seenTools.push(tools.map((t) => t.name));
+      const onlyFinish = tools.length === 1;
+      return { id: 'r', output: [], calls: [{ callId: `c${seenTools.length}`, name: onlyFinish ? 'finish' : 'get_build', arguments: onlyFinish ? JSON.stringify(report) : '{}' }], text: '', usage: { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 } };
+    },
+  };
+  const r = await runAgent({ hex: { call: async () => ({ nodes: [] }) }, model, brief: 'x', budget: { maxTurns: 6 } });
+  assert.equal(r.events.find((e) => e.type === 'budget_note').turn, 2);
+  assert.equal(seenTools.length, 7);
+  assert.deepEqual(seenTools[6], ['finish']);
+  assert.deepEqual(r.finish, report);
+  assert.equal(r.forcedFinish, true);
+  assert.equal(r.stop, null);
+});

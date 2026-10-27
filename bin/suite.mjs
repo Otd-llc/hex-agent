@@ -52,6 +52,7 @@ async function runJob({ b, attempt }) {
       overclaimed: over,
       claimed: trace.finish?.requirements?.map((r) => r.status) ?? null,
       stop: trace.stop,
+      forcedFinish: trace.forcedFinish ?? false,
       parts: trace.verdict.nodes,
       refusals: trace.counters.refusalCodes,
       calls: trace.usage.calls,
@@ -63,7 +64,7 @@ async function runJob({ b, attempt }) {
     row = { id: b.id, attempt, pass: false, error: String(e.message ?? e).slice(0, 300) };
   }
   rows.push(row);
-  console.log(`${row.pass ? 'PASS' : 'FAIL'} ${row.id}#${row.attempt} ${row.error ?? `parts=${row.parts} refusals=${JSON.stringify(row.refusals)} calls=${row.calls} ${row.seconds}s $${row.costUsd}${row.overclaimed ? ' OVERCLAIMED' : ''}${row.claimed?.some((c) => c !== 'met') ? ` claims=${row.claimed.join('/')}` : ''} ${row.briefChecks.filter((x) => x.startsWith('FAIL')).join(' ')}`}`);
+  console.log(`${row.pass ? 'PASS' : 'FAIL'} ${row.id}#${row.attempt} ${row.error ?? `parts=${row.parts} refusals=${JSON.stringify(row.refusals)} calls=${row.calls} ${row.seconds}s $${row.costUsd}${row.overclaimed ? ' OVERCLAIMED' : ''}${row.forcedFinish ? ' FORCED-FINISH' : ''}${row.claimed?.some((c) => c !== 'met') ? ` claims=${row.claimed.join('/')}` : ''} ${row.briefChecks.filter((x) => x.startsWith('FAIL')).join(' ')}`}`);
   rows.sort((x, y) => jobs.findIndex((j) => j.b.id === x.id && j.attempt === x.attempt) - jobs.findIndex((j) => j.b.id === y.id && j.attempt === y.attempt));
   writeFileSync(`${root}/summary.json`, JSON.stringify({ suiteId, provider: model.provider, model: model.model, purpose, concurrency, rows }, null, 2) + '\n');
 }

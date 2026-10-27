@@ -16,6 +16,11 @@ Work like an engineer:
 
 Rules: cells are axial {q, r, level}. Never invent a ref. Keep builds modest (under about 40 parts) unless the brief needs more. This checks fit, not strength: do not claim load ratings.`;
 
+const WRAP_TURNS = 4;
+const WRAP_UP = (n) =>
+  `${n} turns left. Stop starting new work: run check_build, then call finish with an honest status for every requirement. Anything you could not do is "unmet", with the reason.`;
+const OUT_OF_TURNS = 'You are out of turns. Call finish now: say for each requirement whether the build meets it, and report anything not done as unmet with the reason.';
+
 export async function runAgent({ hex, model, brief, budget = {}, ledger = null, purpose = 'dev', runId = null, onEvent = () => {} }) {
   const maxTurns = budget.maxTurns ?? 30;
   const maxMs = budget.maxMs ?? 10 * 60_000;
@@ -33,26 +38,21 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
   let finish = null;
   let stop = null;
 
-  for (let turn = 0; turn < maxTurns && !finish; turn++) {
-    if (Date.now() - started > maxMs) { stop = 'time budget'; break; }
-    const spent = costUsd(model.model, usage);
-    if (spent != null && spent > maxUsd) { stop = 'cost budget'; break; }
-    if (ledger && ledger.headroom(purpose) <= 0) { stop = `${purpose} credit budget`; break; }
-
-    let res;
+  // One model call with retries for provider hiccups, and the bookkeeping.
+  async function callModel(turn, toolSpecs) {
+    let res = null;
     for (let attempt = 0; ; attempt++) {
       try {
-        res = await model.next({ instructions: INSTRUCTIONS, items, tools: TOOL_SPECS });
+        res = await model.next({ instructions: INSTRUCTIONS, items, tools: toolSpecs });
         break;
       } catch (e) {
         const message = String(e.message ?? e).slice(0, 300);
         const retry = transient(e) && attempt < RETRY_DELAYS_MS.length && Date.now() - started < maxMs;
         emit({ type: 'model_error', message, status: e.status ?? null, retrying: retry });
-        if (!retry) { stop = 'model error'; break; }
+        if (!retry) return null;
         await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
       }
     }
-    if (!res) break;
     usage.calls++;
     usage.inputTokens += res.usage.inputTokens;
     usage.outputTokens += res.usage.outputTokens;
@@ -62,12 +62,11 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
       ledger.add({ runId, purpose, provider: model.provider, model: model.model, ...res.usage, costUsd: costUsd(model.model, res.usage) });
     }
     emit({ type: 'model', turn, responseId: res.id, servedBy: res.servedBy ?? model.model, text: res.text || undefined, calls: res.calls.map((c) => ({ name: c.name, arguments: c.arguments })), usage: res.usage });
-
     items.push(...res.output);
-    if (res.calls.length === 0) {
-      items.push({ role: 'user', content: 'Continue with tools, or call finish.' });
-      continue;
-    }
+    return res;
+  }
+
+  async function runCalls(res, only = null) {
     for (const call of res.calls) {
       let result;
       if (call.name === 'finish') {
@@ -77,6 +76,8 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
           finish = parsed.finish;
           result = { ok: true };
         }
+      } else if (only && !only.includes(call.name)) {
+        result = { error: `only ${only.join(', ')} can be called now` };
       } else {
         result = await tools.run(call.name, call.arguments);
       }
@@ -84,10 +85,45 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
       items.push({ type: 'function_call_output', call_id: call.callId, output: JSON.stringify(result) });
     }
   }
+
+  let turn = 0;
+  for (; turn < maxTurns && !finish; turn++) {
+    if (Date.now() - started > maxMs) { stop = 'time budget'; break; }
+    const spent = costUsd(model.model, usage);
+    if (spent != null && spent > maxUsd) { stop = 'cost budget'; break; }
+    if (ledger && ledger.headroom(purpose) <= 0) { stop = `${purpose} credit budget`; break; }
+    // A few turns before the limit, say so: a model that keeps trying should
+    // report what it could not do rather than run out mid-attempt.
+    if (turn === maxTurns - WRAP_TURNS) {
+      items.push({ role: 'user', content: WRAP_UP(WRAP_TURNS) });
+      emit({ type: 'budget_note', turn, left: WRAP_TURNS });
+    }
+
+    const res = await callModel(turn, TOOL_SPECS);
+    if (!res) { stop = 'model error'; break; }
+    if (res.calls.length === 0) {
+      items.push({ role: 'user', content: 'Continue with tools, or call finish.' });
+      continue;
+    }
+    await runCalls(res);
+  }
+
+  // Out of turns without a report: one last call that can only finish, so the
+  // run ends with an honest account instead of nothing. Marked in the trace.
+  let forcedFinish = false;
+  if (!finish && !stop && turn >= maxTurns) {
+    items.push({ role: 'user', content: OUT_OF_TURNS });
+    const res = await callModel(turn, TOOL_SPECS.filter((t) => t.name === 'finish'));
+    if (res) {
+      await runCalls(res, ['finish']);
+      forcedFinish = Boolean(finish);
+    }
+  }
   if (!finish && !stop) stop = 'turn budget';
 
   return {
     finish,
+    forcedFinish,
     stop,
     events,
     counters: tools.counters,

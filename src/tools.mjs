@@ -3,12 +3,47 @@
 // live build, and socket ids map back to the exact op the configurator offered.
 // The model never gets load(), so it cannot replace the build.
 
-const BUILD_OPS = new Set([
-  'place', 'remove', 'rotate', 'addSnap', 'addBin', 'addSpike', 'setSpikeAccessory', 'addCover', 'setCoverType',
-  'setCoverMagnets', 'addCap', 'addInsert', 'addHandle', 'addCoverHub', 'addConnector', 'addJointBolt',
-  'addAccessory', 'addPort', 'addBinBolt', 'addNotch', 'setNotchOpen', 'addDrawer', 'setDrawerOpen', 'addRun',
-  'setRunMode', 'addRiser', 'setFootBolt',
-]);
+// Fields each op takes, from the public contract (hex-api.d.ts, hash 9bb662c8…):
+// [required, optional]. Checked before anything reaches the page.
+const OP_FIELDS = {
+  place: [['at', 'variant'], ['storeys']],
+  remove: [['ref'], ['sweepOrphans']],
+  rotate: [['ref', 'stepDeg'], []],
+  addSnap: [['at', 'variant'], []],
+  addBin: [['at', 'stem'], []],
+  addSpike: [['level', 'junction'], ['variant', 'facing']],
+  setSpikeAccessory: [['level', 'junction', 'accessory'], []],
+  addCover: [['at', 'variant', 'face'], ['type']],
+  setCoverType: [['at', 'variant', 'face', 'type'], []],
+  setCoverMagnets: [['at', 'variant', 'face', 'on'], []],
+  addCap: [['at', 'face', 'bearingDeg'], ['capVariant', 'storeys']],
+  addInsert: [['at', 'variant', 'face', 'bearingDeg', 'stem'], ['chain']],
+  addHandle: [['at', 'face'], ['chain']],
+  addCoverHub: [['at', 'variant', 'face'], []],
+  addConnector: [['level', 'edge', 'kind'], []],
+  addJointBolt: [['at', 'slot'], []],
+  addAccessory: [['at', 'slot', 'stem'], []],
+  addPort: [['at', 'slot', 'stem'], []],
+  addBinBolt: [['at', 'slot', 'stem'], []],
+  addNotch: [['at', 'k', 'stem'], []],
+  setNotchOpen: [['at', 'k', 'open'], []],
+  addDrawer: [['at', 'key'], ['style', 'storeys']],
+  setDrawerOpen: [['at', 'open'], ['west']],
+  addRun: [['level', 'start', 'entryEdge', 'through'], ['mode']],
+  setRunMode: [['id', 'mode'], []],
+  addRiser: [['at'], []],
+  setFootBolt: [['mm'], []],
+};
+const BUILD_OPS = new Set(Object.keys(OP_FIELDS));
+
+export function checkOpShape(item) {
+  const [required, optional] = OP_FIELDS[item.op];
+  const takes = `${item.op} takes ${required.join(', ')}${optional.length ? ` (optional: ${optional.join(', ')})` : ''}`;
+  const missing = required.filter((k) => !(k in item));
+  if (missing.length) throw new Error(`${item.op} is missing ${missing.join(', ')}: ${takes}`);
+  const extra = Object.keys(item).filter((k) => k !== 'op' && !required.includes(k) && !optional.includes(k));
+  if (extra.length) throw new Error(`${extra.join(', ')} is not a field of ${item.op}: ${takes}`);
+}
 const FAMILIES = ['piece', 'snap', 'spike', 'cover', 'cap', 'insert', 'handle', 'accessory', 'port', 'bin', 'binBolt',
   'connector', 'run', 'riser', 'coverHub', 'drawer', 'jointBolt', 'notch', 'bay'];
 
@@ -37,6 +72,7 @@ export const TOOL_SPECS = [
     description:
       'Every place one kind of part fits on the build now, each with an id (s1, s2, ...) you can pass to apply. ' +
       'An offered socket passes the placement rules; it is not yet proof the meshes clear. ' +
+      'Offers are valid one at a time: applying one can make others stale (a joint bolt is offered from both cells of the same joint, so take one of the pair), so ask again after a change. ' +
       'Drawers sit on the cut face of a half base; a handle needs a cover on its face; spikes stand where three cells meet.',
     parameters: obj(
       {
@@ -127,6 +163,7 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
     }
     if (!item || typeof item.op !== 'string') throw new Error('each item needs "socket" or "op"');
     if (!BUILD_OPS.has(item.op)) throw new Error(`op ${item.op} is not allowed here`);
+    checkOpShape(item);
     for (const k of ['ref', 'part']) {
       if (k in item && !refs.has(item[k])) throw new Error(`${k} ${JSON.stringify(item[k])} is not on the build: take refs from get_build`);
     }

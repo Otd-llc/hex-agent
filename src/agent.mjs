@@ -40,13 +40,19 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     if (ledger && ledger.headroom(purpose) <= 0) { stop = `${purpose} credit budget`; break; }
 
     let res;
-    try {
-      res = await model.next({ instructions: INSTRUCTIONS, items, tools: TOOL_SPECS });
-    } catch (e) {
-      emit({ type: 'model_error', message: String(e.message ?? e).slice(0, 300) });
-      stop = 'model error';
-      break;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        res = await model.next({ instructions: INSTRUCTIONS, items, tools: TOOL_SPECS });
+        break;
+      } catch (e) {
+        const message = String(e.message ?? e).slice(0, 300);
+        const retry = transient(e) && attempt < RETRY_DELAYS_MS.length && Date.now() - started < maxMs;
+        emit({ type: 'model_error', message, status: e.status ?? null, retrying: retry });
+        if (!retry) { stop = 'model error'; break; }
+        await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+      }
     }
+    if (!res) break;
     usage.calls++;
     usage.inputTokens += res.usage.inputTokens;
     usage.outputTokens += res.usage.outputTokens;
@@ -141,6 +147,14 @@ export async function verify({ hex, openFresh, finish }) {
     fragment,
     roundTrip,
   };
+}
+
+// Provider hiccups (rate limit, overload, 5xx, dropped connection, timeout) are
+// retried with backoff; bad requests, auth failures and refusals are not.
+export const RETRY_DELAYS_MS = [2_000, 8_000, 20_000];
+export function transient(e) {
+  if (e.status == null) return !/declined/i.test(String(e.message ?? ''));
+  return e.status === 408 || e.status === 409 || e.status === 429 || e.status >= 500;
 }
 
 const countBy = (xs, f) => xs.reduce((m, x) => ((m[f(x)] = (m[f(x)] ?? 0) + 1), m), {});

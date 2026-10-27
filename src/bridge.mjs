@@ -8,9 +8,28 @@ export const HEX_ORIGIN = 'https://hex.onethousanddrones.com';
 const READ = new Set(['getState', 'listParts', 'listProps', 'openSockets', 'validate', 'bom', 'toUrl', 'settle']);
 const WRITE = new Set(['apply', 'applyAll', 'load', 'undo', 'redo']);
 
-export async function openHex({ url = HEX_ORIGIN + '/', headless = true, timeoutMs = 90_000 } = {}) {
+// A slow page load is retried once in a fresh browser before giving up.
+export async function openHex(options = {}) {
+  try {
+    return await openOnce(options);
+  } catch (e) {
+    console.error(`configurator did not load (${String(e.message).split('\n')[0]}); retrying once`);
+    return openOnce(options);
+  }
+}
+
+async function openOnce({ url = HEX_ORIGIN + '/', headless = true, timeoutMs = 90_000 } = {}) {
   // System Chrome: WebGL works and no Playwright browser download is needed.
   const browser = await chromium.launch({ headless, channel: process.env.HEX_BROWSER_CHANNEL || 'chrome' });
+  try {
+    return await bind(browser, { url, timeoutMs });
+  } catch (e) {
+    await browser.close();
+    throw e;
+  }
+}
+
+async function bind(browser, { url, timeoutMs }) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
   await page.goto(url, { waitUntil: 'load', timeout: timeoutMs });

@@ -168,3 +168,13 @@ a stud-spike-facing-down brief, run as ordinary briefs, not staged failures.
 Every trace names its provider and the model that served each turn
 (`servedBy`). Claude runs are development or an explicitly labeled baseline;
 only `provider: "meta"` runs count as results for this entry.
+
+### After the F1+F2 deploy (contract 202cf501…, viz bc6ec79a)
+
+Contract diff: two new refusal codes only; op shapes and value lists match.
+Live acceptance unchanged. pipe-planter ×3: **Muse 3/3** (9-13 calls),
+**Opus 3/3** (9 calls), up from Muse 1/3 at medium effort before. One Muse run
+still met `MESH_CLASH`, now against a pipe **coupling** (third-depth bins at a
+coupling cell, 2.08 mm): a new F1-class gap, sent to product triage as F6.
+Muse recovered by switching to offered sockets. `runs/suite-2026-10-27T20-13-36-263Z`,
+`runs/suite-2026-10-27T20-13-36-266Z`.

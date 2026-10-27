@@ -82,3 +82,42 @@ test('a bad finish goes back to the model, which can call finish again', async (
   assert.equal(n, 2);
   assert.deepEqual(r.finish, good);
 });
+
+test('an atomic batch undone only by ALREADY_FITTED is applied again without those ops', async () => {
+  const { createTools } = await import('../src/tools.mjs');
+  const a = { op: 'addJointBolt', at: { q: 0, r: 0, level: 0 }, slot: 0 };
+  const b = { op: 'addJointBolt', at: { q: 1, r: 0, level: 0 }, slot: 3 };
+  const batches = [];
+  const hex = {
+    call: async (m, ops) => {
+      if (m === 'getState') return { nodes: [] };
+      if (m !== 'applyAll') return undefined;
+      batches.push(ops);
+      if (ops.length === 2) return { rolledBack: true, outcomes: [{ ok: true, op: a, added: ['j'], removed: [], warnings: [] }, { ok: false, op: b, code: 'ALREADY_FITTED', message: 'm', details: {}, validAlternatives: [] }] };
+      return { rolledBack: false, outcomes: [{ ok: true, op: a, added: ['j'], removed: [], warnings: [] }] };
+    },
+  };
+  const r = await createTools(hex).run('apply', { ops: [a, b] });
+  assert.equal(batches.length, 2);
+  assert.deepEqual(batches[1], [a]);
+  assert.equal(r.rolledBack, false);
+  assert.deepEqual(r.droppedAlreadyFitted, [b]);
+});
+
+test('any other refusal still rolls the batch back with no retry', async () => {
+  const { createTools } = await import('../src/tools.mjs');
+  const a = { op: 'addJointBolt', at: { q: 0, r: 0, level: 0 }, slot: 0 };
+  let n = 0;
+  const hex = {
+    call: async (m) => {
+      if (m === 'getState') return { nodes: [] };
+      if (m !== 'applyAll') return undefined;
+      n++;
+      return { rolledBack: true, outcomes: [{ ok: false, op: a, code: 'SPIKE_CLASH', message: 'm', details: {}, validAlternatives: [] }] };
+    },
+  };
+  const r = await createTools(hex).run('apply', { ops: [a] });
+  assert.equal(n, 1);
+  assert.equal(r.rolledBack, true);
+  assert.equal(r.droppedAlreadyFitted, undefined);
+});

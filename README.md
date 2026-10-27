@@ -80,3 +80,12 @@ It exists to harden the model-agnostic parts on credit that would otherwise
 expire. Its spend goes to `.spend/anthropic.jsonl`, its traces say
 `provider: "anthropic"`, it refuses `--purpose=demo`, and no Claude run is
 reported as a Muse result. Prompts are tuned again on Muse before eval.
+
+## Replaying a recorded run
+
+`node bin/replay.mjs runs/<run-id>/trace.json` re-applies, in a visible
+browser, only what the configurator accepted in that run (and its undos),
+with a label on screen naming the run, provider and model and saying no model
+is running. It ends by checking the parts list and families match the
+original. For filming retakes of a real run at no model cost; it is never
+presented as a live run.

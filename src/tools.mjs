@@ -226,17 +226,44 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
       const refs = await liveRefs();
       const resolved = ops.map((item) => resolve(item, refs));
       opsTotal += resolved.length;
-      const r = await hex.call('applyAll', resolved, atomic ? {} : { keepGoing: true });
-      await hex.call('settle');
-      for (const o of r.outcomes) {
-        if (o.ok) counters.applied++;
-        else {
-          counters.refused++;
-          counters.refusalCodes[o.code] = (counters.refusalCodes[o.code] ?? 0) + 1;
+      const tally = (outcomes) => {
+        for (const o of outcomes) {
+          if (o.ok) counters.applied++;
+          else {
+            counters.refused++;
+            counters.refusalCodes[o.code] = (counters.refusalCodes[o.code] ?? 0) + 1;
+          }
         }
+      };
+      const options = atomic ? {} : { keepGoing: true };
+      let batch = resolved;
+      let r = await hex.call('applyAll', batch, options);
+      await hex.call('settle');
+      tally(r.outcomes);
+      onEvent({ type: 'apply', ops: batch, outcomes: r.outcomes, rolledBack: r.rolledBack, atomic });
+
+      // An atomic batch undone only because some ops were ALREADY_FITTED (e.g.
+      // both ends of one joint bolt) wanted a state that already holds: apply
+      // it again without them, and say which were dropped.
+      const dropped = [];
+      for (let pass = 0; pass < 3 && atomic && r.rolledBack; pass++) {
+        const refused = r.outcomes.filter((o) => !o.ok);
+        if (!refused.length || !refused.every((o) => o.code === 'ALREADY_FITTED')) break;
+        const drop = new Set(refused.map((o) => JSON.stringify(o.op)));
+        dropped.push(...refused.map((o) => o.op));
+        batch = batch.filter((op) => !drop.has(JSON.stringify(op)));
+        if (!batch.length) break;
+        r = await hex.call('applyAll', batch, options);
+        await hex.call('settle');
+        tally(r.outcomes);
+        onEvent({ type: 'apply', ops: batch, outcomes: r.outcomes, rolledBack: r.rolledBack, atomic, retryWithout: dropped.length });
       }
-      onEvent({ type: 'apply', ops: resolved, outcomes: r.outcomes, rolledBack: r.rolledBack });
-      return { rolledBack: r.rolledBack, outcomes: r.outcomes.map(summarizeOutcome) };
+      const out = { rolledBack: r.rolledBack, outcomes: r.outcomes.map(summarizeOutcome) };
+      if (dropped.length) {
+        out.droppedAlreadyFitted = dropped;
+        out.note = 'These ops were refused ALREADY_FITTED (that state already holds), so the batch was applied again without them.';
+      }
+      return out;
     },
 
     async undo() {

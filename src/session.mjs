@@ -2,7 +2,8 @@
 // write the trace. Shared by the single-run CLI and the suite.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { randomUUID, createHash } from 'node:crypto';
-import { openHex, dismissCookies, HEX_ORIGIN } from './bridge.mjs';
+import { openHex, dismissCookies, hexUrl } from './bridge.mjs';
+import { CONTRACT } from './contract.mjs';
 import { installOverlay, pushLines, linesFor } from './overlay.mjs';
 import { metaModel } from './model.mjs';
 import { claudeModel } from './claude.mjs';
@@ -91,7 +92,9 @@ export async function runSession({ brief, briefId = null, expect = null, model, 
     provider: model.provider,
     model: model.model,
     hexApiVersion: hex.version,
-    origin: HEX_ORIGIN,
+    origin: hexUrl(),
+    // The contract the agent's op table came from; a run is only comparable with runs on the same one.
+    contractHash: CONTRACT.hash,
     brief,
     briefSha256: createHash('sha256').update(brief).digest('hex'),
     stop: result.stop,
@@ -102,7 +105,7 @@ export async function runSession({ brief, briefId = null, expect = null, model, 
     counters: result.counters,
     finish: result.finish,
     forcedFinish: result.forcedFinish,
-    verdict: { ...verdict, shareUrl: `${HEX_ORIGIN}/#${verdict.fragment}` },
+    verdict: { ...verdict, shareUrl: `${hexUrl().split('#')[0]}#${verdict.fragment}` },
     briefChecks: checks,
     // The final nodes (no opaque detail), so checks can be re-run on the trace later.
     finalNodes: state.nodes.map((n) => ({ ref: n.ref, family: n.family, at: n.at, stem: n.stem })),

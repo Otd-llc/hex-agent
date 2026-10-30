@@ -1,0 +1,1795 @@
+{
+  "hash": "af4274b634892e0f14edc3dab9b6b5c54d7ee96d0490005f754806fdb9aef843",
+  "apiVersion": 1,
+  "status": "experimental",
+  "members": [
+    {
+      "name": "version",
+      "ts": "readonly version: 1;",
+      "mutates": false,
+      "says": "The API version: 1 while the API is experimental v1."
+    },
+    {
+      "name": "getState",
+      "ts": "getState(): HexState;",
+      "mutates": false,
+      "says": "The build: every placed part as a node (and the raw state, which is opaque)."
+    },
+    {
+      "name": "listProps",
+      "ts": "listProps(): readonly PropInfo[];",
+      "mutates": false,
+      "says": "The props library: every prop a build can stage, and which are plants and which are pots."
+    },
+    {
+      "name": "listParts",
+      "ts": "listParts(): readonly PartInfo[];",
+      "mutates": false,
+      "says": "Every part a script can name: the value, the op and field that take it, its name, what it is for and its printed size."
+    },
+    {
+      "name": "openSockets",
+      "ts": "openSockets(query: SocketQuery): readonly OpenSocket[];",
+      "mutates": false,
+      "says": "Every place one kind of part fits now, each with the exact op that puts it there."
+    },
+    {
+      "name": "validate",
+      "ts": "validate(): Promise<ValidationReport>;",
+      "mutates": false,
+      "says": "Waits for the collision gate, then reports every issue with the build on screen."
+    },
+    {
+      "name": "bom",
+      "ts": "bom(options?: PackOptions): BomSummary;",
+      "mutates": false,
+      "says": "The parts list, the printed-part count against the download cap, notes, and the print pack link for a bed and format."
+    },
+    {
+      "name": "toUrl",
+      "ts": "toUrl(): Promise<string>;",
+      "mutates": false,
+      "says": "The build as a share-link fragment (v2s=…), without the leading #."
+    },
+    {
+      "name": "apply",
+      "ts": "apply(op: HexOp, options?: { readonly dryRun?: boolean }): Promise<MutationOutcome>;",
+      "mutates": true,
+      "says": "Apply one op through the same path a click takes; resolves to its outcome. With { dryRun: true } (addProp, moveProp, plant; configurator only), the op is worked out and settled exactly as it would be, and its outcome says what it would add and remove: nothing is written."
+    },
+    {
+      "name": "applyAll",
+      "ts": "applyAll(ops: readonly HexOp[], options?: ApplyAllOptions): Promise<BatchResult>;",
+      "mutates": true,
+      "says": "Apply ops in order; atomic and stop-on-refusal by default. The ops it applies are one undo step."
+    },
+    {
+      "name": "load",
+      "ts": "load(input: string | StarterState): Promise<{ ok: true } | { ok: false; code: 'DECODE_FAILED' | 'LINK_TOO_BIG'; message: string }>;",
+      "mutates": true,
+      "says": "Replace the build with a share link, or with a starter state of bases."
+    },
+    {
+      "name": "undo",
+      "ts": "undo(): boolean;",
+      "mutates": true,
+      "says": "Undo the last change, as Ctrl+Z does. False when there is nothing to undo."
+    },
+    {
+      "name": "redo",
+      "ts": "redo(): boolean;",
+      "mutates": true,
+      "says": "Redo, as Ctrl+Shift+Z does. False when there is nothing to redo."
+    },
+    {
+      "name": "settle",
+      "ts": "settle(): Promise<void>;",
+      "mutates": false,
+      "says": "Resolves when every model is drawn and the collision gate is idle."
+    },
+    {
+      "name": "measure",
+      "ts": "measure(): Promise<Measure>;",
+      "mutates": false,
+      "says": "The build's size as drawn, mm (height is y): the parts alone and with its props, each a box with its min, max and size; null when empty (configurator only)."
+    },
+    {
+      "name": "surfaces",
+      "ts": "surfaces(ref?: NodeRef, options?: { readonly fits?: string }): Promise<readonly Surface[]>;",
+      "mutates": false,
+      "says": "Where a prop can go on or in one part, or every part with no ref: its tops, floors, compartments and soil, each with its outline and headroom; with { fits: <prop id> }, only those a prop of that size could take lying on its shortest side (a first cut: the dry run is the answer). Pass one to addProp as surface (configurator only)."
+    }
+  ],
+  "ops": [
+    {
+      "op": "place",
+      "says": "Place a base (full, half or quarter cell), optionally 2 or 3 stories tall.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "variant",
+          "type": "Variant",
+          "says": "The cell shape the part fits."
+        },
+        {
+          "name": "storeys",
+          "type": "1 | 2 | 3",
+          "says": "A tall base: 2 or 3 stories in one part.",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "op": "remove",
+      "says": "Remove a node by its ref; sweepOrphans also removes parts left unattached.",
+      "fields": [
+        {
+          "name": "ref",
+          "type": "NodeRef",
+          "says": "A ref from getState().nodes or an outcome."
+        },
+        {
+          "name": "sweepOrphans",
+          "type": "boolean",
+          "says": "Also remove parts the removal leaves holding nothing. A part with something standing on it is still refused (LOAD_ABOVE).",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "op": "rotate",
+      "says": "Turn a fitted part by stepDeg, a whole number of its clicks: 60 for a bin or an insert, 120 for a full cover, 180 for a port (through the wall). A cap or a bolt-on steps to its other position.",
+      "fields": [
+        {
+          "name": "ref",
+          "type": "NodeRef",
+          "says": "A ref from getState().nodes or an outcome."
+        },
+        {
+          "name": "stepDeg",
+          "type": "number",
+          "says": "The turn in degrees: a whole multiple of the part's step (60 bin or insert, 120 full cover, 180 port); negative turns back."
+        }
+      ]
+    },
+    {
+      "op": "addSnap",
+      "says": "Fit a snap joint in a cell.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "variant",
+          "type": "Variant",
+          "says": "The cell shape the part fits."
+        }
+      ]
+    },
+    {
+      "op": "addBin",
+      "says": "Drop a bin into a cell. -pvc bins take a vertical riser through the floor; a horizontal run through a cell leaves room only for third-depth bins, and none where the pipe has a coupling or fitting.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "stem",
+          "type": "string",
+          "says": "The part name, as openSockets gives it."
+        }
+      ]
+    },
+    {
+      "op": "addSpike",
+      "says": "Fit a spike at a junction where three cells meet.",
+      "fields": [
+        {
+          "name": "level",
+          "type": "number",
+          "says": "The storey, 0 at the ground."
+        },
+        {
+          "name": "junction",
+          "type": "readonly [Site, Site, Site]",
+          "says": "The three cells that meet."
+        },
+        {
+          "name": "variant",
+          "type": "string",
+          "says": "Spike variant (values.spikeVariant).",
+          "optional": true
+        },
+        {
+          "name": "facing",
+          "type": "'up' | 'down'",
+          "says": "Which way the spike points.",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "op": "setSpikeAccessory",
+      "says": "Put an accessory on a fitted spike, or take it off (null).",
+      "fields": [
+        {
+          "name": "level",
+          "type": "number",
+          "says": "The storey, 0 at the ground."
+        },
+        {
+          "name": "junction",
+          "type": "readonly [Site, Site, Site]",
+          "says": "The three cells that meet."
+        },
+        {
+          "name": "accessory",
+          "type": "string | null",
+          "says": "Accessory name (values.spikeAccessory), or null to take it off."
+        }
+      ]
+    },
+    {
+      "op": "addCover",
+      "says": "Fit a cover to the top or bottom face of a cell.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "variant",
+          "type": "Variant",
+          "says": "The cell shape the part fits."
+        },
+        {
+          "name": "face",
+          "type": "Face",
+          "says": "'top' or 'bottom'."
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "says": "Cover type (values.coverType); 'plain' when omitted.",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "op": "setCoverType",
+      "says": "Change the type of a fitted cover.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "variant",
+          "type": "Variant",
+          "says": "The cell shape the part fits."
+        },
+        {
+          "name": "face",
+          "type": "Face",
+          "says": "'top' or 'bottom'."
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "says": "Cover type (values.coverType)."
+        }
+      ]
+    },
+    {
+      "op": "setCoverMagnets",
+      "says": "Turn the magnets of a fitted cover on or off.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "variant",
+          "type": "Variant",
+          "says": "The cell shape the part fits."
+        },
+        {
+          "name": "face",
+          "type": "Face",
+          "says": "'top' or 'bottom'."
+        },
+        {
+          "name": "on",
+          "type": "boolean",
+          "says": "Magnets on or off."
+        }
+      ]
+    },
+    {
+      "op": "addCap",
+      "says": "Fit an edge cap to a cell face (*) or a cut (#) at a bearing.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "face",
+          "type": "'*' | '#'",
+          "says": "'*' a cell face, '#' a cut."
+        },
+        {
+          "name": "bearingDeg",
+          "type": "number",
+          "says": "Bearing in degrees, as openSockets gives it."
+        },
+        {
+          "name": "capVariant",
+          "type": "string",
+          "says": "Cap variant (values.capVariant); 'solid' when omitted.",
+          "optional": true
+        },
+        {
+          "name": "storeys",
+          "type": "1 | 2",
+          "says": "A two-story cap.",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "op": "addInsert",
+      "says": "Fit an insert into a recess of a cover face.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "variant",
+          "type": "Variant",
+          "says": "The cell shape the part fits."
+        },
+        {
+          "name": "face",
+          "type": "Face",
+          "says": "'top' or 'bottom'."
+        },
+        {
+          "name": "bearingDeg",
+          "type": "number",
+          "says": "Bearing in degrees, as openSockets gives it."
+        },
+        {
+          "name": "stem",
+          "type": "string",
+          "says": "The part name, as openSockets gives it."
+        },
+        {
+          "name": "chain",
+          "type": "boolean",
+          "says": "Fit the inserts the part needs under it as well.",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "op": "addHandle",
+      "says": "Fit a handle across three recesses of a cover face.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "face",
+          "type": "Face",
+          "says": "'top' or 'bottom'."
+        },
+        {
+          "name": "chain",
+          "type": "boolean",
+          "says": "Fit the inserts the handle needs as well.",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "op": "addCoverHub",
+      "says": "Fit a pipe hub to a cover.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "variant",
+          "type": "Variant",
+          "says": "The cell shape the part fits."
+        },
+        {
+          "name": "face",
+          "type": "Face",
+          "says": "'top' or 'bottom'."
+        }
+      ]
+    },
+    {
+      "op": "addConnector",
+      "says": "Join two cells that share a flat with a side connector.",
+      "fields": [
+        {
+          "name": "level",
+          "type": "number",
+          "says": "The storey, 0 at the ground."
+        },
+        {
+          "name": "edge",
+          "type": "readonly [Site, Site]",
+          "says": "The two cells either side of the edge."
+        },
+        {
+          "name": "kind",
+          "type": "string",
+          "says": "The connector name, as openSockets gives it."
+        }
+      ]
+    },
+    {
+      "op": "addJointBolt",
+      "says": "Bolt a joint through a flat (0-5) or a cut. Each wall is offered from both of its cells; the bolt heads sit on the side you place from. Placing one fills the wall, so the other then answers ALREADY_FITTED.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "slot",
+          "type": "number | string",
+          "says": "A flat 0-5, or a cut slot as openSockets gives it."
+        }
+      ]
+    },
+    {
+      "op": "addAccessory",
+      "says": "Bolt an accessory to a flat (0-5) or the top or bottom.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "slot",
+          "type": "number | Face",
+          "says": "A flat 0-5, or the top or bottom."
+        },
+        {
+          "name": "stem",
+          "type": "string",
+          "says": "The part name, as openSockets gives it."
+        }
+      ]
+    },
+    {
+      "op": "addPort",
+      "says": "Fit a port to the side bore of a flat (0-5).",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "slot",
+          "type": "number",
+          "says": "A flat 0-5."
+        },
+        {
+          "name": "stem",
+          "type": "string",
+          "says": "The part name, as openSockets gives it."
+        }
+      ]
+    },
+    {
+      "op": "addBinBolt",
+      "says": "Bolt a bin to a flat (0-5) or a cut.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "slot",
+          "type": "number | 'cut'",
+          "says": "A flat 0-5, or 'cut'."
+        },
+        {
+          "name": "stem",
+          "type": "string",
+          "says": "The part name, as openSockets gives it."
+        }
+      ]
+    },
+    {
+      "op": "addNotch",
+      "says": "Fit a notch or bay part at a corner (k 0-5). A notch fits an empty position beside two bases that touch each other (a crook); a bay needs three. Bases in a straight line or a cell apart offer none.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "k",
+          "type": "number",
+          "says": "A corner 0-5."
+        },
+        {
+          "name": "stem",
+          "type": "string",
+          "says": "The part name, as openSockets gives it."
+        }
+      ]
+    },
+    {
+      "op": "setNotchOpen",
+      "says": "Open or close a notch or bay drawer.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "k",
+          "type": "number",
+          "says": "A corner 0-5."
+        },
+        {
+          "name": "open",
+          "type": "boolean",
+          "says": "Open or closed."
+        }
+      ]
+    },
+    {
+      "op": "addDrawer",
+      "says": "Fit a drawer in a cell.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "says": "The drawer, as openSockets gives it."
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "says": "Drawer style (values.drawerStyle); 'classic' when omitted.",
+          "optional": true
+        },
+        {
+          "name": "storeys",
+          "type": "1 | 2 | 3",
+          "says": "A tall drawer.",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "op": "setDrawerOpen",
+      "says": "Open or close a drawer. Opening is refused where the drawer would reach into a base (OVERLAPS_NEIGHBOUR) or a spike (SPIKE_CLASH).",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "open",
+          "type": "boolean",
+          "says": "Open or closed."
+        },
+        {
+          "name": "west",
+          "type": "boolean",
+          "says": "The west drawer of a pair.",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "op": "addRun",
+      "says": "Route a pipe run from an entry edge through a list of cells.",
+      "fields": [
+        {
+          "name": "level",
+          "type": "number",
+          "says": "The storey, 0 at the ground."
+        },
+        {
+          "name": "start",
+          "type": "Site",
+          "says": "The cell the pipe enters."
+        },
+        {
+          "name": "entryEdge",
+          "type": "number",
+          "says": "The arm it enters by, 0-7, as openSockets gives it."
+        },
+        {
+          "name": "through",
+          "type": "readonly Site[]",
+          "says": "The cells it passes through, in order."
+        },
+        {
+          "name": "mode",
+          "type": "string",
+          "says": "What it is plumbed for (values.runMode).",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "op": "setRunMode",
+      "says": "Change what a run is plumbed for (its routing mode).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "says": "The run's id: the key of its run: ref."
+        },
+        {
+          "name": "mode",
+          "type": "string",
+          "says": "values.runMode."
+        }
+      ]
+    },
+    {
+      "op": "addRiser",
+      "says": "Fit a pipe riser in a cell.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        }
+      ]
+    },
+    {
+      "op": "setFootBolt",
+      "says": "Set the foot bolt length in millimetres.",
+      "fields": [
+        {
+          "name": "mm",
+          "type": "number",
+          "says": "Foot bolt length in millimetres."
+        }
+      ]
+    },
+    {
+      "op": "replace",
+      "says": "Swap a bin, bolt-on bin, notch or bay part, or an accessory for another part at the same site, leaving what stands on or in it; nothing fits there, and the build is as it was.",
+      "fields": [
+        {
+          "name": "ref",
+          "type": "NodeRef",
+          "says": "The part to swap: a bin, binBolt, notch, bay or accessory node."
+        },
+        {
+          "name": "stem",
+          "type": "string",
+          "says": "The part to put there, as listParts() names it (its value)."
+        }
+      ]
+    },
+    {
+      "op": "removeProp",
+      "says": "Take a placed prop off the build.",
+      "fields": [
+        {
+          "name": "ref",
+          "type": "PropRef",
+          "says": "A placed prop, from getState().staging.props or an outcome."
+        }
+      ]
+    },
+    {
+      "op": "fillPot",
+      "says": "Fill a placed pot with soil.",
+      "fields": [
+        {
+          "name": "ref",
+          "type": "PropRef",
+          "says": "The pot, from getState().staging.props."
+        }
+      ]
+    },
+    {
+      "op": "emptyPot",
+      "says": "Empty a placed pot; a plant in it goes out with its soil.",
+      "fields": [
+        {
+          "name": "ref",
+          "type": "PropRef",
+          "says": "The pot, from getState().staging.props."
+        }
+      ]
+    },
+    {
+      "op": "plant",
+      "says": "Plant a plug plant in a placed pot of soil, or in the soil of a part (a part: configurator only).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "says": "A plug plant from listProps() (plant: true)."
+        },
+        {
+          "name": "in",
+          "type": "PropRef | NodeRef",
+          "says": "A pot of soil (getState().staging.props), or a part that holds soil (configurator only)."
+        },
+        {
+          "name": "atMm",
+          "type": "{ readonly x: number; readonly z: number }",
+          "says": "In a part: plant at the bed nearest this point; left out, the first bed.",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "op": "addProp",
+      "says": "Place a prop from listProps() on a part, a placed prop or the bench, resting as the props panel rests it (configurator only).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "says": "A prop from listProps()."
+        },
+        {
+          "name": "on",
+          "type": "NodeRef | PropRef | 'bench'",
+          "says": "What it stands on: a piece, cover, cap, bin, drawer or soil part, a placed prop, or the bench. Left out: whatever is under the aim.",
+          "optional": true
+        },
+        {
+          "name": "atMm",
+          "type": "{ readonly x: number; readonly z: number }",
+          "says": "Aim straight down at this point, mm. Left out: the centre of on; for the bench, clear of the build.",
+          "optional": true
+        },
+        {
+          "name": "yawDeg",
+          "type": "number",
+          "says": "A turn about the vertical, degrees.",
+          "optional": true
+        },
+        {
+          "name": "pose",
+          "type": "'rest'",
+          "says": "Its resting pose. addProp always rests it; moveProp keeps the prop's own turn unless this is 'rest'.",
+          "optional": true
+        },
+        {
+          "name": "drop",
+          "type": "boolean",
+          "says": "Let it fall and settle, as the props panel's Drop does.",
+          "optional": true
+        },
+        {
+          "name": "surface",
+          "type": "string",
+          "says": "A surface from surfaces(): aimed at its centre (or at atMm inside it) from just over it, so nothing above it is met first. Instead of on (configurator only).",
+          "optional": true
+        },
+        {
+          "name": "orient",
+          "type": "{ readonly up?: 'natural' | 'long' | 'short'; readonly longAlong?: 'x' | 'z' | number; readonly flip?: boolean }",
+          "says": "Turned by intent, from the prop's own size: up 'long' stands it on end, 'short' lays it flat, 'natural' (the default) keeps its rest; longAlong lays its longest level side along x, z or a bearing (degrees about up from +x, as yawDeg turns); flip turns it end over end (a screwdriver modelled handle down stands handle up). yawDeg turns it after.",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "op": "moveProp",
+      "says": "Move a placed prop to a new aim; it keeps its turn unless pose is rest (configurator only).",
+      "fields": [
+        {
+          "name": "ref",
+          "type": "PropRef",
+          "says": "A placed prop, from getState().staging.props or an outcome."
+        },
+        {
+          "name": "on",
+          "type": "NodeRef | PropRef | 'bench'",
+          "says": "What it stands on: a piece, cover, cap, bin, drawer or soil part, a placed prop, or the bench. Left out: whatever is under the aim.",
+          "optional": true
+        },
+        {
+          "name": "atMm",
+          "type": "{ readonly x: number; readonly z: number }",
+          "says": "Aim straight down at this point, mm. Left out: the centre of on; for the bench, clear of the build.",
+          "optional": true
+        },
+        {
+          "name": "yawDeg",
+          "type": "number",
+          "says": "A turn about the vertical, degrees.",
+          "optional": true
+        },
+        {
+          "name": "pose",
+          "type": "'rest'",
+          "says": "Its resting pose. addProp always rests it; moveProp keeps the prop's own turn unless this is 'rest'.",
+          "optional": true
+        },
+        {
+          "name": "drop",
+          "type": "boolean",
+          "says": "Let it fall and settle, as the props panel's Drop does.",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "op": "fillSoil",
+      "says": "Fill a bin, bolt-on bin, or notch or bay bin with soil, to the rim or the dividers; plants in it are re-seated (configurator only for the dividers, or once a plug plant is on the build).",
+      "fields": [
+        {
+          "name": "part",
+          "type": "NodeRef",
+          "says": "A bin, bolt-on bin, or notch or bay bin, from getState().nodes."
+        },
+        {
+          "name": "to",
+          "type": "'rim' | 'dividers'",
+          "says": "To the rim (the default), or to the dividers, each compartment its own bed (configurator only). Headless, the rim is configurator only too once a plug plant is on the build, because the plants are re-seated.",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "op": "emptySoil",
+      "says": "Take the soil out of a bin, a bolt-on bin, or a notch or bay bin.",
+      "fields": [
+        {
+          "name": "part",
+          "type": "NodeRef",
+          "says": "The bin, bolt-on bin, or notch or bay bin holding the soil."
+        }
+      ]
+    }
+  ],
+  "families": [
+    {
+      "family": "piece",
+      "placeable": true,
+      "says": "A base."
+    },
+    {
+      "family": "snap",
+      "placeable": true,
+      "says": "A snap joint."
+    },
+    {
+      "family": "fused",
+      "placeable": false,
+      "says": "The joint inside a tall base (read only: place a tall base with storeys)."
+    },
+    {
+      "family": "spike",
+      "placeable": true,
+      "says": "A spike at a junction of three cells."
+    },
+    {
+      "family": "cover",
+      "placeable": true,
+      "says": "A cover on a top or bottom face."
+    },
+    {
+      "family": "cap",
+      "placeable": true,
+      "says": "An edge cap."
+    },
+    {
+      "family": "insert",
+      "placeable": true,
+      "says": "An insert in a cover recess."
+    },
+    {
+      "family": "handle",
+      "placeable": true,
+      "says": "A handle across three recesses."
+    },
+    {
+      "family": "accessory",
+      "placeable": true,
+      "says": "A bolted accessory."
+    },
+    {
+      "family": "port",
+      "placeable": true,
+      "says": "A port in a side bore."
+    },
+    {
+      "family": "bin",
+      "placeable": true,
+      "says": "A drop-in bin."
+    },
+    {
+      "family": "binBolt",
+      "placeable": true,
+      "says": "A bolt-on bin."
+    },
+    {
+      "family": "connector",
+      "placeable": true,
+      "says": "A side connector between two cells."
+    },
+    {
+      "family": "run",
+      "placeable": true,
+      "says": "A pipe run."
+    },
+    {
+      "family": "riser",
+      "placeable": true,
+      "says": "A pipe riser."
+    },
+    {
+      "family": "coverHub",
+      "placeable": true,
+      "says": "A pipe hub on a cover."
+    },
+    {
+      "family": "footprint",
+      "placeable": false,
+      "says": "A footprint part across a cell edge."
+    },
+    {
+      "family": "drawer",
+      "placeable": true,
+      "says": "A drawer."
+    },
+    {
+      "family": "jointBolt",
+      "placeable": true,
+      "says": "A joint bolt."
+    },
+    {
+      "family": "notch",
+      "placeable": true,
+      "says": "A notch part at a corner."
+    },
+    {
+      "family": "bay",
+      "placeable": true,
+      "says": "A bay part at a corner."
+    }
+  ],
+  "query": [
+    {
+      "name": "family",
+      "type": "PlaceableFamily",
+      "says": "The kind of part."
+    },
+    {
+      "name": "level",
+      "type": "number",
+      "says": "One storey; every storey from the ground to one above the top when omitted.",
+      "optional": true
+    },
+    {
+      "name": "variant",
+      "type": "Variant",
+      "says": "piece and snap: the cell shape ('full' when omitted for piece).",
+      "optional": true
+    },
+    {
+      "name": "stem",
+      "type": "string",
+      "says": "One part name; every placeable one when omitted.",
+      "optional": true
+    },
+    {
+      "name": "face",
+      "type": "Face",
+      "says": "cover: the face ('top' when omitted).",
+      "optional": true
+    },
+    {
+      "name": "type",
+      "type": "string",
+      "says": "cover type ('plain'), drawer style ('classic') or spike variant ('solid', values.spikeVariant).",
+      "optional": true
+    },
+    {
+      "name": "facing",
+      "type": "'up' | 'down'",
+      "says": "spike: which way it points ('up').",
+      "optional": true
+    },
+    {
+      "name": "capVariant",
+      "type": "string",
+      "says": "cap variant ('solid').",
+      "optional": true
+    },
+    {
+      "name": "storeys",
+      "type": "1 | 2 | 3",
+      "says": "Tall bases, two-story caps, tall drawers.",
+      "optional": true
+    },
+    {
+      "name": "key",
+      "type": "string",
+      "says": "drawer: one drawer; every placeable one when omitted.",
+      "optional": true
+    }
+  ],
+  "refusals": [
+    {
+      "code": "ALREADY_FITTED",
+      "says": "That part is already fitted here."
+    },
+    {
+      "code": "BIN_IN_WAY",
+      "says": "This cell holds a bin whose rim is in the joint the part needs."
+    },
+    {
+      "code": "BIN_RIM_IN_JOINT",
+      "says": "A bin below has its rim in the joint a stacking collar needs."
+    },
+    {
+      "code": "BOLT_ON_BELOW",
+      "says": "A bolt-on under this cell comes up where the part would sit."
+    },
+    {
+      "code": "BORE_COVERED",
+      "says": "A port's bore would be closed by an accessory plate."
+    },
+    {
+      "code": "BUSY",
+      "says": "The props panel is mid-action (a prop in hand, a settle or a soil fill): try again when it is done (browser only)."
+    },
+    {
+      "code": "CAP_ON_FLAT",
+      "says": "An edge cap closes the face this part would butt against."
+    },
+    {
+      "code": "CELL_EMPTY",
+      "says": "There is no cell at that position."
+    },
+    {
+      "code": "COLLAR_IN_WAY",
+      "says": "A stacking collar is in the joint the bin rim needs."
+    },
+    {
+      "code": "CUT_MISMATCH",
+      "says": "A cut joint needs two halves facing each other across the cut."
+    },
+    {
+      "code": "DECODE_FAILED",
+      "says": "The input is not a hex build link (v2s= or v2u=), or it carries more than 20,000 parts."
+    },
+    {
+      "code": "FACE_NOT_FREE",
+      "says": "The recess or face already holds something."
+    },
+    {
+      "code": "FLAT_BLOCKED",
+      "says": "A part on a neighbouring cell reaches into this position."
+    },
+    {
+      "code": "FLAT_TAKEN",
+      "says": "The flat already carries a part."
+    },
+    {
+      "code": "FOOTPRINT_IN_WAY",
+      "says": "A footprint already covers this cell top."
+    },
+    {
+      "code": "FOOTPRINT_MISMATCH",
+      "says": "The bin is cut to a different cell outline."
+    },
+    {
+      "code": "GENDER_MISMATCH",
+      "says": "The joint needs the other gender (male or female) here."
+    },
+    {
+      "code": "HALF_ALREADY_BINNED",
+      "says": "That part of the cell already holds a bin."
+    },
+    {
+      "code": "HAND_MISMATCH",
+      "says": "The notch takes the other hand here."
+    },
+    {
+      "code": "HOST_MISMATCH",
+      "says": "The other half of the cell holds a part this one cannot share with."
+    },
+    {
+      "code": "INTERRUPTED",
+      "says": "The build changed under the op: while it worked out its answer (nothing was written), or after it wrote, when the collision gate put back an earlier part or the user edited (browser only)."
+    },
+    {
+      "code": "INVALID_INPUT",
+      "says": "The op is malformed: a missing field, a wrong type, an unknown op."
+    },
+    {
+      "code": "INVALID_PART_ID",
+      "says": "The part name is not one the configurator places."
+    },
+    {
+      "code": "KIND_MISMATCH_BELOW",
+      "says": "A base carries only its own kind: the cell below is a different shape."
+    },
+    {
+      "code": "LID_IN_WAY",
+      "says": "The part below is lidded; the lid must come off before anything stands on it."
+    },
+    {
+      "code": "LID_NOT_BOLT_TYPE",
+      "says": "Only a bolt-type cover carries the accessory bolt pattern."
+    },
+    {
+      "code": "LINK_TOO_BIG",
+      "says": "The op, or the starter state given to load(), would take the build past 20,000 parts, more than a link can carry."
+    },
+    {
+      "code": "LOAD_ABOVE",
+      "says": "Something stands on this part; take that off first."
+    },
+    {
+      "code": "MESH_CLASH",
+      "says": "The rules allow it but the geometry does not: the collision gate put the build back (browser only)."
+    },
+    {
+      "code": "NEEDS_CONFIGURATOR",
+      "says": "The op needs the drawn build: run it in the configurator (window.hexAPI), not headless."
+    },
+    {
+      "code": "NEEDS_TALL_BASE",
+      "says": "The part hangs through stories below and needs a tall base."
+    },
+    {
+      "code": "NODE_NOT_FOUND",
+      "says": "No node matches that ref."
+    },
+    {
+      "code": "NOT_ADJACENT",
+      "says": "The two cells do not share a flat."
+    },
+    {
+      "code": "NOT_A_DRAWER",
+      "says": "There is no notch or bay drawer at that corner."
+    },
+    {
+      "code": "NOT_A_PLANT",
+      "says": "The prop is not a plant that goes in soil."
+    },
+    {
+      "code": "NOT_A_POT",
+      "says": "The prop is not a pot."
+    },
+    {
+      "code": "NOT_A_SITE_PART",
+      "says": "The part is not a notch or bay part."
+    },
+    {
+      "code": "NOT_FULL_HEX",
+      "says": "The part seats in full hexes only."
+    },
+    {
+      "code": "NO_BOLT_RECT",
+      "says": "One side has no whole rectangle of four bolt holes."
+    },
+    {
+      "code": "NO_BORE",
+      "says": "There is no side bore on this flat."
+    },
+    {
+      "code": "NO_CELL",
+      "says": "There is no cell here to fit the part to."
+    },
+    {
+      "code": "NO_CELL_ACROSS",
+      "says": "There is nothing across this flat to bolt to."
+    },
+    {
+      "code": "NO_CHANGE",
+      "says": "The op would change nothing."
+    },
+    {
+      "code": "NO_COLLAR_POSSIBLE",
+      "says": "There is nothing to build on here."
+    },
+    {
+      "code": "NO_SOIL",
+      "says": "The part holds no soil yet: fillSoil first."
+    },
+    {
+      "code": "OUT_OF_BOUNDS",
+      "says": "A cell is outside |q|, |r| <= 256 or 0 <= level <= 63."
+    },
+    {
+      "code": "OVERLAPS_NEIGHBOUR",
+      "says": "The part would reach into a neighbouring space: the position across a flat, or the quarters a long or open drawer reaches."
+    },
+    {
+      "code": "PART_WITHHELD",
+      "says": "The part is withheld from the current release."
+    },
+    {
+      "code": "PIPE_ON_FLAT",
+      "says": "A pipe runs across the flat where the part would bolt."
+    },
+    {
+      "code": "PIPE_THROUGH_CELL",
+      "says": "A pipe runs through the side bores where the bin would hang; a third-depth bin clears a plain pipe, not a coupling or fitting."
+    },
+    {
+      "code": "POT_EMPTY",
+      "says": "The pot holds no soil yet."
+    },
+    {
+      "code": "POT_FULL",
+      "says": "The pot already holds a plant."
+    },
+    {
+      "code": "PROP_EXISTS",
+      "says": "A placed prop already has exactly that pose: the op would make a twin (browser only)."
+    },
+    {
+      "code": "PROP_NOT_FOUND",
+      "says": "No placed prop has that ref."
+    },
+    {
+      "code": "PROP_NO_REST",
+      "says": "Nothing under the aim gives the prop a place to rest, or it would run into something; the message says which, and details.obstacle names what it runs into (a node ref, prop:<entry>, or null for the bench or soil) and details.depthMm how far it would sit inside it, when known (browser only)."
+    },
+    {
+      "code": "PROP_UNKNOWN",
+      "says": "The prop id is not in the props library (listProps)."
+    },
+    {
+      "code": "PROUD_PORT",
+      "says": "A port on a neighbouring cell points into this position."
+    },
+    {
+      "code": "ROUTE_AXIS_ABSENT",
+      "says": "The pipe has no axis to run along here."
+    },
+    {
+      "code": "ROUTE_BIN_IN_WAY",
+      "says": "A bin hangs through the side bores the pipe needs; a third-depth bin clears a plain pipe, not a coupling or fitting."
+    },
+    {
+      "code": "ROUTE_CELL_OCCUPIED",
+      "says": "A part already fills a cell the pipe would pass through."
+    },
+    {
+      "code": "ROUTE_COVER_HUB_CLEARANCE",
+      "says": "The cover hub has no clearance here."
+    },
+    {
+      "code": "ROUTE_COVER_HUB_MOUNT",
+      "says": "The cover hub has nothing to mount to."
+    },
+    {
+      "code": "ROUTE_COVER_HUB_PROVISIONAL",
+      "says": "The cover hub is a provisional fitting."
+    },
+    {
+      "code": "ROUTE_FLAT_BOLTED_OVER",
+      "says": "A part is bolted over the flat the pipe needs."
+    },
+    {
+      "code": "ROUTE_FLEX_BEND",
+      "says": "The bend needs a flexible section that is not allowed here."
+    },
+    {
+      "code": "ROUTE_MODE_CLASH",
+      "says": "Runs plumbed for different duties meet."
+    },
+    {
+      "code": "ROUTE_NOT_A_BOUNDARY",
+      "says": "The pipe must enter or leave through a cell boundary."
+    },
+    {
+      "code": "ROUTE_NO_PATH",
+      "says": "No path through the given cells."
+    },
+    {
+      "code": "ROUTE_NO_RISER",
+      "says": "The pipe changes storey without a riser."
+    },
+    {
+      "code": "ROUTE_PROVISIONAL_FITTING",
+      "says": "The run needs a fitting that is still provisional."
+    },
+    {
+      "code": "ROUTE_RISER_UNDER_COVER",
+      "says": "A riser stands under a cover that would close it."
+    },
+    {
+      "code": "ROUTE_SOCKET_CROWDED",
+      "says": "Too many pipes meet at one socket."
+    },
+    {
+      "code": "ROUTE_SOCKET_GONE",
+      "says": "The socket the pipe was cut to is gone."
+    },
+    {
+      "code": "ROUTE_TOO_MANY_ARMS",
+      "says": "More arms meet at one fitting than any fitting takes."
+    },
+    {
+      "code": "RUN_OWNS_CONNECTOR",
+      "says": "A pipe run already puts a connector here."
+    },
+    {
+      "code": "SEAM_FLAT",
+      "says": "The flat is a seam against another cell, not an outside face."
+    },
+    {
+      "code": "SITE_FILLED",
+      "says": "Another part already fills that position."
+    },
+    {
+      "code": "SLOT_MISMATCH",
+      "says": "The part does not bolt to that slot."
+    },
+    {
+      "code": "SOCKET_OCCUPIED",
+      "says": "The cell has no room for the part."
+    },
+    {
+      "code": "SOCKET_ON_LID",
+      "says": "A pipe socket on the lid would be lifted by a bin rim."
+    },
+    {
+      "code": "SOIL_NOT_FILLABLE",
+      "says": "The part cannot hold soil: soil goes in a bin, a bolt-on bin, or a notch or bay bin."
+    },
+    {
+      "code": "SOIL_NO_BED",
+      "says": "No soil bed could be cut for the part (browser only)."
+    },
+    {
+      "code": "SOIL_NO_DIVIDERS",
+      "says": "The part has no dividers to fill to: fill it to the rim."
+    },
+    {
+      "code": "SPIKE_CLASH",
+      "says": "A spike on the junction reaches into this position, or a spike and a drawer would share a corner of a cell."
+    },
+    {
+      "code": "STACK_ORDER",
+      "says": "Inserts cannot be stacked in this order here."
+    },
+    {
+      "code": "STOREY_LIMIT",
+      "says": "Too many stories: bases go 1-3, caps 1-2, drawers 1-3."
+    },
+    {
+      "code": "TALL_FACE_MISMATCH",
+      "says": "A two-story cap needs the same face on both stories."
+    },
+    {
+      "code": "TIMED_OUT",
+      "says": "The op did not finish working out its answer in time and wrote nothing (browser only)."
+    },
+    {
+      "code": "TOO_FEW_CELLS",
+      "says": "A spike sits where three cells meet, and one is missing."
+    },
+    {
+      "code": "TRIANGLE_OPEN",
+      "says": "A handle needs all three recesses of its triangle under covers."
+    },
+    {
+      "code": "TYPE_NOT_ALLOWED",
+      "says": "That type does not fit here, or the part does not turn by that step."
+    },
+    {
+      "code": "UNSUPPORTED",
+      "says": "Nothing below carries the part."
+    },
+    {
+      "code": "WEDGED_LID",
+      "says": "The cell top is a wedged socket cover a bin rim would lift."
+    },
+    {
+      "code": "WOULD_BREAK_RUN",
+      "says": "A pipe runs through this part or face, and the change would break it."
+    }
+  ],
+  "routeProblems": [
+    {
+      "name": "CELL_OCCUPIED",
+      "says": "A part already fills a cell the pipe would pass through."
+    },
+    {
+      "name": "AXIS_ABSENT",
+      "says": "The pipe has no axis to run along here."
+    },
+    {
+      "name": "NO_RISER",
+      "says": "The pipe changes storey without a riser."
+    },
+    {
+      "name": "RISER_UNDER_COVER",
+      "says": "A riser stands under a cover that would close it."
+    },
+    {
+      "name": "NOT_A_BOUNDARY",
+      "says": "The pipe must enter or leave through a cell boundary."
+    },
+    {
+      "name": "TOO_MANY_ARMS",
+      "says": "More arms meet at one fitting than any fitting takes."
+    },
+    {
+      "name": "FLEX_BEND",
+      "says": "The bend needs a flexible section that is not allowed here."
+    },
+    {
+      "name": "MODE_CLASH",
+      "says": "Runs plumbed for different duties meet."
+    },
+    {
+      "name": "COVER_HUB_MOUNT",
+      "says": "The cover hub has nothing to mount to."
+    },
+    {
+      "name": "COVER_HUB_CLEARANCE",
+      "says": "The cover hub has no clearance here."
+    },
+    {
+      "name": "COVER_HUB_PROVISIONAL",
+      "says": "The cover hub is a provisional fitting."
+    },
+    {
+      "name": "FLAT_BOLTED_OVER",
+      "says": "A part is bolted over the flat the pipe needs."
+    },
+    {
+      "name": "BIN_IN_WAY",
+      "says": "A bin hangs through the side bores the pipe needs; a third-depth bin clears a plain pipe, not a coupling or fitting."
+    },
+    {
+      "name": "PROVISIONAL_FITTING",
+      "says": "The run needs a fitting that is still provisional."
+    },
+    {
+      "name": "SOCKET_GONE",
+      "says": "The socket the pipe was cut to is gone."
+    },
+    {
+      "name": "SOCKET_CROWDED",
+      "says": "Too many pipes meet at one socket."
+    }
+  ],
+  "issues": [
+    {
+      "code": "UNSUPPORTED",
+      "says": "error: a base is not held up."
+    },
+    {
+      "code": "ORPHAN",
+      "says": "error: a part has lost what held it."
+    },
+    {
+      "code": "STRANDED",
+      "says": "error: a pipe run is not legal where it stands."
+    },
+    {
+      "code": "LOOSE_BODY",
+      "says": "warning: parts could slide apart; joint bolts lock them."
+    },
+    {
+      "code": "OVER_PACK_CAP",
+      "says": "warning: more printed parts than one download takes (bom().maxPackInstances)."
+    },
+    {
+      "code": "UNRELEASED_PART",
+      "says": "warning: the build names a part that is not in the current release."
+    },
+    {
+      "code": "OPEN_CAP_FACE",
+      "says": "info: faces that could take an edge cap. They are listed in the message only, for people; ask openSockets for the cap sites."
+    },
+    {
+      "code": "MESH_CLASH_KEPT",
+      "says": "warning (apply only): the op is in, and the build still holds a clash it already had (a link that arrived overlapping); validate().meshClash names it."
+    },
+    {
+      "code": "MESH_NOT_RUN",
+      "says": "warning (apply only): the collision gate did not judge the op in time; it may still be put back."
+    },
+    {
+      "code": "PROPS_NOT_DRAWN",
+      "says": "warning (apply only): the build holds the staging change, but the props on screen did not come to match it in time."
+    }
+  ],
+  "values": {
+    "variant": [
+      "full",
+      "half-n",
+      "half-s",
+      "half-e",
+      "half-w",
+      "quarter-nw",
+      "quarter-ne",
+      "quarter-sw",
+      "quarter-se"
+    ],
+    "coverType": [
+      "plain",
+      "solid",
+      "grate",
+      "pill",
+      "radial",
+      "pvc",
+      "bolt",
+      "cable",
+      "grate-pvc",
+      "pill-pvc",
+      "radial-pvc",
+      "socket"
+    ],
+    "capVariant": [
+      "solid",
+      "1h",
+      "solid-bolt",
+      "1h-bolt",
+      "socket-bolt"
+    ],
+    "spikeVariant": [
+      "solid",
+      "mount",
+      "stud"
+    ],
+    "spikeAccessory": [
+      "platform-sm",
+      "platform-lrg"
+    ],
+    "runMode": [
+      "potable",
+      "irrigation",
+      "structural"
+    ],
+    "drawerStyle": [
+      "classic",
+      "slide",
+      "swing",
+      "long",
+      "longbin"
+    ]
+  },
+  "types": [
+    {
+      "name": "Cell",
+      "says": "An axial cell (q, r) and its storey (level, 0 at the ground)."
+    },
+    {
+      "name": "Site",
+      "says": "A cell with no storey, as edges and junctions name them."
+    },
+    {
+      "name": "Face",
+      "says": "A face of a cell."
+    },
+    {
+      "name": "Variant",
+      "says": "A cell shape: full, a half or a quarter."
+    },
+    {
+      "name": "NodeFamily",
+      "says": "The kind of a node. Other families may appear while the API is experimental."
+    },
+    {
+      "name": "NodeRef",
+      "says": "An opaque handle for one placed part: read it, pass it back, never build one."
+    },
+    {
+      "name": "PropRef",
+      "says": "An opaque handle for one placed prop: read it, pass it back, never build one. It changes when the prop does (moved, or a pot filled or planted), and the outcome names the new one."
+    },
+    {
+      "name": "HexNode",
+      "says": "One placed part."
+    },
+    {
+      "name": "StarterState",
+      "says": "A build of bases and snaps only, for load()."
+    },
+    {
+      "name": "PartInfo",
+      "says": "One part a script can name, as listParts() gives it."
+    },
+    {
+      "name": "PropInfo",
+      "says": "One prop of the library, as listProps() gives it."
+    },
+    {
+      "name": "Staging",
+      "says": "The props on the build and the soil in its parts: staging, not parts, so not in nodes or the BOM. Positions are mm, y up."
+    },
+    {
+      "name": "HexState",
+      "says": "What getState() returns."
+    },
+    {
+      "name": "HexOp",
+      "says": "One change to the build. The op field names it."
+    },
+    {
+      "name": "SocketQuery",
+      "says": "What openSockets() looks for."
+    },
+    {
+      "name": "BoxMm",
+      "says": "A box in world mm, y up (x and z across the bench)."
+    },
+    {
+      "name": "Measure",
+      "says": "What measure() returns: the build's box, the parts alone and with its props; null for an empty build."
+    },
+    {
+      "name": "Surface",
+      "says": "One place on or in a part a prop can go: a top, a floor, one compartment of a divided bin, or a soil seat. Lengths are mm, y up."
+    },
+    {
+      "name": "OpenSocket",
+      "says": "One place a part fits now."
+    },
+    {
+      "name": "RefusalCode",
+      "says": "Why an op was refused. Branch on it; new codes may appear while the API is experimental."
+    },
+    {
+      "name": "IssueCode",
+      "says": "What validate() found."
+    },
+    {
+      "name": "Issue",
+      "says": "One finding."
+    },
+    {
+      "name": "MeshClash",
+      "says": "The collision gate's verdict: clear, not run, or the two parts that collide and by how much (mm)."
+    },
+    {
+      "name": "ValidationReport",
+      "says": "What validate() returns."
+    },
+    {
+      "name": "MutationOutcome",
+      "says": "The answer to every op: what changed, or which rule said no."
+    },
+    {
+      "name": "ApplyAllOptions",
+      "says": "How applyAll() treats a refusal."
+    },
+    {
+      "name": "BatchResult",
+      "says": "What applyAll() returns."
+    },
+    {
+      "name": "BomLine",
+      "says": "One line of the parts list."
+    },
+    {
+      "name": "BomSummary",
+      "says": "What bom() returns."
+    },
+    {
+      "name": "PackOptions",
+      "says": "The print pack bom() links to."
+    },
+    {
+      "name": "PackLink",
+      "says": "The print pack for a build: the link, the bed and format it is for, or why there is none."
+    }
+  ],
+  "examples": [
+    {
+      "id": "quickstart",
+      "title": "Quickstart",
+      "mutates": true,
+      "code": "// 1. Load the API (a lazy chunk; once per page).\nconst api = await window.__loadHexAPI();\n\n// 2. Keep your current build. toUrl() is exact even straight after an edit;\n//    the address bar catches up about 400 ms later.\nconst original = new URL(location.href);\noriginal.hash = await api.toUrl();\n\n// 3. Read only: what is on the bench, and where a base can go.\nconst nodes = api.getState().nodes;\nconst sockets = api.openSockets({ family: 'piece', level: 0 });\n\n// 4. Changes the build: replace it with one base, then add a second.\nawait api.load({ pieces: [{ q: 0, r: 0, level: 0, variant: 'full' }] });\nconst out = await api.apply({ op: 'place', at: { q: 1, r: 0, level: 0 }, variant: 'full' });\nif (!out.ok) console.log(out.code, out.message, out.validAlternatives);\n\n// 5. Read only: checks, parts list and a share link for this build.\nconst report = await api.validate();\nconst parts = api.bom().lines;\nconst share = new URL(location.href);\nshare.hash = await api.toUrl();\n\n// 6. Put your own build back.\nawait api.load(original.href);\n\n({ nodes: nodes.length, sockets: sockets.length, placed: out.ok, ok: report.ok, parts: parts.length, share: share.href });",
+      "expect": "result.placed === true && result.ok === true && result.parts > 0 && result.share.includes('#v2')"
+    },
+    {
+      "id": "inspect-link",
+      "title": "Inspect a shared build",
+      "mutates": true,
+      "code": "const api = await window.__loadHexAPI();\nconst original = new URL(location.href);\noriginal.hash = await api.toUrl();\n\n// A real share link: two bases, a bin, two covers. Put any Hex Cluster\n// link in its place, or just its '#v2s=…' part.\nconst SHARE_LINK = '#v2s=hY5BCoMwEEXv8tcjxG08SnER7RRDw5gmMRREz14StNJVN8Obz-PPrMjQLSFCr_CWR47QtxUvaEUIdTrO7CplE6yRBI3H4hw2qmL7X-wJUYwv3QW9ffLB45w5FIYiRaorfpdmD0L7GxT5W2ElckjHMhm5u6tQhMc0h2MPi5xkI5_pYOU6uk_8bgYrTX2237YP';\nconst opened = await api.load(SHARE_LINK);\nif (!opened.ok) throw new Error(opened.message);\nconst { nodes } = api.getState();\nconst families = new Set(nodes.map((n) => n.family));\nconst printed = api.bom().lines.filter((l) => l.kind === 'printed');\n\nawait api.load(original.href);\n({ families: families.size, printed: printed.length });",
+      "expect": "result.families > 0 && result.printed > 0"
+    },
+    {
+      "id": "plant-a-pot",
+      "title": "Fill a pot and plant it",
+      "mutates": true,
+      "code": "const api = await window.__loadHexAPI();\nconst original = new URL(location.href);\noriginal.hash = await api.toUrl();\n\n// A real share link: one base, and a small pot on the bench beside it.\nawait api.load('#v2s=RYxBCsMgFETvMutfMFm6yj1KFmJ_qVS-Vo0UJHcvkZhuhjfwZhoq9ETI0A3RseUMfW_4QCtC6um5su9UTXJGCjSem_fYV0IWE4_JgdG9-WQbKqfBl-EkcypneRl5-L8vwraEsUmbDHL5eoop9CvEUG7fvMyzUqRILT1pwrrvPw');\nconst pot = api.getState().staging.props.find((p) => p.pot);\nconst mint = api.listProps().find((p) => p.plant && p.id.startsWith('mint'));\n\nconst filled = await api.apply({ op: 'fillPot', ref: pot.ref });\n// a prop ref changes with the prop: plant in the ref the fill handed back\nconst planted = await api.apply({ op: 'plant', id: mint.id, in: filled.added[0] });\nconst now = api.getState().staging.props.find((p) => p.pot);\n\nawait api.load(original.href);\n({ filled: filled.ok, planted: planted.ok, plant: now.pot.plant });",
+      "expect": "result.filled === true && result.planted === true && result.plant.startsWith('mint')"
+    },
+    {
+      "id": "put-a-prop",
+      "title": "Put a prop on the build",
+      "mutates": true,
+      "code": "const api = await window.__loadHexAPI();\nconst original = new URL(location.href);\noriginal.hash = await api.toUrl();\n\nawait api.load({ pieces: [{ q: 0, r: 0, level: 0, variant: 'full' }] });\nconst lid = api.openSockets({ family: 'cover', level: 0 }).find((s) => s.op.face === 'top');\nconst cover = (await api.apply(lid.op)).added[0];\n\n// A tape measure on the cover, resting as the props panel would rest it.\nconst placed = await api.apply({ op: 'addProp', id: 'tape', on: cover });\n// Move it along and turn it a quarter: the ref changes with it.\nconst moved = await api.apply({\n    op: 'moveProp',\n    ref: placed.added[0],\n    on: cover,\n    atMm: { x: 20, z: 0 },\n    yawDeg: 90,\n});\nconst props = api.getState().staging.props.length;\n\nawait api.load(original.href);\n({ placed: placed.ok, moved: moved.ok, props });",
+      "expect": "result.placed === true && result.moved === true && result.props === 1"
+    },
+    {
+      "id": "fill-a-bin",
+      "title": "Fill a bin and plant it",
+      "mutates": true,
+      "code": "const api = await window.__loadHexAPI();\nconst original = new URL(location.href);\noriginal.hash = await api.toUrl();\n\nawait api.load({ pieces: [{ q: 0, r: 0, level: 0, variant: 'full' }] });\nconst socket = api.openSockets({ family: 'bin', level: 0 })[0];\nconst bin = (await api.apply(socket.op)).added.find((r) => r.startsWith('bin:'));\n\n// Soil to the rim, then a plug plant seated in it.\nconst filled = await api.apply({ op: 'fillSoil', part: bin });\nconst mint = api.listProps().find((p) => p.plant && p.id.startsWith('mint'));\nconst planted = await api.apply({ op: 'plant', id: mint.id, in: bin });\nconst { soil, props } = api.getState().staging;\n\nawait api.load(original.href);\n({ filled: filled.ok, soil: soil.length, planted: planted.ok, props: props.length });",
+      "expect": "result.filled === true && result.soil === 1 && result.planted === true && result.props === 1"
+    },
+    {
+      "id": "where-a-bin-fits",
+      "title": "Find where a part fits, and put it there",
+      "mutates": true,
+      "code": "const api = await window.__loadHexAPI();\nconst original = new URL(location.href);\noriginal.hash = await api.toUrl();\n\nawait api.load({ pieces: [{ q: 0, r: 0, level: 0, variant: 'full' }] });\nconst sockets = api.openSockets({ family: 'bin', level: 0 });\nconst out = sockets.length ? await api.apply(sockets[0].op) : null;\n\nawait api.load(original.href);\n({ offered: sockets.length, ok: out?.ok, added: out?.ok ? out.added : [] });",
+      "expect": "result.offered > 0 && result.ok === true && result.added.length > 0"
+    },
+    {
+      "id": "refusal",
+      "title": "Handle a refusal",
+      "mutates": true,
+      "code": "const api = await window.__loadHexAPI();\nconst original = new URL(location.href);\noriginal.hash = await api.toUrl();\n\nawait api.load({ pieces: [{ q: 0, r: 0, level: 0, variant: 'full' }] });\n// A second full base in the same cell: the rules say no, and say why.\nconst out = await api.apply({ op: 'place', at: { q: 0, r: 0, level: 0 }, variant: 'full' });\nlet retried = null;\nif (!out.ok) {\n    // branch on out.code, never on out.message\n    const next = out.validAlternatives[0];\n    if (next) retried = await api.apply(next.op);\n}\n\nawait api.load(original.href);\n({ ok: out.ok, code: out.ok ? null : out.code, retried: retried?.ok });",
+      "expect": "result.ok === false && typeof result.code === 'string' && result.retried === true"
+    },
+    {
+      "id": "batch",
+      "title": "Apply a batch, all or nothing",
+      "mutates": true,
+      "code": "const api = await window.__loadHexAPI();\nconst original = new URL(location.href);\noriginal.hash = await api.toUrl();\n\nawait api.load({ pieces: [{ q: 0, r: 0, level: 0, variant: 'full' }] });\nconst ops = [\n    { op: 'place', at: { q: 1, r: 0, level: 0 }, variant: 'full' },\n    { op: 'place', at: { q: 0, r: 0, level: 0 }, variant: 'full' }, // refused: occupied\n];\n// Atomic by default: one refusal undoes the whole batch.\nconst all = await api.applyAll(ops);\nconst after = api.getState().nodes.length;\n// Try every op and report every refusal. Still atomic: one refusal means\n// nothing is kept, but a batch with no refusal is kept whole (not a dry run).\nconst tried = await api.applyAll(ops, { stopOnRefusal: false });\nconst kept = api.getState().nodes.length;\n\nawait api.load(original.href);\n({ rolledBack: all.rolledBack, after, refusals: tried.outcomes.filter((o) => !o.ok).length, kept });",
+      "expect": "result.rolledBack === true && result.after === 1 && result.refusals === 1 && result.kept === 1"
+    },
+    {
+      "id": "name-a-part",
+      "title": "Look a part up by name and place it",
+      "mutates": true,
+      "code": "const api = await window.__loadHexAPI();\nconst original = new URL(location.href);\noriginal.hash = await api.toUrl();\n\nawait api.load({ pieces: [{ q: 0, r: 0, level: 0, variant: 'full' }] });\nconst bin = api.listParts().find((p) => p.name === 'Bin, full depth');\nconst sockets = api.openSockets({ family: bin.family, stem: bin.value, level: 0 });\nconst out = sockets.length ? await api.apply(sockets[0].op) : null;\n// The parts list names it the same way, by its published part.\nconst line = api.bom().lines.find((l) => l.key === bin.part);\n\nawait api.load(original.href);\n({ part: bin.part, placed: out?.ok, listed: line?.label === bin.name });",
+      "expect": "result.part === 'hex-bin-full' && result.placed === true && result.listed === true"
+    },
+    {
+      "id": "build-to-pack",
+      "title": "From a build to its print pack",
+      "mutates": true,
+      "code": "const api = await window.__loadHexAPI();\nconst original = new URL(location.href);\noriginal.hash = await api.toUrl();\n\nawait api.load({ pieces: [{ q: 0, r: 0, level: 0, variant: 'full' }] });\nconst bin = api.openSockets({ family: 'bin', level: 0 })[0];\nif (bin) await api.apply(bin.op);\n// The link for your printer. Opening it downloads; this only reads it.\nconst { pack } = api.bom({ format: 'stl', bed: { x: 256, y: 256 } });\n\nawait api.load(original.href);\n({ url: pack.url, why: pack.why, bed: pack.bed.x });",
+      "expect": "typeof result.url === 'string' && result.url.startsWith('https://academy.onethousanddrones.com/api/printable-pack?release=') && result.url.includes('format=stl') && result.why === null && result.bed === 256"
+    }
+  ]
+}

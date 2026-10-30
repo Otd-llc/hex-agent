@@ -4,8 +4,10 @@
 import { chromium } from 'playwright-core';
 
 export const HEX_ORIGIN = 'https://hex.onethousanddrones.com';
+// The page to drive: HEX_URL (a local dev server, e.g. http://127.0.0.1:5310/hex.html) or the live site.
+export const hexUrl = () => process.env.HEX_URL || HEX_ORIGIN + '/';
 
-const READ = new Set(['getState', 'listParts', 'listProps', 'openSockets', 'validate', 'bom', 'toUrl', 'settle']);
+const READ = new Set(['getState', 'listParts', 'listProps', 'openSockets', 'validate', 'bom', 'toUrl', 'settle', 'measure', 'surfaces']);
 const WRITE = new Set(['apply', 'applyAll', 'load', 'undo', 'redo']);
 
 // A slow page load is retried once in a fresh browser before giving up.
@@ -18,7 +20,7 @@ export async function openHex(options = {}) {
   }
 }
 
-async function openOnce({ url = HEX_ORIGIN + '/', headless = true, timeoutMs = 90_000 } = {}) {
+async function openOnce({ url = hexUrl(), headless = true, timeoutMs = 90_000 } = {}) {
   // System Chrome: WebGL works and no Playwright browser download is needed.
   const browser = await chromium.launch({ headless, channel: process.env.HEX_BROWSER_CHANNEL || 'chrome' });
   try {

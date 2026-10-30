@@ -3,37 +3,12 @@
 // live build, and socket ids map back to the exact op the configurator offered.
 // The model never gets load(), so it cannot replace the build.
 
-// Fields each op takes, from the public contract (hex-api.d.ts, hash 2b45909b…; op shapes unchanged since 9bb662c8…):
-// [required, optional]. Checked before anything reaches the page.
-const OP_FIELDS = {
-  place: [['at', 'variant'], ['storeys']],
-  remove: [['ref'], ['sweepOrphans']],
-  rotate: [['ref', 'stepDeg'], []],
-  addSnap: [['at', 'variant'], []],
-  addBin: [['at', 'stem'], []],
-  addSpike: [['level', 'junction'], ['variant', 'facing']],
-  setSpikeAccessory: [['level', 'junction', 'accessory'], []],
-  addCover: [['at', 'variant', 'face'], ['type']],
-  setCoverType: [['at', 'variant', 'face', 'type'], []],
-  setCoverMagnets: [['at', 'variant', 'face', 'on'], []],
-  addCap: [['at', 'face', 'bearingDeg'], ['capVariant', 'storeys']],
-  addInsert: [['at', 'variant', 'face', 'bearingDeg', 'stem'], ['chain']],
-  addHandle: [['at', 'face'], ['chain']],
-  addCoverHub: [['at', 'variant', 'face'], []],
-  addConnector: [['level', 'edge', 'kind'], []],
-  addJointBolt: [['at', 'slot'], []],
-  addAccessory: [['at', 'slot', 'stem'], []],
-  addPort: [['at', 'slot', 'stem'], []],
-  addBinBolt: [['at', 'slot', 'stem'], []],
-  addNotch: [['at', 'k', 'stem'], []],
-  setNotchOpen: [['at', 'k', 'open'], []],
-  addDrawer: [['at', 'key'], ['style', 'storeys']],
-  setDrawerOpen: [['at', 'open'], ['west']],
-  addRun: [['level', 'start', 'entryEdge', 'through'], ['mode']],
-  setRunMode: [['id', 'mode'], []],
-  addRiser: [['at'], []],
-  setFootBolt: [['mm'], []],
-};
+import { CONTRACT, checkerFor, refKinds } from './contract.mjs';
+
+// Fields each op takes, [required, optional], from the vendored public contract
+// (contract/hex-api-public.json; bin/sync-contract.mjs refreshes it). Checked
+// before anything reaches the page.
+const OP_FIELDS = CONTRACT.opFields;
 const BUILD_OPS = new Set(Object.keys(OP_FIELDS));
 // Compact, for the apply tool's description: "place(at, variant, storeys?); ..."
 const OP_TABLE = Object.entries(OP_FIELDS)
@@ -47,17 +22,9 @@ const NO_OFFERS =
   'beside or below it), then ask again. Guessing raw ops for a part with no offers rarely works.';
 const STREAK_LIMIT = 6;
 
-// The value lists the public contract publishes (its `values` table, hash
-// 2b45909b…, unchanged since 9bb662c8…): the only names the configurator places for these fields.
-export const VALUES = {
-  variant: ['full', 'half-n', 'half-s', 'half-e', 'half-w', 'quarter-nw', 'quarter-ne', 'quarter-sw', 'quarter-se'],
-  coverType: ['plain', 'solid', 'grate', 'pill', 'radial', 'pvc', 'bolt', 'cable', 'grate-pvc', 'pill-pvc', 'radial-pvc', 'socket'],
-  capVariant: ['solid', '1h', 'solid-bolt', '1h-bolt', 'socket-bolt'],
-  spikeVariant: ['solid', 'mount', 'stud'],
-  spikeAccessory: ['platform-sm', 'platform-lrg'],
-  runMode: ['potable', 'irrigation', 'structural'],
-  drawerStyle: ['classic', 'slide', 'swing', 'long', 'longbin'],
-};
+// The value lists the public contract publishes (its `values` table): the only
+// names the configurator places for these fields.
+export const VALUES = CONTRACT.values;
 // Which value list governs which field of which op.
 const VALUE_OF = {
   variant: 'variant',
@@ -97,11 +64,19 @@ export function checkOpShape(item) {
     if (!list || item[k] == null) continue;
     if (!VALUES[list].includes(item[k])) throw new Error(`${item.op}.${k} "${item[k]}" is not a ${list}: use one of ${VALUES[list].join(', ')}`);
   }
+  // Every other field as its contract type says: numbers, booleans, literal
+  // unions, small objects. Refs are checked against the live build in resolve().
+  for (const [k, type] of Object.entries(CONTRACT.fieldTypes[item.op])) {
+    if (!(k in item) || k in SHAPES || refKinds(type)) continue;
+    const check = checkerFor(type);
+    if (check && !check[0](item[k])) throw new Error(`${item.op}.${k} must be ${check[1]}`);
+  }
 }
 const FAMILIES = ['piece', 'snap', 'spike', 'cover', 'cap', 'insert', 'handle', 'accessory', 'port', 'bin', 'binBolt',
   'connector', 'run', 'riser', 'coverHub', 'drawer', 'jointBolt', 'notch', 'bay'];
 
-export const LIMITS = { opsPerCall: 30, opsTotal: 250, socketsShown: 40, partsShown: 40, nodesShown: 200 };
+export const LIMITS = { opsPerCall: 30, opsTotal: 250, socketsShown: 40, partsShown: 40, nodesShown: 200, propsShown: 40, surfacesShown: 40 };
+const mm = (v) => Math.round(v);
 
 const obj = (properties, required = []) => ({ type: 'object', properties, required, additionalProperties: false });
 
@@ -152,11 +127,42 @@ export const TOOL_SPECS = [
     ),
   },
   {
+    name: 'find_props',
+    description:
+      'Search the props: things that stand on or in a build to show what it is for (a mug, a keyboard, tools, books, pots) ' +
+      'and plug plants that go in soil. Props are staging, not parts: they are not in the parts list. ' +
+      'Each has an id for addProp or plant, its sizes in mm (longest first) and what it is for.',
+    parameters: obj({
+      text: { type: 'string', description: 'Optional words to match in the id, label or kind.' },
+      use: { type: 'string', enum: ['desk', 'dining', 'living', 'workshop', 'electronics', 'drone', 'printing', 'grow'] },
+      kind: { type: 'string', description: 'Optional kind, e.g. herbs, pots, tools.' },
+    }),
+  },
+  {
+    name: 'find_surfaces',
+    description:
+      'Where a prop can go: the tops, floors, compartments and soil of one part (ref) or of the whole build, each with a token ' +
+      '(f1, f2, ...) to pass to addProp as surface, its height, centre, size and clear headroom. With fits (a prop id), only ' +
+      'surfaces a prop of that size could take: a first cut, so try a doubtful one with apply dryRun.',
+    parameters: obj({
+      ref: { type: 'string', description: 'Optional part ref from get_build.' },
+      fits: { type: 'string', description: 'Optional prop id from find_props.' },
+    }),
+  },
+  { name: 'measure', description: 'The build\'s size in mm (x and z across the bench, y up): the parts alone, and with its props.', parameters: obj({}) },
+  {
+    name: 'bom',
+    description: 'The parts list (printed, stock and unmodelled lines with quantities), the print estimate (grams of filament, minutes) and notes.',
+    parameters: obj({}),
+  },
+  {
     name: 'apply',
     description:
       'Change the build. Each item is either {"socket":"s12"} (an offer from find_sockets) or a full op object. ' +
       'Atomic by default: if any op is refused, the whole batch is taken back. Refusals carry a code, a message and ' +
       'nearby alternatives (also given socket ids). Never invent a ref: take refs from get_build or an outcome. ' +
+      'Props: addProp with an id from find_props, on a part ref or "bench", or on a surface token from find_surfaces; ' +
+      'moveProp and removeProp take a prop ref from get_build. Soil: fillSoil a bin or pot part, then plant a plant id in it. ' +
       `Ops and their fields (? = optional): ${OP_TABLE}. ` +
       `Named values: ${Object.entries(VALUES).filter(([k]) => k !== 'variant').map(([k, v]) => `${k}: ${v.join('|')}`).join('; ')}. ` +
       'Cover magnets are setCoverMagnets on a fitted cover, not a cover type.',
@@ -169,11 +175,13 @@ export const TOOL_SPECS = [
           items: { type: 'object', description: '{"socket":"sN"} or a hexAPI op such as {"op":"place","at":{"q":1,"r":0,"level":0},"variant":"full"}' },
         },
         atomic: { type: 'boolean', description: 'Default true. False keeps the ops that succeed and reports the rest.' },
+        dryRun: { type: 'boolean', description: 'Try ONE op and report what would happen, changing nothing.' },
       },
       ['ops'],
     ),
   },
   { name: 'undo', description: 'Take back the last change (one apply is one step).', parameters: obj({}) },
+  { name: 'redo', description: 'Put back the change undo took back.', parameters: obj({}) },
   {
     name: 'check_build',
     description: 'Run the configurator checks: rule issues (errors, warnings) and the browser mesh-collision gate.',
@@ -205,6 +213,9 @@ export const TOOL_SPECS = [
 export function createTools(hex, { onEvent = () => {} } = {}) {
   const sockets = new Map();
   let nextSocket = 1;
+  const surfaces = new Map();
+  let nextSurface = 1;
+  let propIds = null;
   let opsTotal = 0;
   let refusalStreak = 0;
   const counters = { applied: 0, refused: 0, refusalCodes: {} };
@@ -217,10 +228,15 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
 
   async function liveRefs() {
     const s = await hex.call('getState');
-    return new Set(s.nodes.map((n) => n.ref));
+    return { node: new Set(s.nodes.map((n) => n.ref)), prop: new Set((s.staging?.props ?? []).map((p) => p.ref)) };
   }
 
-  function resolve(item, refs) {
+  async function knownProps() {
+    propIds ??= new Set((await hex.call('listProps')).map((p) => p.id));
+    return propIds;
+  }
+
+  async function resolve(item, refs) {
     if (item && typeof item.socket === 'string') {
       const op = sockets.get(item.socket);
       if (!op) throw new Error(`unknown socket id ${item.socket}: call find_sockets again`);
@@ -229,8 +245,22 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
     if (!item || typeof item.op !== 'string') throw new Error('each item needs "socket" or "op"');
     if (!BUILD_OPS.has(item.op)) throw new Error(`op ${item.op} is not allowed here`);
     checkOpShape(item);
-    for (const k of ['ref', 'part']) {
-      if (k in item && !refs.has(item[k])) throw new Error(`${k} ${JSON.stringify(item[k])} is not on the build: take refs from get_build`);
+    // Each ref field takes what its contract type names: part refs, prop refs, or a literal such as 'bench'.
+    for (const [k, type] of Object.entries(CONTRACT.fieldTypes[item.op])) {
+      const kinds = refKinds(type);
+      if (!kinds || !(k in item) || kinds.literals.includes(item[k])) continue;
+      if ((kinds.node && refs.node.has(item[k])) || (kinds.prop && refs.prop.has(item[k]))) continue;
+      const what = [kinds.node && 'part', kinds.prop && 'prop'].filter(Boolean).join(' or ');
+      const also = kinds.literals.length ? ` or ${kinds.literals.map((l) => `"${l}"`).join(', ')}` : '';
+      throw new Error(`${item.op}.${k} ${JSON.stringify(item[k])} is not on the build: it must be a ${what} ref from get_build${also}`);
+    }
+    if ((item.op === 'addProp' || item.op === 'plant') && !(await knownProps()).has(item.id)) {
+      throw new Error(`${item.op}.id "${item.id}" is not a prop: take ids from find_props`);
+    }
+    if (item.op === 'addProp' && 'surface' in item) {
+      const id = surfaces.get(item.surface);
+      if (!id) throw new Error(`unknown surface ${item.surface}: take tokens from find_surfaces`);
+      return { ...item, surface: id };
     }
     return item;
   }
@@ -255,6 +285,70 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
         nodes: s.nodes.slice(0, LIMITS.nodesShown).map((n) => ({ ref: n.ref, family: n.family, at: n.at, stem: n.stem })),
         total: s.nodes.length,
         counts,
+        props: (s.staging?.props ?? []).map((p) => ({
+          ref: p.ref, id: p.id, label: p.label, atMm: p.posMm.map(mm), yawDeg: mm(p.yawDeg), ...(p.pot ? { pot: p.pot } : {}),
+        })),
+        soil: s.staging?.soil ?? [],
+      };
+    },
+
+    async find_props({ text, use, kind } = {}) {
+      const all = await hex.call('listProps');
+      const words = (text ?? '').toLowerCase().split(/[\s,]+/).filter(Boolean);
+      const score = (p) => words.filter((w) => `${p.id} ${p.label} ${p.kind}`.toLowerCase().includes(w)).length;
+      const hits = all
+        .filter((p) => (!use || p.uses.includes(use)) && (!kind || p.kind === kind))
+        .map((p) => ({ p, s: words.length ? score(p) : 1 }))
+        .filter((x) => x.s > 0)
+        .sort((a, b) => b.s - a.s)
+        .map((x) => x.p);
+      return {
+        total: hits.length,
+        props: hits.slice(0, LIMITS.propsShown).map((p) => ({
+          id: p.id, label: p.label, kind: p.kind, uses: p.uses,
+          sizeMm: p.sizeMm ? [p.sizeMm.long, p.sizeMm.mid, p.sizeMm.short].map(mm) : [mm(p.longMm)],
+          ...(p.plant ? { plant: true, stage: p.stage } : {}), ...(p.pot ? { pot: true } : {}),
+        })),
+      };
+    },
+
+    async find_surfaces({ ref, fits } = {}) {
+      const all = await hex.call('surfaces', ...(fits ? [ref, { fits }] : ref ? [ref] : []));
+      const size = (o) => {
+        const xs = o.map((p) => p[0]), zs = o.map((p) => p[1]);
+        return { x: mm(Math.max(...xs) - Math.min(...xs)), z: mm(Math.max(...zs) - Math.min(...zs)) };
+      };
+      const out = {
+        total: all.length,
+        surfaces: all.slice(0, LIMITS.surfacesShown).map((f) => {
+          const token = `f${nextSurface++}`;
+          surfaces.set(token, f.id);
+          return {
+            surface: token, label: f.label, kind: f.kind, yMm: mm(f.yMm), centreMm: [mm(f.centreMm.x), mm(f.centreMm.z)],
+            sizeMm: size(f.outlineMm), headroomMm: f.headroomMm == null ? null : mm(f.headroomMm),
+          };
+        }),
+      };
+      if (!all.length) out.note = fits ? `No surface here takes ${fits}: try another part or a smaller prop.` : 'No surfaces here.';
+      return out;
+    },
+
+    async measure() {
+      const m = await hex.call('measure');
+      const box = (b) => b && { x: mm(b.sizeMm.x), y: mm(b.sizeMm.y), z: mm(b.sizeMm.z) };
+      return { parts: box(m.parts), withProps: box(m.withProps) };
+    },
+
+    async bom() {
+      // The pack link stays out: long, and nothing the model can use.
+      const b = await hex.call('bom');
+      return {
+        lines: b.lines.map((l) => ({ key: l.key, qty: l.qty, kind: l.kind, label: l.label })),
+        printedInstances: b.printedInstances,
+        print: { grams: mm(b.print.grams), minutes: mm(b.print.minutes) },
+        ...(b.print.unmeasured.length ? { unmeasured: b.print.unmeasured } : {}),
+        notes: b.notes,
+        ...(b.pack.why ? { noPack: b.pack.why } : {}),
       };
     },
 
@@ -284,18 +378,26 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
       const offers = await hex.call('openSockets', query);
       const out = {
         total: offers.length,
-        sockets: offers.slice(0, LIMITS.socketsShown).map((o) => ({ socket: remember(o.op), at: o.at, slot: o.slot, op: o.op })),
+        // The op already names the cell and the face, bearing or slot: no need to repeat them (A59).
+        sockets: offers.slice(0, LIMITS.socketsShown).map((o) => ({ socket: remember(o.op), op: o.op })),
       };
       if (!offers.length) out.note = NO_OFFERS;
       return out;
     },
 
-    async apply({ ops, atomic = true }) {
+    async apply({ ops, atomic = true, dryRun = false }) {
       if (!Array.isArray(ops) || ops.length === 0) throw new Error('ops must be a non-empty array');
+      if (dryRun) {
+        // One op, nothing changes, nothing counts against the budget.
+        if (ops.length !== 1) throw new Error('a dry run tries one op at a time');
+        const o = await hex.call('apply', await resolve(ops[0], await liveRefs()), { dryRun: true });
+        return { dryRun: true, outcomes: [summarizeOutcome(o)] };
+      }
       if (ops.length > LIMITS.opsPerCall) throw new Error(`at most ${LIMITS.opsPerCall} ops per call`);
       if (opsTotal + ops.length > LIMITS.opsTotal) throw new Error(`op budget of ${LIMITS.opsTotal} reached: finish now`);
       const refs = await liveRefs();
-      const resolved = ops.map((item) => resolve(item, refs));
+      const resolved = [];
+      for (const item of ops) resolved.push(await resolve(item, refs));
       opsTotal += resolved.length;
       const tally = (outcomes) => {
         for (const o of outcomes) {
@@ -346,6 +448,12 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
       const ok = await hex.call('undo');
       await hex.call('settle');
       return { undone: ok };
+    },
+
+    async redo() {
+      const ok = await hex.call('redo');
+      await hex.call('settle');
+      return { redone: ok };
     },
 
     async check_build() {

@@ -144,3 +144,13 @@ test('find_sockets rows carry the id and the op, not the op repeated (A59)', asy
   const s = await createTools(hex).run('find_sockets', { family: 'piece' });
   assert.deepEqual(s.sockets[0], { socket: 's1', op: { op: 'place', at: { q: 1, r: 0, level: 0 }, variant: 'full' } });
 });
+
+test('find_parts says released only when a part is not (A59)', async () => {
+  const hex = { call: async () => [
+    { value: 'a', op: 'addBin', field: 'stem', family: 'bin', name: 'A', use: 'x', box: null, released: true },
+    { value: 'b', op: 'addBin', field: 'stem', family: 'bin', name: 'B', use: 'x', box: null, released: false },
+  ] };
+  const r = await createTools(hex).run('find_parts', {});
+  assert.equal('released' in r.parts[0], false);
+  assert.equal(r.parts[1].released, false);
+});

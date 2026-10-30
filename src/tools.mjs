@@ -369,7 +369,9 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
         parts: hits.slice(0, LIMITS.partsShown).map((p) => ({
           value: p.value, op: p.op, field: p.field, family: p.family, name: p.name,
           use: p.use && p.use.length > 160 ? p.use.slice(0, 157) + '...' : p.use,
-          boxMm: p.box, released: p.released,
+          boxMm: p.box,
+          // Only an unreleased part says so: the common case costs nothing (A59).
+          ...(p.released ? {} : { released: false }),
         })),
       };
     },

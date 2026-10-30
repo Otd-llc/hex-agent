@@ -21,7 +21,7 @@ function fakeHex({ props = [], soil = [] } = {}) {
       switch (method) {
         case 'getState': return { state: { pieces: [], snaps: [] }, nodes, staging: { props, soil } };
         case 'listProps': return [
-          { id: 'mug', label: 'Mug', group: 'desk', longMm: 120, plant: false, pot: false, kind: 'cups', stage: null, sizeMm: { long: 120, mid: 85, short: 95 }, uses: ['desk', 'dining'] },
+          { id: 'mug', label: 'Mug', group: 'desk', longMm: 120, plant: false, pot: false, kind: 'cups', stage: null, sizeMm: { long: 120, mid: 85, short: 95 }, uses: ['desk', 'dining'], poses: ['stand'], defaultPose: 'stand' },
           { id: 'basil-young', label: 'Basil', group: 'herbs', longMm: 90, plant: true, pot: false, kind: 'herbs', stage: 'young', sizeMm: null, uses: ['grow'] },
         ];
         case 'surfaces': return [
@@ -55,7 +55,7 @@ test('every contract op is allowed, with the contract fields', () => {
 
 test('literal unions in the contract are enforced', () => {
   assert.throws(() => checkOpShape({ op: 'fillSoil', part: 'n2', to: 'brim' }), /rim, dividers/);
-  assert.throws(() => checkOpShape({ op: 'addProp', id: 'mug', pose: 'stand' }), /rest/);
+  assert.throws(() => checkOpShape({ op: 'addProp', id: 'mug', pose: 'upright' }), /rest, stand, lie/);
   assert.throws(() => checkOpShape({ op: 'addProp', id: 'mug', atMm: { x: 1 } }), /atMm/);
   checkOpShape({ op: 'addProp', id: 'mug', on: 'n1', atMm: { x: 1, z: 2 }, yawDeg: 90, pose: 'rest' });
 });
@@ -168,4 +168,17 @@ test('addProp with both surface and on is refused in code', async () => {
   await t.run('find_surfaces', {});
   assert.match((await t.run('apply', { ops: [{ op: 'addProp', id: 'mug', on: 'n1', surface: 'f1' }] })).error, /surface or on, not both/);
   assert.equal(hex.calls.some((c) => c[0] === 'applyAll'), false);
+});
+
+test("find_props names a prop's authored poses, and a pose op is checked in code (A49)", async () => {
+  const hex = fakeHex();
+  const t = createTools(hex);
+  const mug = (await t.run('find_props', { text: 'mug' })).props[0];
+  assert.deepEqual(mug.poses, ['stand']);
+  assert.equal(mug.defaultPose, 'stand');
+  const basil = (await t.run('find_props', { use: 'grow' })).props[0];
+  assert.equal('poses' in basil, false);
+  await t.run('apply', { ops: [{ op: 'addProp', id: 'mug', on: 'n1', pose: 'stand', facingDeg: 90 }] });
+  assert.equal(hex.calls.filter((c) => c[0] === 'applyAll').at(-1)[1][0].pose, 'stand');
+  assert.match((await t.run('apply', { ops: [{ op: 'addProp', id: 'mug', on: 'n1', pose: 'upright' }] })).error, /rest, stand, lie/);
 });

@@ -1,5 +1,5 @@
 {
-  "hash": "af4274b634892e0f14edc3dab9b6b5c54d7ee96d0490005f754806fdb9aef843",
+  "hash": "9c3a1086680e136f1653c80094cd6fdba6f703d0c4d75ff90356a99747162cd3",
   "apiVersion": 1,
   "status": "experimental",
   "members": [
@@ -791,8 +791,14 @@
         },
         {
           "name": "pose",
-          "type": "'rest'",
-          "says": "Its resting pose. addProp always rests it; moveProp keeps the prop's own turn unless this is 'rest'.",
+          "type": "'rest' | 'stand' | 'lie'",
+          "says": "'rest': its resting pose (addProp always rests it; moveProp keeps the prop's own turn unless this is 'rest'). 'stand' or 'lie': the prop's authored pose (a screwdriver stands handle up, a mug stands mouth up, a plate lies on its foot), set whole and only verified by a drop: refused PROP_WOULD_SHIFT if it would move more than 15 mm or turn more than 10 degrees. A prop with no authored poses, or not that one, is refused INVALID_INPUT naming the poses it takes.",
+          "optional": true
+        },
+        {
+          "name": "facingDeg",
+          "type": "number",
+          "says": "With pose 'stand' or 'lie': the bearing its front points (a mug's handle, a laptop's keyboard side, a book's spine), or for a prop with no front its long side when that lies level (a screwdriver laid along a slot), degrees about up from +x as yawDeg turns. Left out: yawDeg.",
           "optional": true
         },
         {
@@ -844,8 +850,14 @@
         },
         {
           "name": "pose",
-          "type": "'rest'",
-          "says": "Its resting pose. addProp always rests it; moveProp keeps the prop's own turn unless this is 'rest'.",
+          "type": "'rest' | 'stand' | 'lie'",
+          "says": "'rest': its resting pose (addProp always rests it; moveProp keeps the prop's own turn unless this is 'rest'). 'stand' or 'lie': the prop's authored pose (a screwdriver stands handle up, a mug stands mouth up, a plate lies on its foot), set whole and only verified by a drop: refused PROP_WOULD_SHIFT if it would move more than 15 mm or turn more than 10 degrees. A prop with no authored poses, or not that one, is refused INVALID_INPUT naming the poses it takes.",
+          "optional": true
+        },
+        {
+          "name": "facingDeg",
+          "type": "number",
+          "says": "With pose 'stand' or 'lie': the bearing its front points (a mug's handle, a laptop's keyboard side, a book's spine), or for a prop with no front its long side when that lies level (a screwdriver laid along a slot), degrees about up from +x as yawDeg turns. Left out: yawDeg.",
           "optional": true
         },
         {
@@ -1277,6 +1289,10 @@
     {
       "code": "PROP_UNKNOWN",
       "says": "The prop id is not in the props library (listProps)."
+    },
+    {
+      "code": "PROP_WOULD_SHIFT",
+      "says": "Posed 'stand' or 'lie', the prop would not stay: the drop that verifies it moves it more than 15 mm or turns it more than 10 degrees (it would fall into the bin, tip over); details.movedMm and details.turnedDeg say how far (browser only)."
     },
     {
       "code": "PROUD_PORT",

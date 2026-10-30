@@ -131,7 +131,8 @@ export const TOOL_SPECS = [
     description:
       'Search the props: things that stand on or in a build to show what it is for (a mug, a keyboard, tools, books, pots) ' +
       'and plug plants that go in soil. Props are staging, not parts: they are not in the parts list. ' +
-      'Each has an id for addProp or plant, its sizes in mm (longest first) and what it is for.',
+      'Each has an id for addProp or plant, its sizes in mm (longest first) and what it is for; where it has authored poses ' +
+      '(stand, lie), addProp pose sets it so (a mug stands mouth up) and facingDeg turns its front: prefer that over orient.',
     parameters: obj({
       text: { type: 'string', description: 'Optional words to match in the id, label or kind.' },
       use: { type: 'string', enum: ['desk', 'dining', 'living', 'workshop', 'electronics', 'drone', 'printing', 'grow'] },
@@ -312,6 +313,8 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
           id: p.id, label: p.label, kind: p.kind, uses: p.uses,
           sizeMm: p.sizeMm ? [p.sizeMm.long, p.sizeMm.mid, p.sizeMm.short].map(mm) : [mm(p.longMm)],
           ...(p.plant ? { plant: true, stage: p.stage } : {}), ...(p.pot ? { pot: true } : {}),
+          // its authored poses (A49): addProp pose stand or lie sets it so, facingDeg turns its front
+          ...(p.poses?.length ? { poses: p.poses, defaultPose: p.defaultPose } : {}),
         })),
       };
     },

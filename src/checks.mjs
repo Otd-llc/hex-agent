@@ -8,10 +8,21 @@
 //   { noIssue: 'OPEN_CAP_FACE' }        validate() did not report this code
 //   { reportsUnmet: true }              the model said at least one requirement is not met
 //   { maxParts: 40 }                    at most this many nodes
+//   { props: 3 }                        at least 3 props staged on or by the build
+//   { prop: 'basil', min: 2 }           props whose id contains the text
+//   { soil: 1 }                         parts filled with soil
 
 export function checkBrief(expect, { state, verdict, finish }) {
   const nodes = state.nodes;
+  const props = state.staging?.props ?? [];
+  const soil = state.staging?.soil ?? [];
   const results = expect.map((e) => {
+    if (e.props) return { expect: e, saw: props.length, pass: props.length >= e.props };
+    if (e.prop) {
+      const n = props.filter((p) => p.id.includes(e.prop)).length;
+      return { expect: e, saw: n, pass: n >= (e.min ?? 1) };
+    }
+    if (e.soil) return { expect: e, saw: soil.length, pass: soil.length >= e.soil };
     if (e.family) {
       const n = nodes.filter((x) => x.family === e.family).length;
       return { expect: e, saw: n, pass: n >= (e.min ?? 1) };

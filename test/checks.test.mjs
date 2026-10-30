@@ -43,3 +43,20 @@ test('drawers counts cut-face drawers and notch drawer frames, not notch bins', 
   const r = checkBrief([{ drawers: 2 }, { drawers: 3 }], { state: { nodes }, verdict: { bom, validation: { issues: [] } }, finish: null });
   assert.deepEqual(r.results.map((x) => x.pass), [true, false]);
 });
+
+test('props, prop ids and soil read the staging (A72)', () => {
+  const staged = {
+    ...state,
+    staging: {
+      props: [{ id: 'mug' }, { id: 'keyboard' }, { id: 'basil-young' }, { id: 'basil-harvest' }],
+      soil: [{ part: 'n2', to: 'rim' }],
+    },
+  };
+  const r = checkBrief(
+    [{ props: 4 }, { props: 5 }, { prop: 'basil', min: 2 }, { prop: 'mug' }, { prop: 'phone' }, { soil: 1 }, { soil: 2 }],
+    { state: staged, verdict, finish: null },
+  );
+  assert.deepEqual(r.results.map((x) => x.pass), [true, false, true, true, false, true, false]);
+  // A state with no staging (an old trace) has no props, not an error.
+  assert.equal(checkBrief([{ props: 1 }], { state, verdict, finish: null }).results[0].pass, false);
+});

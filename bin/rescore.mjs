@@ -28,7 +28,7 @@ for (const row of summary.rows) {
   // and keep the original verdict for storey checks, which need cells.
   const nodes = trace.finalNodes ?? Object.entries(trace.verdict.families).flatMap(([family, n]) => Array.from({ length: n }, () => ({ family, at: null })));
   const expect = byId.get(row.id).expect;
-  const fresh = checkBrief(expect, { state: { nodes }, verdict: trace.verdict, finish: trace.finish });
+  const fresh = checkBrief(expect, { state: { nodes, staging: trace.finalStaging ?? undefined }, verdict: trace.verdict, finish: trace.finish });
   if (!trace.finalNodes) {
     fresh.results = fresh.results.map((r, i) => (r.expect.levels ? { ...trace.briefChecks.results[i], kept: 'needs cells' } : r));
     fresh.pass = fresh.results.every((r) => r.pass);

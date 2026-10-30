@@ -109,6 +109,7 @@ export async function runSession({ brief, briefId = null, expect = null, model, 
     briefChecks: checks,
     // The final nodes (no opaque detail), so checks can be re-run on the trace later.
     finalNodes: state.nodes.map((n) => ({ ref: n.ref, family: n.family, at: n.at, stem: n.stem })),
+    finalStaging: state.staging ? { props: state.staging.props.map((p) => ({ ref: p.ref, id: p.id, posMm: p.posMm, yawDeg: p.yawDeg, pot: p.pot })), soil: state.staging.soil } : null,
     events: result.events,
   };
   writeFileSync(`${dir}/trace.json`, JSON.stringify(trace, null, 2) + '\n');

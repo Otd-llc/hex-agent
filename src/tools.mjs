@@ -143,7 +143,8 @@ export const TOOL_SPECS = [
     description:
       'Where a prop can go: the tops, floors, compartments and soil of one part (ref) or of the whole build, each with a token ' +
       '(f1, f2, ...) to pass to addProp as surface, its height, centre, size and clear headroom. With fits (a prop id), only ' +
-      'surfaces a prop of that size could take: a first cut, so try a doubtful one with apply dryRun.',
+      'surfaces the prop fits inside lying flat: a prop bigger than a top (a quad, a monitor) can still rest overhanging it, ' +
+      'so when fits finds nothing, try addProp on the part with apply dryRun.',
     parameters: obj({
       ref: { type: 'string', description: 'Optional part ref from get_build.' },
       fits: { type: 'string', description: 'Optional prop id from find_props.' },
@@ -161,7 +162,8 @@ export const TOOL_SPECS = [
       'Change the build. Each item is either {"socket":"s12"} (an offer from find_sockets) or a full op object. ' +
       'Atomic by default: if any op is refused, the whole batch is taken back. Refusals carry a code, a message and ' +
       'nearby alternatives (also given socket ids). Never invent a ref: take refs from get_build or an outcome. ' +
-      'Props: addProp with an id from find_props, on a part ref or "bench", or on a surface token from find_surfaces; ' +
+      'Props: addProp with an id from find_props, on a part ref or "bench" (atMm moves it off the centre), or on a surface token ' +
+      'from find_surfaces (surface or on, not both); several props can go in one apply (atomic false keeps the ones that rest); ' +
       'moveProp and removeProp take a prop ref from get_build. Soil: fillSoil a bin or pot part, then plant a plant id in it. ' +
       `Ops and their fields (? = optional): ${OP_TABLE}. ` +
       `Named values: ${Object.entries(VALUES).filter(([k]) => k !== 'variant').map(([k, v]) => `${k}: ${v.join('|')}`).join('; ')}. ` +
@@ -257,6 +259,8 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
     if ((item.op === 'addProp' || item.op === 'plant') && !(await knownProps()).has(item.id)) {
       throw new Error(`${item.op}.id "${item.id}" is not a prop: take ids from find_props`);
     }
+    // The page refuses both at once (INVALID_INPUT); the contract types cannot say so.
+    if (item.op === 'addProp' && 'surface' in item && 'on' in item) throw new Error('addProp takes surface or on, not both');
     if (item.op === 'addProp' && 'surface' in item) {
       const id = surfaces.get(item.surface);
       if (!id) throw new Error(`unknown surface ${item.surface}: take tokens from find_surfaces`);
@@ -329,7 +333,8 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
           };
         }),
       };
-      if (!all.length) out.note = fits ? `No surface here takes ${fits}: try another part or a smaller prop.` : 'No surfaces here.';
+      // fits lists only surfaces the prop fits inside; a bigger prop can still rest overhanging a top.
+      if (!all.length) out.note = fits ? `No surface here is as big as ${fits}. It may still rest overhanging a top: try addProp on the part with dryRun.` : 'No surfaces here.';
       return out;
     },
 

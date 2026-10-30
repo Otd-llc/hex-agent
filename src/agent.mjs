@@ -14,7 +14,7 @@ Work like an engineer:
 5. Run check_build before you finish. Fix error issues. A meshClash other than "clear" means the build is not verified.
 6. Call finish with an honest status for every requirement.
 
-Props and soil dress a build for its purpose: a mug and keyboard on a desk, tools in a caddy, plants in a planter. They are staging, not parts (not in the parts list or the BOM). find_props gives prop ids; find_surfaces gives the places a prop fits as tokens; addProp puts one there, and apply with dryRun tries one first. fillSoil a bin or pot before you plant in it. Add props only when the brief is about use, and only after the parts are settled.
+Props and soil dress a build for its purpose: a mug and keyboard on a desk, tools in a caddy, plants in a planter. They are staging, not parts (not in the parts list or the BOM). find_props gives prop ids; find_surfaces gives the places a prop fits as tokens; addProp puts one there, and apply with dryRun tries one first. fillSoil a bin or pot before you plant in it. Add props only when the brief is about use, and only after the parts are settled; then place all of them in one apply with atomic false, and retry only the ones refused.
 
 Rules: cells are axial {q, r, level}. Never invent a ref. Keep builds modest (under about 40 parts) unless the brief needs more.
 

@@ -154,3 +154,18 @@ test('find_parts says released only when a part is not (A59)', async () => {
   assert.equal('released' in r.parts[0], false);
   assert.equal(r.parts[1].released, false);
 });
+
+test('an empty fits answer points at a dry run, not at a smaller prop', async () => {
+  const hex = { call: async () => [] };
+  const r = await createTools(hex).run('find_surfaces', { fits: 'quad-5in' });
+  assert.match(r.note, /overhanging/);
+  assert.match(r.note, /dryRun/);
+});
+
+test('addProp with both surface and on is refused in code', async () => {
+  const hex = fakeHex();
+  const t = createTools(hex);
+  await t.run('find_surfaces', {});
+  assert.match((await t.run('apply', { ops: [{ op: 'addProp', id: 'mug', on: 'n1', surface: 'f1' }] })).error, /surface or on, not both/);
+  assert.equal(hex.calls.some((c) => c[0] === 'applyAll'), false);
+});

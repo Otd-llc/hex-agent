@@ -25,17 +25,8 @@ const STREAK_LIMIT = 6;
 // The value lists the public contract publishes (its `values` table): the only
 // names the configurator places for these fields.
 export const VALUES = CONTRACT.values;
-// Which value list governs which field of which op.
-const VALUE_OF = {
-  variant: 'variant',
-  'addCover.type': 'coverType',
-  'setCoverType.type': 'coverType',
-  capVariant: 'capVariant',
-  'addSpike.variant': 'spikeVariant',
-  accessory: 'spikeAccessory',
-  mode: 'runMode',
-  style: 'drawerStyle',
-};
+// Which value list governs which field of which op, from the contract (A86).
+const VALUE_OF = CONTRACT.valueOf;
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const isSite = (v) => v && typeof v === 'object' && isNum(v.q) && isNum(v.r);
@@ -60,7 +51,7 @@ export function checkOpShape(item) {
     if (k in item && !ok(item[k])) throw new Error(`${item.op}.${k} must be ${says}`);
   }
   for (const k of Object.keys(item)) {
-    const list = VALUE_OF[`${item.op}.${k}`] ?? (k.includes('.') ? null : VALUE_OF[k]);
+    const list = VALUE_OF[`${item.op}.${k}`];
     if (!list || item[k] == null) continue;
     if (!VALUES[list].includes(item[k])) throw new Error(`${item.op}.${k} "${item[k]}" is not a ${list}: use one of ${VALUES[list].join(', ')}`);
   }
@@ -72,8 +63,8 @@ export function checkOpShape(item) {
     if (check && !check[0](item[k])) throw new Error(`${item.op}.${k} must be ${check[1]}`);
   }
 }
-const FAMILIES = ['piece', 'snap', 'spike', 'cover', 'cap', 'insert', 'handle', 'accessory', 'port', 'bin', 'binBolt',
-  'connector', 'run', 'riser', 'coverHub', 'drawer', 'jointBolt', 'notch', 'bay', 'axle'];
+// The families find_sockets can ask for: the contract's placeable ones.
+const FAMILIES = CONTRACT.placeableFamilies;
 
 // validate()'s prop warnings, and what fixes each: the dressing loop is
 // dress -> check -> fix what it flags (A99).

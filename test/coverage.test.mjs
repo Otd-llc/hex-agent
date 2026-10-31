@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createTools, TOOL_SPECS, checkOpShape } from '../src/tools.mjs';
-import { CONTRACT } from '../src/contract.mjs';
+import { CONTRACT, valueFields } from '../src/contract.mjs';
 
 const contract = JSON.parse(readFileSync(new URL('../contract/hex-api-public.json', import.meta.url), 'utf8'));
 
@@ -181,4 +181,21 @@ test("find_props names a prop's authored poses, and a pose op is checked in code
   await t.run('apply', { ops: [{ op: 'addProp', id: 'mug', on: 'n1', pose: 'stand', facingDeg: 90 }] });
   assert.equal(hex.calls.filter((c) => c[0] === 'applyAll').at(-1)[1][0].pose, 'stand');
   assert.match((await t.run('apply', { ops: [{ op: 'addProp', id: 'mug', on: 'n1', pose: 'upright' }] })).error, /rest, stand, lie/);
+});
+
+test('value lists and families come from the contract, not a hand table (A86)', () => {
+  const c = {
+    values: { variant: ['full'], coverType: ['plain', 'grate'] },
+    ops: [
+      { op: 'addCover', fields: [{ name: 'variant', type: 'Variant' }, { name: 'type', type: 'string', says: 'Cover type (values.coverType).' }, { name: 'face', type: 'Face', says: "'top' or 'bottom'." }] },
+      { op: 'addWidget', fields: [{ name: 'kind', type: 'string', says: 'A list (values.nope) the contract lacks.' }] },
+    ],
+  };
+  assert.deepEqual(valueFields(c), { 'addCover.variant': 'variant', 'addCover.type': 'coverType' });
+  assert.equal(CONTRACT.valueOf['addSpike.variant'], 'spikeVariant');
+  assert.equal(CONTRACT.valueOf['setRunMode.mode'], 'runMode');
+  assert.deepEqual(new Set(CONTRACT.placeableFamilies), new Set(contract.families.filter((f) => f.placeable).map((f) => f.family)));
+  const spec = TOOL_SPECS.find((t) => t.name === 'find_sockets').parameters.properties.family.enum;
+  assert.deepEqual(spec, CONTRACT.placeableFamilies);
+  assert.throws(() => checkOpShape({ op: 'addDrawer', at: { q: 0, r: 0, level: 0 }, key: 'k', style: 'sideways' }), /drawerStyle/);
 });

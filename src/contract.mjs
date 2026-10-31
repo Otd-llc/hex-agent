@@ -68,4 +68,27 @@ for (const o of json.ops) {
   fieldTypes[o.op] = Object.fromEntries(o.fields.map((f) => [f.name, f.type]));
 }
 
-export const CONTRACT = { hash: json.hash, apiVersion: json.apiVersion, opFields, fieldTypes, values: json.values };
+// Which value list governs which field, read from the contract (A86): a field
+// typed Variant takes values.variant; a plain string field whose says names
+// "values.coverType" takes that list. Keys are "op.field".
+export function valueFields(c = json) {
+  const of = (f) => (f.type === 'Variant' ? 'variant' : f.says?.match(/\bvalues\.(\w+)/)?.[1] ?? null);
+  const out = {};
+  for (const o of c.ops) {
+    for (const f of o.fields) {
+      const list = of(f);
+      if (list && c.values[list]) out[`${o.op}.${f.name}`] = list;
+    }
+  }
+  return out;
+}
+
+export const CONTRACT = {
+  hash: json.hash,
+  apiVersion: json.apiVersion,
+  opFields,
+  fieldTypes,
+  values: json.values,
+  valueOf: valueFields(),
+  placeableFamilies: json.families.filter((f) => f.placeable).map((f) => f.family),
+};

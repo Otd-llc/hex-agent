@@ -92,6 +92,18 @@ dev ($45 cap, `muse-spark-1.3` by default) and eval ($40 cap,
 only `demo` may spend it. Limits live in `.env` (see `.env.example`).
 The estimate is not the bill: reconcile against the Meta console.
 
+## Muse Spark Open hosts
+
+Meta's open-weights Muse Spark Open runs through three per-token hosts, each
+with its own key, credit and ledger in `.spend/`: Baseten
+(`--model=meta-models/muse-spark-open-1026`), Fireworks
+(`--model=accounts/fireworks/models/muse-spark-open`) and a Modal Shared
+Endpoint (`--model=modal:<endpoint host>`, with a workspace proxy token). A
+Fireworks or Modal run does not start until its `*_CREDIT_USD` is set. A
+Modal Dedicated Endpoint bills GPU time, so none is made without the owner's
+OK. The Meta Model API stays off (`META_API_ALLOWED=1` unlocks it); its
+credit is kept for the demo and judging.
+
 ## Developing on Claude
 
 `--model=claude-opus-5-5` (or `claude-sonnet-5-5`, `claude-haiku-5-5`) runs

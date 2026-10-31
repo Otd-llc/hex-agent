@@ -8,13 +8,15 @@ import { installOverlay, pushLines, linesFor } from './overlay.mjs';
 import { metaModel } from './model.mjs';
 import { claudeModel } from './claude.mjs';
 import { basetenModel } from './baseten.mjs';
+import { hostedModel, hostOf } from './hosted.mjs';
 import { openLedger } from './ledger.mjs';
 import { runAgent, verify, ownChecks } from './agent.mjs';
 import { checkBrief } from './checks.mjs';
 
 // Reasoning effort when none is asked for. Muse Spark Open measured best at low
 // (ablation 2026-10-27, EVALUATION.md); the others stay at medium until measured.
-export const DEFAULT_EFFORT = { baseten: 'low', anthropic: 'medium', meta: 'medium' };
+// Fireworks and Modal send none until a smoke shows the host takes the parameter.
+export const DEFAULT_EFFORT = { baseten: 'low', anthropic: 'medium', meta: 'medium', fireworks: null, modal: null };
 
 export function modelFor({ modelId, purpose, effort }) {
   // Each provider has its own credit, so its own ledger.
@@ -35,6 +37,24 @@ export function modelFor({ modelId, purpose, effort }) {
       model: basetenModel({ model: modelId, effort: effort ?? DEFAULT_EFFORT.baseten }),
       ledger: openLedger({ path: '.spend/baseten.jsonl', creditUsd: credit, reserveUsd: reserve, caps: { dev: credit - reserve, eval: credit - reserve } }),
     };
+  }
+  const host = hostOf(modelId);
+  if (host) {
+    // Fireworks or Modal: Muse Spark Open per token, each on its own credit and ledger.
+    // No default credit: a run without the balance set does not start.
+    const name = host.toUpperCase();
+    const credit = Number(process.env[`${name}_CREDIT_USD`]);
+    if (!(credit > 0)) throw new Error(`set ${name}_CREDIT_USD (the ${host} credit in USD) before a ${host} run`);
+    const reserve = Number(process.env[`${name}_RESERVE_USD`] ?? 0);
+    return {
+      model: hostedModel({ model: modelId, effort: effort ?? DEFAULT_EFFORT[host] }),
+      ledger: openLedger({ path: `.spend/${host}.jsonl`, creditUsd: credit, reserveUsd: reserve, caps: { dev: credit - reserve, eval: credit - reserve } }),
+    };
+  }
+  // The Meta Model API credit is kept for the demo and judging (owner, 2026-10-31): nothing
+  // reaches it unless META_API_ALLOWED=1, so a mistyped id never spends it.
+  if (process.env.META_API_ALLOWED !== '1') {
+    throw new Error(`${modelId}: the Meta Model API is off (set META_API_ALLOWED=1 only with the owner's OK). Muse Spark Open runs: meta-models/... (Baseten), accounts/fireworks/models/muse-spark-open, modal:<endpoint host>`);
   }
   return { model: metaModel({ model: modelId, reasoningEffort: effort ?? DEFAULT_EFFORT.meta }), ledger: openLedger() };
 }

@@ -62,8 +62,9 @@ export function checkPlan(plan, { families = null } = {}) {
     if (r.relations != null && !Array.isArray(r.relations)) errs.push(`${at}: relations must be a list`);
     for (const rel of Array.isArray(r.relations) ? r.relations : []) {
       if (!allowed.includes(rel?.rel)) errs.push(`${at}: relation ${rel?.rel} is not one of ${allowed.join(', ')}`);
-      else if (!seen.has(rel.of)) errs.push(`${at}: ${rel.rel} ${rel.of} must name a role listed before it`);
-      else if (seen.get(rel.of).isProp) errs.push(`${at}: ${rel.rel} ${rel.of} names a prop; relate to a part role`);
+      // A relation may name a part already on the build by its ref (piece:0,0,0;full): that part stands as a role of one.
+      else if (!seen.has(rel.of) && !isRef(rel.of)) errs.push(`${at}: ${rel.rel} ${rel.of} must name a role listed before it, or a part ref on the build`);
+      else if (seen.get(rel.of)?.isProp) errs.push(`${at}: ${rel.rel} ${rel.of} names a prop; relate to a part role`);
     }
     if (isProp && !(r?.relations ?? []).length) errs.push(`${at}: a prop role needs on or in a part role`);
     if (r?.id) seen.set(r.id, { isProp });
@@ -71,6 +72,7 @@ export function checkPlan(plan, { families = null } = {}) {
   return errs;
 }
 
+const isRef = (s) => typeof s === 'string' && /^[a-z]+:/.test(s) && !s.startsWith('prop:');
 const isObj = (x) => x != null && typeof x === 'object' && !Array.isArray(x);
 const isCell = (c) => isObj(c) && Number.isInteger(c.q) && Number.isInteger(c.r);
 const isSide = (s) => SIDES.some(([q, r]) => s?.q === q && s?.r === r);
@@ -144,7 +146,15 @@ const itemFor = (role, cand) => ({ ...cand.use, ...(role.serves ? { role: role.s
 export async function runPlan(plan, lookup, { families = null } = {}) {
   const errs = checkPlan(plan, { families });
   if (errs.length) return { ok: false, errors: errs };
-  const state = { plan, placed: new Map(), excluded: new Map(), short: [], log: [] };
+  const state = { plan, placed: new Map(), excluded: new Map(), short: [], log: [], existing: new Set() };
+  // Parts already on the build that relations name: each a placed binding of its own, at its cell.
+  const named = [...new Set(plan.roles.flatMap((r) => (r.relations ?? []).map((x) => x.of)).filter((of) => isRef(of) && !plan.roles.some((r) => r.id === of)))];
+  for (const ref of named) {
+    const cell = lookup.cellOf ? await lookup.cellOf(ref) : null;
+    if (cell === undefined) return { ok: false, errors: [`${ref} is not on the build: take part refs from get_build`] };
+    state.existing.add(ref);
+    state.placed.set(ref, [{ key: `existing:${ref}`, cell, refs: [ref] }]);
+  }
   for (const role of plan.roles) await bindRole(state, role, lookup, role.count ?? 1);
   return report(state);
 }
@@ -187,7 +197,7 @@ async function bindRole(state, role, lookup, want) {
 }
 
 function report(state) {
-  const bindings = Object.fromEntries([...state.placed].map(([id, bs]) => [id, bs.map((b) => ({ key: b.key, refs: b.refs, ...(b.cell ? { cell: b.cell } : {}) }))]));
+  const bindings = Object.fromEntries([...state.placed].filter(([id]) => !state.existing?.has(id)).map(([id, bs]) => [id, bs.map((b) => ({ key: b.key, refs: b.refs, ...(b.cell ? { cell: b.cell } : {}) }))]));
   return { ok: !state.short.length, bindings, short: state.short, log: state.log, state };
 }
 
@@ -251,6 +261,12 @@ export function planLookup(run) {
         kind: s.kind,
         use: { op: 'addProp', id: prop, surface: s.surface },
       }));
+    },
+    // A part on the build: its cell, null when it has none, undefined when it is not there.
+    async cellOf(ref) {
+      const r = await call('get_build', {});
+      const n = r.nodes.find((x) => x.ref === ref);
+      return n ? n.at ?? null : undefined;
     },
     async apply(items) {
       const r = await run('apply', { ops: items, atomic: false });

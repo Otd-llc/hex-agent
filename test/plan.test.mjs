@@ -257,3 +257,18 @@ test('rebind: a removal that half fails keeps only what is still on the page', a
   await assert.rejects(rebind(res, 'pens', failing), /0 of 1 came off/);
   assert.deepEqual(res.state.placed.get('pens')[0].refs, [pens]);
 });
+
+test('a relation may name a part already on the build: it binds at that part, unknown refs are refused', async () => {
+  const w = world();
+  w.lookup.cellOf = async (ref) => (ref === 'piece:0,-1,0' ? { q: 0, r: -1, level: 0 } : undefined);
+  await w.lookup.apply([{ op: 'place', at: { q: 0, r: -1, level: 0 }, variant: 'full' }]);
+  const plan = { roles: [{ id: 'tray', need: { family: 'bin' }, relations: [{ rel: 'on', of: 'piece:0,-1,0' }] }] };
+  assert.deepEqual(checkPlan(plan), []);
+  const r = await runPlan(plan, w.lookup);
+  assert.equal(r.ok, true, JSON.stringify(r.short));
+  assert.deepEqual(r.bindings.tray[0].cell, { q: 0, r: -1, level: 0 });
+  assert.equal('piece:0,-1,0' in r.bindings, false, 'the existing part is not reported as placed');
+  const bad = await runPlan({ roles: [{ id: 't', need: { family: 'bin' }, relations: [{ rel: 'on', of: 'piece:9,9,0' }] }] }, w.lookup);
+  assert.match(bad.errors[0], /not on the build/);
+  assert.ok(checkPlan({ roles: [{ id: 't', need: { family: 'bin' }, relations: [{ rel: 'on', of: 'nowhere' }] }] })[0].includes('or a part ref'));
+});

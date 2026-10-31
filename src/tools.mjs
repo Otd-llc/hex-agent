@@ -239,7 +239,7 @@ export const TOOL_SPECS = [
         description:
           'site: {userSide, wallSide} as axial steps such as {"q":0,"r":1}; zones: [{id, kind: ' + ZONE_KINDS.join('|') + ', side: user|wall (depth) or cells}] ' +
           '(work_clear stays empty); roles in build order: [{id, serves (a requirement id), need: {family, variant, stem, level, face, type} or {prop}, ' +
-          'count, zone, relations: [{rel: on|above|beside (a part) or on|in (a prop), of: an earlier role}]}].',
+          'count, zone, relations: [{rel: on|above|beside (a part) or on|in (a prop), of: an earlier role or a part ref from get_build}]}].',
       },
       rebind: { type: 'string', description: 'A role id of the last plan to place again.' },
       reason: { type: 'string', description: 'Why it is rebound (a refusal or warning code).' },

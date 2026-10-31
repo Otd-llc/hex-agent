@@ -196,9 +196,10 @@ export function claudeJudge({ client, model = 'claude-haiku-5-5', readImage = (p
       content.push({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: readImage(im.path) } });
     }
     content.push({ type: 'text', text: `These are still views of one modular build (${name}). ${question}\nAnswer "yes" or "no", then one sentence saying what you see.` });
-    const res = await client.messages.create({ model, max_tokens: 200, messages: [{ role: 'user', content }] });
+    // Room for the model's own thinking before the answer: 200 tokens left most replies empty (Haiku 5.5, 2026-10-31).
+    const res = await client.messages.create({ model, max_tokens: 2048, output_config: { effort: 'low' }, messages: [{ role: 'user', content }] });
     onUsage(res.usage);
-    const text = res.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n');
+    const text = res.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n') || `[no answer: stop ${res.stop_reason}]`;
     return { answer: parseAnswer(text), text };
   };
 }

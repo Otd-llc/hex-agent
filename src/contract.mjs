@@ -63,7 +63,11 @@ export function refKinds(type) {
 
 const opFields = {};
 const fieldTypes = {};
+// The cross-field rules of each op (A77): xor (not both), requires (the first
+// needs the second), differs (two fields name different things), forbids.
+const constraints = {};
 for (const o of json.ops) {
+  constraints[o.op] = o.constraints ?? [];
   opFields[o.op] = [o.fields.filter((f) => !f.optional).map((f) => f.name), o.fields.filter((f) => f.optional).map((f) => f.name)];
   fieldTypes[o.op] = Object.fromEntries(o.fields.map((f) => [f.name, f.type]));
 }
@@ -88,6 +92,7 @@ export const CONTRACT = {
   apiVersion: json.apiVersion,
   opFields,
   fieldTypes,
+  constraints,
   values: json.values,
   valueOf: valueFields(),
   placeableFamilies: json.families.filter((f) => f.placeable).map((f) => f.family),

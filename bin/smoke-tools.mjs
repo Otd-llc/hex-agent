@@ -69,6 +69,13 @@ try {
   console.log(`${results.at(-1) ? 'ok  ' : 'FAIL'} part ref refused for removeProp`);
   await step('removeProp the first', 'apply', { ops: [{ op: 'removeProp', ref: p1 }] }, firstOk);
   await step('check_build', 'check_build', {}, (r) => typeof r.ok === 'boolean');
+  // The release-candidate ops and the look tool (contract d2fd3dad on): skipped on a page without them.
+  if (CONTRACT.opFields.capOpenFaces) {
+    await step('capOpenFaces', 'apply', { ops: [{ op: 'capOpenFaces' }] }, (r) => r.outcomes[0].ok && r.budget?.parts > 0);
+    await step('lockJoints', 'apply', { ops: [{ op: 'lockJoints' }] }, (r) => r.outcomes[0].ok);
+    await step('look from above', 'look', { polar: 10 }, (r) => r.polar === 10 && Array.isArray(r.seen));
+    await step('fill_and_plant, plant suggested', 'fill_and_plant', { beds: [{ part: binRef }] }, (r) => r.placed >= 1);
+  }
 } finally {
   await hex.close();
 }

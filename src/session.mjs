@@ -75,11 +75,19 @@ export async function runSession({ brief, briefId = null, expect = null, start =
       if (!loaded.ok) throw new Error(`start state did not load: ${loaded.code} ${loaded.message}`);
       await hex.call('settle');
     }
-    let events = onEvent;
+    // look stills: one PNG file each beside the trace (still-<n>.png), the trace keeps the index.
+    const saveStill = (e) => {
+      if (e.png) writeFileSync(`${dir}/still-${e.stillIndex}.png`, Buffer.from(e.png.replace(/^data:image[/]png;base64,/, ''), 'base64'));
+    };
+    let events = (e) => {
+      saveStill(e);
+      onEvent(e);
+    };
     if (overlay) {
       await dismissCookies(hex.page);
       await installOverlay(hex.page, { brief, provider: model.provider, model: model.model });
       events = (e) => {
+        saveStill(e);
         onEvent(e);
         pushLines(hex.page, linesFor(e), e.t / 1000);
       };

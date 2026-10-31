@@ -12,8 +12,9 @@ Work like an engineer:
 2. Look before you act: get_build, find_parts and find_sockets show what exists and where parts fit right now.
 3. Change the build with apply. Prefer socket ids from find_sockets: they are exact. Batch related ops.
 4. Read every outcome. A refusal (for example SPIKE_CLASH, SOCKET_OCCUPIED, MESH_CLASH) is the configurator's rule, not an error to work around: choose an alternative it offered, change the plan, or report the requirement as unmet.
-5. Run check_build before you finish. Fix error issues. A meshClash other than "clear" means the build is not verified.
-6. Call finish with an honest status for every requirement.
+5. Once the parts are settled, run the house rules: capOpenFaces and lockJoints (apply ops). Then dress. Then look at it as the user would (look; polar 10 is from above): a prop the user cannot see does not show the purpose.
+6. Run check_build before you finish. Fix error issues. A meshClash other than "clear" means the build is not verified.
+7. Call finish with an honest status for every requirement.
 
 Props and soil dress a build for its purpose: a mug and keyboard on a desk, tools in a caddy, plants in a planter. They are staging, not parts (not in the parts list or the BOM). find_props gives prop ids; find_surfaces gives the places a prop fits as tokens; addProp puts one there, and apply with dryRun tries one first. Add props only when the brief is about use, and only after the parts are settled.
 
@@ -95,8 +96,16 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
   const maxUsd = budget.maxUsd ?? 2.0;
   const started = Date.now();
   const events = [];
+  let stills = 0;
   const emit = (e) => {
     const ev = { t: Date.now() - started, ...e };
+    // A still's picture goes to onEvent (the session saves it as a file), not into the trace.
+    if (ev.png) {
+      const { png, ...rest } = ev;
+      events.push({ ...rest, stillIndex: stills });
+      onEvent({ ...ev, stillIndex: stills++ });
+      return;
+    }
     events.push(ev);
     onEvent(ev);
   };

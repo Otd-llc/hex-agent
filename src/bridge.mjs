@@ -7,7 +7,7 @@ export const HEX_ORIGIN = 'https://hex.onethousanddrones.com';
 // The page to drive: HEX_URL (a local dev server, e.g. http://127.0.0.1:5310/hex.html) or the live site.
 export const hexUrl = () => process.env.HEX_URL || HEX_ORIGIN + '/';
 
-const READ = new Set(['getState', 'listParts', 'listProps', 'openSockets', 'validate', 'bom', 'toUrl', 'settle', 'measure', 'surfaces']);
+const READ = new Set(['getState', 'listParts', 'listProps', 'openSockets', 'validate', 'bom', 'toUrl', 'settle', 'measure', 'surfaces', 'suggestPlants', 'view', 'still']);
 const WRITE = new Set(['apply', 'applyAll', 'load', 'undo', 'redo']);
 
 // A slow page load is retried once in a fresh browser before giving up.

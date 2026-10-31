@@ -57,6 +57,17 @@ export function checkOpShape(item) {
     if (!list || item[k] == null) continue;
     if (!VALUES[list].includes(item[k])) throw new Error(`${item.op}.${k} "${item[k]}" is not a ${list}: use one of ${VALUES[list].join(', ')}`);
   }
+  // The contract's cross-field rules (A86 over A77), with its own words. forbids
+  // turns on a field's value (atMm only when in is a pot), so the page judges it.
+  for (const c of CONTRACT.constraints[item.op] ?? []) {
+    const [a, b] = c.fields;
+    const broken =
+      c.kind === 'xor' ? a in item && b in item
+      : c.kind === 'requires' ? a in item && !(b in item)
+      : c.kind === 'differs' ? a in item && b in item && item[a] === item[b]
+      : false;
+    if (broken) throw new Error(`${item.op}: ${c.says}`);
+  }
   // Every other field as its contract type says: numbers, booleans, literal
   // unions, small objects. Refs are checked against the live build in resolve().
   for (const [k, type] of Object.entries(CONTRACT.fieldTypes[item.op])) {
@@ -74,12 +85,19 @@ const PROP_FIX = {
   PROP_FLOATING: 'rests on nothing: moveProp it onto a surface from find_surfaces, or removeProp it',
   PROP_INSIDE: 'overlaps a part or another prop: moveProp it to a clear spot (another atMm or surface), or removeProp it',
   PLANT_NOT_IN_SOIL: 'stands in no soil: fillSoil the part first, then plant again',
+  PROP_BLOCKS_DRAWER: 'stands where a drawer opens, so it would stop the drawer: moveProp it clear of the pull, or removeProp it',
   PROP_BELOW_RIM: 'sits under the rim of what holds it, hard to see from the side: a taller prop, a shallower compartment (depthMm), or pose stand',
 };
 const PROP_CODES = new Set(Object.keys(PROP_FIX));
 
 export const LIMITS = { opsPerCall: 30, opsTotal: 250, socketsShown: 40, partsShown: 40, nodesShown: 200, propsShown: 40, surfacesShown: 40 };
 const mm = (v) => Math.round(v);
+// A refusal's details, kept to a few hundred characters: the field or limit and the numbers.
+function clipDetails(d) {
+  const text = JSON.stringify(d);
+  if (text.length <= 400) return d;
+  return { clipped: text.slice(0, 400) };
+}
 
 const obj = (properties, required = []) => ({ type: 'object', properties, required, additionalProperties: false });
 
@@ -159,6 +177,10 @@ export const TOOL_SPECS = [
         capVariant: { type: 'string' },
         storeys: { type: 'integer', enum: [1, 2, 3] },
         key: { type: 'string', description: 'Drawer key, as an earlier offer gave it.' },
+        near: { type: 'string', description: 'Only sites at or beside this part ref (same storey, within one cell).' },
+        side: { type: 'string', description: 'Only sites on this face (cover, cap, insert, handle).' },
+        bearingDeg: { type: 'number', description: 'Only sites at this bearing (cap, insert).' },
+        max: { type: 'integer', description: 'Only the first N sites.' },
       },
       ['family'],
     ),
@@ -187,8 +209,8 @@ export const TOOL_SPECS = [
       'a shallow tray refuses it where it would tip). With fits "filament-spool" it also lists spool axles (kind mount): a ' +
       'spool hangs on one with surface set to that token. A floor or compartment gives depthMm, how far its ' +
       'rim stands over it: a prop lower than that hides under the rim (addProp warns PROP_BELOW_RIM). With fits (a prop id), ' +
-      'only surfaces the prop fits inside lying flat: a prop bigger than a top (a quad, a monitor) can still rest overhanging ' +
-      'it, so when fits finds nothing, try addProp on the part with apply dryRun. Hold a pose against a surface with the ' +
+      'the surfaces the prop fits, a top it fits only by overhanging marked overhangs (its centre still over the top); a wall hook ' +
+      'is a mount too. When fits finds nothing, try addProp on the part with apply dryRun. Hold a pose against a surface with the ' +
       'poseHeightMm of the prop from find_props: under depthMm it hides below the rim, over headroomMm it does not fit.',
     parameters: obj({
       ref: { type: 'string', description: 'Optional part or prop ref from get_build.' },
@@ -220,6 +242,18 @@ export const TOOL_SPECS = [
     }),
   },
   {
+    name: 'look',
+    description:
+      'Look at the build as a person would: the camera at az (degrees around the build from the front, +z, towards +x; 45) and polar ' +
+      '(degrees down from straight up; 62, and 10 is from above), framing the whole build, the props, or one part or prop ref. ' +
+      'Says which props the view sees and which are hidden (by a rim, a lid, another prop, or out of shot). Changes nothing on the build.',
+    parameters: obj({
+      az: { type: 'number' },
+      polar: { type: 'number' },
+      fit: { type: 'string', description: "'build' (default), 'props', or a part or prop ref." },
+    }),
+  },
+  {
     name: 'apply',
     description:
       'Change the build. Each item is either {"socket":"s12"} (an offer from find_sockets) or a full op object. ' +
@@ -233,7 +267,11 @@ export const TOOL_SPECS = [
       'After dressing, call check_build and fix the prop warnings it lists. ' +
       `Ops and their fields (? = optional): ${OP_TABLE}. ` +
       `Named values: ${Object.entries(VALUES).filter(([k]) => k !== 'variant').map(([k, v]) => `${k}: ${v.join('|')}`).join('; ')}. ` +
-      'Cover magnets are setCoverMagnets on a fitted cover, not a cover type.',
+      'Cover magnets are setCoverMagnets on a fitted cover, not a cover type. ' +
+      'House rules as ops: capOpenFaces caps every open face with solid end caps (skip: faces to leave open), lockJoints bolts the ' +
+      'joints so nothing slides apart; run both once the parts are settled, before dressing. A wall hook (hex-acc-hook accessory) is a ' +
+      'hang point: addProp on its ref hangs a cable coil, a roll of gaffer tape or FPV goggles. Every applied op reports the print ' +
+      'budget (grams, minutes, parts), so bom is not needed for it. A refusal of a malformed op carries details: read them.',
     parameters: obj(
       {
         ops: {
@@ -282,14 +320,15 @@ export const TOOL_SPECS = [
     name: 'fill_and_plant',
     description:
       'Fill bins with soil and plant them in one call: each bed is a part ref (a bin, bolt-on bin, notch or bay bin) and a plug ' +
-      'plant id from find_props (plant: true). A part that already holds soil is not filled again. Then checks PLANT_NOT_IN_SOIL.',
+      'plant id from find_props (plant: true). Leave plant out and the configurator picks one of the stage the soil depth suits ' +
+      '(a tray seedlings, one storey young, deeper harvest size). A part that already holds soil is not filled again. Then checks PLANT_NOT_IN_SOIL.',
     parameters: obj(
       {
         beds: {
           type: 'array',
           minItems: 1,
           maxItems: 15,
-          items: obj({ part: { type: 'string' }, plant: { type: 'string' }, role: { type: 'string' } }, ['part', 'plant']),
+          items: obj({ part: { type: 'string' }, plant: { type: 'string' }, role: { type: 'string' } }, ['part']),
         },
       },
       ['beds'],
@@ -454,7 +493,8 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
   }
 
   async function partValues() {
-    partNames ??= (await hex.call('listParts')).map((p) => p.value);
+    const list = await hex.call('listParts', { compact: true });
+    partNames ??= (Array.isArray(list) ? list : list.parts).map((p) => p.value ?? p.part);
     return partNames;
   }
 
@@ -506,6 +546,8 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       op: o.op,
       code: o.code,
       message: o.message,
+      // Which field or limit broke and by how much (A32, A60); kept short.
+      ...(o.details && Object.keys(o.details).length ? { details: clipDetails(o.details) } : {}),
       alternatives: o.validAlternatives.map((a) => ({ socket: remember(a.op), at: a.at, slot: a.slot, op: a.op })),
       // A refused prop may come with the same op varied (its other pose, a turn, a small shift) that does place.
       ...(o.details?.tryInstead ? { tryInstead: { socket: remember(o.details.tryInstead), op: o.details.tryInstead } } : {}),
@@ -644,12 +686,31 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
             sizeMm: size(f.outlineMm), headroomMm: f.headroomMm == null ? null : mm(f.headroomMm),
             // a deck names the lids under it; a floor or compartment how deep its rim stands
             ...(f.parts ? { deckOf: f.parts } : {}), ...(f.depthMm != null ? { depthMm: mm(f.depthMm) } : {}),
+            // With fits: the prop goes on this top only by overhanging it (A75).
+            ...(f.overhangs ? { overhangs: true } : {}),
           };
         }),
       };
       // fits lists only surfaces the prop fits inside; a bigger prop can still rest overhanging a top.
       if (!all.length) out.note = fits ? `No surface here is as big as ${fits}. It may still rest overhanging a top: try addProp on the part with dryRun.` : 'No surfaces here.';
       return out;
+    },
+
+    async look({ az, polar, fit } = {}) {
+      const opts = Object.fromEntries(Object.entries({ az, polar, fit }).filter(([, v]) => v != null));
+      const v = await hex.call('view', opts);
+      if (!v.ok) return { error: `${v.code}: ${v.message}` };
+      const s = await hex.call('still', { width: 960, height: 600 });
+      if (!s.ok) return { error: `${s.code}: ${s.message}` };
+      // The picture goes to the trace (for people and the critic); the model reads what it shows.
+      onEvent({ type: 'still', az: v.az, polar: v.polar, fit: v.fit, png: s.png });
+      const hidden = s.seen.filter((p) => p.samples === 0).map((p) => p.ref);
+      return {
+        az: v.az, polar: v.polar, fit: v.fit,
+        seen: s.seen.filter((p) => p.samples > 0).map((p) => ({ ref: p.ref, of27: p.samples })),
+        ...(hidden.length ? { hidden, note: 'Hidden props cannot be seen from here: move them up, out, or try another view.' } : {}),
+        ...(v.outOfFrame.length ? { outOfFrame: v.outOfFrame } : {}),
+      };
     },
 
     async measure() {
@@ -696,7 +757,9 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
     },
 
     async find_sockets(query, { all = false } = {}) {
-      const offers = await hex.call('openSockets', query);
+      // compact: the ops alone (each holds its cell, family and slot), about half the text (A59).
+      // A page before A59 answers full offers: take the op out of each.
+      const offers = (await hex.call('openSockets', { ...query, compact: true })).map((o) => ({ op: typeof o.op === 'string' ? o : o.op }));
       const out = {
         total: offers.length,
         // The op already names the cell and the face, bearing or slot: no need to repeat them (A59).
@@ -762,6 +825,9 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       }
       if (!r.rolledBack) tagRoles(batch, r.outcomes, roleFor);
       const out = { rolledBack: r.rolledBack, outcomes: r.outcomes.map(summarizeOutcome) };
+      // The running print cost after this call (A51): the last applied op's.
+      const budget = r.outcomes.filter((o) => o.ok && o.budget).at(-1)?.budget;
+      if (budget && !r.rolledBack) out.budget = { grams: mm(budget.grams), minutes: mm(budget.minutes), parts: budget.parts, ...(budget.unmeasured?.length ? { unmeasured: budget.unmeasured } : {}) };
       const change = roles.size ? roleChange(before, liveSet(await hex.call('getState'))) : null;
       if (change) out.roles = change;
       // Consecutive refusals across calls: past the limit, say so plainly.
@@ -851,8 +917,15 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       const ops = [];
       for (const b of beds) {
         const tag = b.role != null ? { role: b.role } : {};
+        let plant = b.plant;
+        if (plant == null) {
+          // The house rule for this soil depth (A19).
+          const s = await hex.call('suggestPlants', b.part);
+          if (!s?.plants?.length) throw new Error(`${b.part}: no plant to suggest (${s?.why ?? 'not fillable'})`);
+          plant = s.plants[0].id;
+        }
         if (!soil.has(b.part)) { ops.push({ op: 'fillSoil', part: b.part, ...tag }); soil.add(b.part); }
-        ops.push({ op: 'plant', id: b.plant, in: b.part, ...tag });
+        ops.push({ op: 'plant', id: plant, in: b.part, ...tag });
       }
       return withPropCheck(await handlers.apply({ ops, atomic: false }));
     },

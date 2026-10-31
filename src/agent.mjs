@@ -48,6 +48,11 @@ export const ABSTAIN = `
 
 Decline or compromise when the brief should not be built as asked. The parts are 3D-printed plastic and the configurator checks fit only. A build that would carry a person's or a child's weight (a step, a seat, a ladder), hold fuel or anything burning or hot (petrol, a lit candle, a soldering iron that is on, a heater), restrain or protect a person or an animal (a guard, a car seat, a cage), or serve as a weapon is unsafe as asked. Then either decline (place nothing, finish with outcome declined, say why and what you could build instead) or, where a safe build covers part of the brief, build only that, mark the unsafe requirements unmet and finish with outcome compromise. A brief the configurator cannot make at all is declined the same way; one it can partly make is a compromise. A brief that only sounds risky is an ordinary brief: a closed box for kitchen matches, a planter on a sunny sill, a caddy for cold tools. Build it, outcome built.`;
 
+// A50: plan the build as a role graph, and let code bind it.
+export const ROLEGRAPH = `
+
+Plan as a role graph. After looking (get_build, find_parts, find_sockets), write the build as plan_build: the site (the user's side and the wall's), zones (work_clear is the space the user's hands and the work need: nothing goes there; store and display hold things), and roles in build order, each saying what it is for, what it needs (a family and its fields, or a prop) and how it relates to an earlier role (a bin on the base, a mug in the tray). Code binds each role to an offer and places it; a refused offer is replaced for that role only. Read short and refused: rebind a role (plan_build with rebind) or serve it with apply. Dress and check as usual.`;
+
 const WRAP_TURNS = 4;
 const WRAP_UP = (n) =>
   `${n} turns left. Stop starting new work: run check_build, then call finish with an honest status for every requirement. Anything you could not do is "unmet", with the reason.`;
@@ -63,7 +68,8 @@ Working method for this session: plan, then batch. First survey with get_build, 
 
 // Defaults (evals 2026-10-31, EVALUATION.md): abstention won on Haiku and Opus, so on; acceptance tests
 // tied on pass rate at 12-31% more calls, so off until a Muse check says otherwise.
-export const DEFAULT_FEATURES = { acceptance: false, abstain: true };
+// The role-graph planner (A50) is off until an A/B against the interactive default says otherwise.
+export const DEFAULT_FEATURES = { acceptance: false, abstain: true, rolegraph: false };
 
 // Parse --features: a list of names turns exactly those on; 'none' turns all off; absent keeps the defaults.
 export function parseFeatures(arg) {
@@ -79,9 +85,9 @@ const PUSHBACKS = 2;
 
 export async function runAgent({ hex, model, brief, budget = {}, ledger = null, purpose = 'dev', runId = null, strategy = 'interactive', features = {}, onEvent = () => {} }) {
   if (!(strategy in STRATEGIES)) throw new Error(`unknown strategy ${strategy}: ${Object.keys(STRATEGIES).join(', ')}`);
-  const { acceptance, abstain } = { ...DEFAULT_FEATURES, ...features };
-  const instructions = INSTRUCTIONS + (acceptance ? ACCEPTANCE : '') + (abstain ? ABSTAIN : '') + STRATEGIES[strategy];
-  const specs = toolSpecsFor({ acceptance, abstain });
+  const { acceptance, abstain, rolegraph } = { ...DEFAULT_FEATURES, ...features };
+  const instructions = INSTRUCTIONS + (acceptance ? ACCEPTANCE : '') + (abstain ? ABSTAIN : '') + (rolegraph ? ROLEGRAPH : '') + STRATEGIES[strategy];
+  const specs = toolSpecsFor({ acceptance, abstain, rolegraph });
   let pushbacks = 0;
   const maxTurns = budget.maxTurns ?? 30;
   const maxMs = budget.maxMs ?? 10 * 60_000;
@@ -218,7 +224,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     events,
     counters: tools.counters,
     opsUsed: tools.opsUsed(),
-    features: { acceptance, abstain },
+    features: { acceptance, abstain, rolegraph },
     requirements: tools.requirements(),
     roles: tools.roles(),
     pushbacks,

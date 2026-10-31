@@ -5,6 +5,7 @@
 
 import { CONTRACT, checkerFor, refKinds } from './contract.mjs';
 import { BUILD_TESTS } from './checks.mjs';
+import { runPlan, rebind, planLookup, ZONE_KINDS } from './plan.mjs';
 
 // Fields each op takes, [required, optional], from the vendored public contract
 // (contract/hex-api-public.json; bin/sync-contract.mjs refreshes it). Checked
@@ -201,6 +202,24 @@ export const TOOL_SPECS = [
     parameters: obj({}),
   },
   {
+    name: 'plan_build',
+    description:
+      'Build from a role graph (A50): site, zones and roles, bound to offers by the configurator and placed role by role, ' +
+      'each op tagged with its role. A refused offer rebinds that role only. Returns the refs of each role and the roles left short. ' +
+      'With rebind: a role id, takes that role off and binds it again elsewhere (a role others stand on cannot be rebound).',
+    parameters: obj({
+      plan: {
+        type: 'object',
+        description:
+          'site: {userSide, wallSide} as axial steps such as {"q":0,"r":1}; zones: [{id, kind: ' + ZONE_KINDS.join('|') + ', side: user|wall (depth) or cells}] ' +
+          '(work_clear stays empty); roles in build order: [{id, serves (a requirement id), need: {family, variant, stem, level, face, type} or {prop}, ' +
+          'count, zone, relations: [{rel: on|above|beside (a part) or on|in (a prop), of: an earlier role}]}].',
+      },
+      rebind: { type: 'string', description: 'A role id of the last plan to place again.' },
+      reason: { type: 'string', description: 'Why it is rebound (a refusal or warning code).' },
+    }),
+  },
+  {
     name: 'apply',
     description:
       'Change the build. Each item is either {"socket":"s12"} (an offer from find_sockets) or a full op object. ' +
@@ -326,8 +345,8 @@ export const TOOL_SPECS = [
 // The tool list a session offers: set_requirements and a finish keyed by
 // requirement id only with acceptance tests (A64), an outcome only with
 // abstention (A58). Neither on is the interactive default as it was.
-export function toolSpecsFor({ acceptance = false, abstain = false } = {}) {
-  return TOOL_SPECS.filter((t) => acceptance || t.name !== 'set_requirements').map((t) => {
+export function toolSpecsFor({ acceptance = false, abstain = false, rolegraph = false } = {}) {
+  return TOOL_SPECS.filter((t) => (acceptance || t.name !== 'set_requirements') && (rolegraph || t.name !== 'plan_build')).map((t) => {
     if (t.name !== 'finish') return acceptance ? t : withoutRole(t);
     if (!acceptance && !abstain) return t;
     const req = {
@@ -369,7 +388,7 @@ function withoutRole(t) {
 }
 
 // Tools that change the build: with acceptance tests on, none runs before set_requirements.
-const MUTATING = new Set(['apply', 'dress', 'hang_spools', 'fill_and_plant', 'fill_compartments', 'undo', 'redo']);
+const MUTATING = new Set(['plan_build', 'apply', 'dress', 'hang_spools', 'fill_and_plant', 'fill_compartments', 'undo', 'redo']);
 
 export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}) {
   const sockets = new Map();
@@ -386,6 +405,8 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
   let requirements = null;
   let changed = false;
   const roles = new Map();
+  // A50: the last role-graph plan run, so one role can be rebound.
+  let lastPlan = null;
 
   function takeRole(item) {
     if (!item || typeof item !== 'object' || !('role' in item)) return [item, null];
@@ -494,6 +515,21 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
   const roleOf = (ref) => (roles.has(ref) ? { role: roles.get(ref) } : {});
 
   const handlers = {
+    async plan_build({ plan, rebind: roleId, reason } = {}) {
+      const lookup = planLookup(run);
+      if (roleId) {
+        if (!lastPlan?.state) throw new Error('rebind needs a plan placed by plan_build first');
+        lastPlan = await rebind(lastPlan, roleId, lookup, { reason });
+      } else {
+        // With acceptance tests, a role serves a declared requirement or none.
+        const ids = new Set((requirements ?? []).map((r) => r.id));
+        const stray = acceptance ? (plan?.roles ?? []).filter((r) => r.serves != null && !ids.has(r.serves)) : [];
+        if (stray.length) throw new Error(`serves must be a requirement id (${[...ids].join(', ')}): ${stray.map((r) => r.id).join(', ')}`);
+        lastPlan = await runPlan(plan, lookup, { families: FAMILIES });
+      }
+      return planSummary(lastPlan);
+    },
+
     async set_requirements({ requirements: list }) {
       if (!Array.isArray(list) || !list.length || list.length > 8) throw new Error('requirements must be 1 to 8 items');
       const ids = new Set();
@@ -863,6 +899,17 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       const role = (aligned ? roleFor.get(batch[i]) : null) ?? (o.removed ?? []).map((ref) => roles.get(ref)).find(Boolean);
       if (role) for (const ref of o.added ?? []) roles.set(ref, role);
     });
+  }
+
+  function planSummary(p) {
+    if (p.errors) return { ok: false, errors: p.errors, note: 'Nothing was placed: fix the plan and call plan_build again.' };
+    const refused = p.log.filter((l) => l.ok === false).map((l) => ({ role: l.role, code: l.code }));
+    return {
+      ok: p.ok,
+      roles: Object.fromEntries(Object.entries(p.bindings).map(([id, bs]) => [id, bs.flatMap((b) => b.refs)])),
+      ...(p.short.length ? { short: p.short, note: 'Short roles are unmet unless you serve them another way: apply, a looser plan, or report them in finish.' } : {}),
+      ...(refused.length ? { refused } : {}),
+    };
   }
 
   function tokenFor(id) {

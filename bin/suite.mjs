@@ -23,6 +23,13 @@ const modelId = flag('model', purpose === 'dev' ? 'muse-spark-1.3' : 'muse-wonde
 const repeat = Number(flag('repeat', 1));
 const strategy = flag('strategy', 'interactive');
 const only = flag('only', null)?.split(',');
+// A brief's start: a build file (tools/catalog/builds/*.json, its state; props are left out) or a state object.
+const startOf = (b) => {
+  if (!b.start) return null;
+  if (typeof b.start !== 'string') return b.start;
+  const j = JSON.parse(readFileSync(b.start, 'utf8'));
+  return j.state ?? j;
+};
 const briefs = JSON.parse(readFileSync(flag('briefs', 'evals/briefs.json'), 'utf8')).filter((b) => !only || only.includes(b.id));
 
 const { model, ledger } = modelFor({ modelId, purpose, effort: flag('effort', undefined) });
@@ -39,7 +46,7 @@ const started = Date.now();
 async function runJob({ b, attempt }) {
   let row;
   try {
-    const { trace } = await runSession({ brief: b.brief, briefId: b.id, expect: b.expect, model, ledger, purpose, strategy, outRoot: root });
+    const { trace } = await runSession({ brief: b.brief, briefId: b.id, expect: b.expect, start: startOf(b), model, ledger, purpose, strategy, outRoot: root });
     const c = trace.verdict.checks;
     const configurator = ['agentFinished', 'rules', 'mesh', 'printPack', 'roundTrip'].every((k2) => c[k2] === 'pass');
     const over = overclaimed(trace);

@@ -1,5 +1,5 @@
 {
-  "hash": "9c3a1086680e136f1653c80094cd6fdba6f703d0c4d75ff90356a99747162cd3",
+  "hash": "44b1c5f6872bafda552317ac7bfe907b5b30f48db40f2c96cb8cef3b36e58d03",
   "apiVersion": 1,
   "status": "experimental",
   "members": [
@@ -509,6 +509,22 @@
       ]
     },
     {
+      "op": "addAxle",
+      "says": "Seat a spool axle in a rod socket on a flat (0-5); it spans the empty cell to the rod socket facing it.",
+      "fields": [
+        {
+          "name": "at",
+          "type": "Cell",
+          "says": "The cell, as openSockets gives it."
+        },
+        {
+          "name": "slot",
+          "type": "number",
+          "says": "The flat 0-5 of the rod socket it seats in."
+        }
+      ]
+    },
+    {
       "op": "addBinBolt",
       "says": "Bolt a bin to a flat (0-5) or a cut.",
       "fields": [
@@ -774,7 +790,7 @@
         {
           "name": "on",
           "type": "NodeRef | PropRef | 'bench'",
-          "says": "What it stands on: a piece, cover, cap, bin, drawer or soil part, a placed prop, or the bench. Left out: whatever is under the aim.",
+          "says": "What it stands on: a piece, cover, cap, bin, drawer or soil part, a placed prop, or the bench; or a spool axle (axle:...), which a filament spool HANGS on, with no aim; a surface id from surfaces() is taken as that surface. Left out: whatever is under the aim.",
           "optional": true
         },
         {
@@ -833,7 +849,7 @@
         {
           "name": "on",
           "type": "NodeRef | PropRef | 'bench'",
-          "says": "What it stands on: a piece, cover, cap, bin, drawer or soil part, a placed prop, or the bench. Left out: whatever is under the aim.",
+          "says": "What it stands on: a piece, cover, cap, bin, drawer or soil part, a placed prop, or the bench; or a spool axle (axle:...), which a filament spool HANGS on, with no aim; a surface id from surfaces() is taken as that surface. Left out: whatever is under the aim.",
           "optional": true
         },
         {
@@ -947,6 +963,11 @@
       "family": "port",
       "placeable": true,
       "says": "A port in a side bore."
+    },
+    {
+      "family": "axle",
+      "placeable": true,
+      "says": "A spool axle across a bay, between two facing rod sockets."
     },
     {
       "family": "bin",
@@ -1241,6 +1262,10 @@
     {
       "code": "NO_COLLAR_POSSIBLE",
       "says": "There is nothing to build on here."
+    },
+    {
+      "code": "NO_PARTNER",
+      "says": "A spool axle needs a rod socket facing this one across an empty cell."
     },
     {
       "code": "NO_SOIL",
@@ -1551,6 +1576,22 @@
       "says": "warning (apply only): the collision gate did not judge the op in time; it may still be put back."
     },
     {
+      "code": "PROP_FLOATING",
+      "says": "warning (validate): a placed prop would still drop more than 3 mm: it rests on nothing."
+    },
+    {
+      "code": "PROP_INSIDE",
+      "says": "warning (validate): a placed prop is inside a part or another prop."
+    },
+    {
+      "code": "PLANT_NOT_IN_SOIL",
+      "says": "warning (validate): a plug plant stands in no soil."
+    },
+    {
+      "code": "PROP_BELOW_RIM",
+      "says": "warning (addProp, moveProp): the prop is in, and its top stands below the rim of what holds it, so it is hard to see from the side (A31)."
+    },
+    {
       "code": "PROPS_NOT_DRAWN",
       "says": "warning (apply only): the build holds the staging change, but the props on screen did not come to match it in time."
     }
@@ -1681,7 +1722,7 @@
     },
     {
       "name": "Surface",
-      "says": "One place on or in a part a prop can go: a top, a floor, one compartment of a divided bin, or a soil seat. Lengths are mm, y up."
+      "says": "One place on or in a part a prop can go: a top, a floor, one compartment of a divided bin, or a soil seat; or a deck of flush neighbouring tops. Lengths are mm, y up."
     },
     {
       "name": "OpenSocket",

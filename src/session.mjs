@@ -39,7 +39,7 @@ export function modelFor({ modelId, purpose, effort }) {
   return { model: metaModel({ model: modelId, reasoningEffort: effort ?? DEFAULT_EFFORT.meta }), ledger: openLedger() };
 }
 
-export async function runSession({ brief, briefId = null, expect = null, model, ledger, purpose, headless = true, overlay = !headless, holdMs = 0, strategy = 'interactive', maxTurns = 30, maxUsd = 3, outRoot = 'runs', onEvent = () => {} }) {
+export async function runSession({ brief, briefId = null, expect = null, start = null, model, ledger, purpose, headless = true, overlay = !headless, holdMs = 0, strategy = 'interactive', maxTurns = 30, maxUsd = 3, outRoot = 'runs', onEvent = () => {} }) {
   const headroom = ledger.headroom(purpose);
   if (headroom <= 0) throw new Error(`no ${purpose} budget left: ${JSON.stringify(ledger.summary())}`);
   const runId = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`;
@@ -49,6 +49,12 @@ export async function runSession({ brief, briefId = null, expect = null, model, 
   const hex = await openHex({ headless });
   let result, verdict, state, checks, harnessError = null;
   try {
+    // A brief may start from a saved build (a state object or a share fragment) instead of the starter.
+    if (start) {
+      const loaded = await hex.call('load', start);
+      if (!loaded.ok) throw new Error(`start state did not load: ${loaded.code} ${loaded.message}`);
+      await hex.call('settle');
+    }
     let events = onEvent;
     if (overlay) {
       await dismissCookies(hex.page);
@@ -96,6 +102,7 @@ export async function runSession({ brief, briefId = null, expect = null, model, 
     // The contract the agent's op table came from; a run is only comparable with runs on the same one.
     contractHash: CONTRACT.hash,
     brief,
+    ...(start ? { startSha256: createHash('sha256').update(JSON.stringify(start)).digest('hex') } : {}),
     briefSha256: createHash('sha256').update(brief).digest('hex'),
     stop: result.stop,
     elapsedMs: result.elapsedMs,

@@ -184,6 +184,7 @@ export const TOOL_SPECS = [
       'from find_surfaces (surface or on, not both); several props can go in one apply (atomic false keeps the ones that rest); ' +
       'moveProp and removeProp take a prop ref from get_build. A filament spool hangs on a spool axle: on "axle:..." (an axle ref), no atMm. ' +
       'pose stand on a prop (a pencil in a cup) is kept leaning up to 30 degrees. Soil: fillSoil a bin or pot part, then plant a plant id in it. ' +
+      'A refused prop may carry tryInstead (a socket id for the same op varied so it places): apply that socket as it is. ' +
       'After dressing, call check_build and fix the prop warnings it lists. ' +
       `Ops and their fields (? = optional): ${OP_TABLE}. ` +
       `Named values: ${Object.entries(VALUES).filter(([k]) => k !== 'variant').map(([k, v]) => `${k}: ${v.join('|')}`).join('; ')}. ` +
@@ -359,6 +360,8 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
       code: o.code,
       message: o.message,
       alternatives: o.validAlternatives.map((a) => ({ socket: remember(a.op), at: a.at, slot: a.slot, op: a.op })),
+      // A refused prop may come with the same op varied (its other pose, a turn, a small shift) that does place.
+      ...(o.details?.tryInstead ? { tryInstead: { socket: remember(o.details.tryInstead), op: o.details.tryInstead } } : {}),
     };
   }
 

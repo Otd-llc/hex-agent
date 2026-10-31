@@ -113,3 +113,19 @@ test('the prompt and tools teach decks, axles and the dress-check-fix loop', () 
   for (const w of ['deck', 'depthMm', 'PROP_BELOW_RIM', 'PROP_FLOATING', 'PROP_INSIDE', 'PLANT_NOT_IN_SOIL', 'axle', '30 degrees']) assert.ok(all.includes(w), w);
   assert.match(INSTRUCTIONS, /check, then fix/);
 });
+
+test('a refused prop hands back tryInstead as a socket id', async () => {
+  const hex = fakeHex();
+  const base = hex.call;
+  const varied = { op: 'addProp', id: 'pen', on: 'bench', yawDeg: 90 };
+  hex.call = async (m, ...a) => (m === 'applyAll'
+    ? { rolledBack: false, outcomes: [{ ok: false, op: a[0][0], code: 'PROP_NO_REST', message: 'no', details: { tryInstead: varied }, validAlternatives: [] }] }
+    : base(m, ...a));
+  const t = createTools(hex);
+  const r = await t.run('dress', { props: [{ id: 'pen', on: 'bench' }] });
+  const ti = r.outcomes[0].tryInstead;
+  assert.deepEqual(ti.op, varied);
+  hex.call = base;
+  await t.run('apply', { ops: [{ socket: ti.socket }] });
+  assert.deepEqual(applied(hex).at(-1), varied);
+});

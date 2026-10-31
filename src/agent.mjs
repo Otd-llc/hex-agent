@@ -52,7 +52,7 @@ Decline or compromise when the brief should not be built as asked. The parts are
 // A50: plan the build as a role graph, and let code bind it.
 export const ROLEGRAPH = `
 
-Plan as a role graph. After looking (get_build, find_parts, find_sockets), write the build as plan_build: the site (the user's side and the wall's), zones (work_clear is the space the user's hands and the work need: nothing goes there; store and display hold things), and roles in build order, each saying what it is for, what it needs (a family and its fields, or a prop) and how it relates to an earlier role (a bin on the base, a mug in the tray). Code binds each role to an offer and places it; a refused offer is replaced for that role only. Read short and refused: rebind a role (plan_build with rebind) or serve it with apply. Dress and check as usual.`;
+Plan as a role graph, and place the parts with plan_build, not apply. After looking (get_build, find_parts, find_sockets), your first change is one plan_build call with the whole build: the site (the user's side and the wall's), zones (work_clear is the space the user's hands and the work need: nothing goes there; store and display hold things), and roles in build order, each saying what it is for, what it needs (a family and its fields, or a prop) and how it relates to an earlier role (a bin on the base, a mug in the tray). Code binds each role to an offer and places it; a refused offer is replaced for that role only. Read short and refused: rebind a role (plan_build with rebind) or serve it with apply; use apply only for what plan_build left short, the house-rule ops and props. Dress and check as usual.`;
 
 const WRAP_TURNS = 4;
 const WRAP_UP = (n) =>

@@ -216,7 +216,8 @@ export const TOOL_SPECS = [
     description:
       'Place several props in one call, then check them. Each item is an addProp: id from find_props, and where: on (a part, ' +
       'prop or axle ref, or "bench"), surface (a token from find_surfaces), or in (a part or prop ref: the prop goes on the ' +
-      'first surface of it that it fits and that this call has not used yet, so three items in one bin take three compartments). ' +
+      'first surface of it that it fits and that this call has not used yet, so three items in one bin take three compartments; ' +
+      'in a prop such as a cup, all aim at its centre and a second is refused as overlapping the first, so give each its own atMm). ' +
       'atMm, yawDeg, pose and facingDeg as addProp takes them. Returns each outcome and the prop warnings left (flagged, each ' +
       'with its fix): fix those, then check_build before finish.',
     parameters: obj(
@@ -588,7 +589,7 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
         if (holder == null) { ops.push({ op: 'addProp', ...rest }); continue; }
         if ('on' in rest || 'surface' in rest) throw new Error(`${p.id}: give in, on or surface, one of them`);
         // In a prop (a pencil in a cup): on the prop itself, where a standing prop is kept leaning; through
-        // the well as a surface the same pencil is refused PROP_WOULD_SHIFT (live 5310, 2026-10-31).
+        // the well as a surface the same pencil is refused PROP_WOULD_SHIFT (pencil-cup on the bench, viz 0c9c13fe, 2026-10-31).
         if (holder.startsWith('prop:')) { ops.push({ op: 'addProp', ...rest, on: holder }); continue; }
         // The first surface of the holder this prop fits that this call has not taken yet.
         const free = (await hex.call('surfaces', holder, { fits: p.id })).filter((f) => f.kind !== 'soil' && !used.has(f.id));
@@ -665,9 +666,10 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
     return token;
   }
 
-  // A prop warning names its prop in the message: "(prop:...)".
+  // A prop warning names its prop in refs (viz 0c9c13fe); before that only in the message: "(prop:...)".
   function propFlag(i) {
-    return { code: i.code, prop: i.message.match(/\((prop:[^)]+)\)/)?.[1] ?? null, message: i.message, fix: PROP_FIX[i.code] };
+    const prop = i.refs?.find((r) => r.startsWith('prop:')) ?? i.message.match(/\((prop:[^)]+)\)/)?.[1] ?? null;
+    return { code: i.code, prop, message: i.message, fix: PROP_FIX[i.code] };
   }
 
   // A compound helper's last step: the prop warnings validate() gives now.

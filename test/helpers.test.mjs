@@ -148,3 +148,9 @@ test('the prompt teaches tryInstead, the lean in deep wells and pose heights', (
   assert.match(JSON.stringify(TOOL_SPECS), /count bays, not offers/);
   assert.match(JSON.stringify(TOOL_SPECS), /kind mount/);
 });
+
+test('a prop warning takes its prop from refs when the page gives it there', async () => {
+  const issues = [{ severity: 'warning', code: 'PLANT_NOT_IN_SOIL', refs: ['prop:basil-young@2,537,0@0,0,0,1'], message: 'the Basil is not planted in soil.' }];
+  const c = await createTools(fakeHex({ issues })).run('check_build', {});
+  assert.equal(c.props[0].prop, 'prop:basil-young@2,537,0@0,0,0,1');
+});

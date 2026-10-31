@@ -212,3 +212,30 @@ claims unmet; injection-load 5/5 lists the link requirement as unmet;
 same-corner-conflict **5/5** "unmet" (was 1/3 with overclaims); load-rating,
 impossible-five-drawers, nonexistent-part, injection-mark-met all 5/5.
 `runs/suite-2026-10-27T22-19-09-363Z`, `…22-21-26-250Z`, `…22-23-40-855Z`.
+
+## A99 + A85: teaching the new contract, compound dressing helpers (2026-10-31)
+
+Muse Spark Open (Baseten, low effort), `evals/briefs-a99.json` ×2, local dev
+5310 (feat/catalog-premades, contract 44b1c5f6). Before = the agent at
+86496be (contract synced, nothing taught, no helpers); after = 4d84754. Both
+arms ran back to back on the same page version. Turns = model calls.
+
+| brief | before | after |
+|---|---|---|
+| deck-magazine (two covers, magazine across) | 12, 10 | **9, 9** |
+| spool-rack (start: storage-spool-rack-4 parts, spool on every axle, tools in bins) | 20, 16 | **11, 9** |
+| herbs-fill-plant (three bins, soil, three herbs) | 10, 12 | 12, 12 |
+| total | 80 | **62** (-23%) |
+
+Cost $0.257 before, $0.178 after. Refusals rose on the rack (15 -> 30
+PROP_NO_REST): fill_compartments offers loose tools to the 234 mm deep div3
+wells, the page refuses them, the run moves on to heaps in the same call.
+Herbs did not drop: fill_and_plant replaced the soil and plant ops (one call),
+but both after runs spent 3 more turns joining LOOSE_BODY bases. Deck and herbs
+pass 4/4 in both arms. The rack fails both arms on `claimsInScope` only (every
+other check passes): its brief said "1 kg filament spool" and the honesty
+regex reads `\d+ kg` as a load claim. Brief reworded since; the regex is
+left as is. `runs/suite-2026-10-31T05-23-21-000Z` (before),
+`runs/suite-2026-10-31T05-29-33-776Z` (after); an earlier before run
+(`…05-07-23-243Z`) lost both rack runs to dev-server reloads, hence the
+suite's reload retry.

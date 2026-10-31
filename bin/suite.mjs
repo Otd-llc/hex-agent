@@ -8,7 +8,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { loadEnv } from '../src/env.mjs';
 import { modelFor, runSession } from '../src/session.mjs';
-import { overclaimed } from '../src/checks.mjs';
+import { overclaimed, outcomeOf } from '../src/checks.mjs';
 
 loadEnv();
 const args = process.argv.slice(2);
@@ -23,6 +23,9 @@ const modelId = flag('model', purpose === 'dev' ? 'muse-spark-1.3' : 'muse-wonde
 const repeat = Number(flag('repeat', 1));
 const strategy = flag('strategy', 'interactive');
 const only = flag('only', null)?.split(',');
+// A64 acceptance tests + A63 roles, A58 abstention: --features=acceptance,abstain (none: the default as it was).
+const featureList = String(flag('features', '') || '').split(',').filter(Boolean);
+const features = { acceptance: featureList.includes('acceptance'), abstain: featureList.includes('abstain') };
 // A brief's start: a build file (tools/catalog/builds/*.json, its state; props are left out) or a state object.
 const startOf = (b) => {
   if (!b.start) return null;
@@ -36,7 +39,7 @@ const { model, ledger } = modelFor({ modelId, purpose, effort: flag('effort', un
 const suiteId = `suite-${new Date().toISOString().replace(/[:.]/g, '-')}`;
 const root = `runs/${suiteId}`;
 mkdirSync(root, { recursive: true });
-console.log(`${suiteId}: ${briefs.length} briefs x ${repeat}, ${model.provider}/${model.model}, ${purpose}, strategy ${strategy}, effort ${model.effort}`);
+console.log(`${suiteId}: ${briefs.length} briefs x ${repeat}, ${model.provider}/${model.model}, ${purpose}, strategy ${strategy}, features ${featureList.join('+') || 'none'}, effort ${model.effort}`);
 
 const rows = [];
 const concurrency = Math.max(1, Number(flag('concurrency', 1)));
@@ -51,7 +54,7 @@ async function runJob({ b, attempt }) {
     let trace, reloads = 0;
     for (;;) {
       try {
-        ({ trace } = await runSession({ brief: b.brief, briefId: b.id, expect: b.expect, start: startOf(b), model, ledger, purpose, strategy, outRoot: root }));
+        ({ trace } = await runSession({ brief: b.brief, briefId: b.id, expect: b.expect, start: startOf(b), model, ledger, purpose, strategy, features, outRoot: root }));
         break;
       } catch (e) {
         if (reloads >= 2 || !/hexAPI not loaded|Execution context was destroyed|api\[m\] is not a function/.test(String(e.message))) throw e;
@@ -60,12 +63,19 @@ async function runJob({ b, attempt }) {
       }
     }
     const c = trace.verdict.checks;
-    const configurator = ['agentFinished', 'rules', 'mesh', 'printPack', 'roundTrip'].every((k2) => c[k2] === 'pass');
+    // A decline leaves nothing to print or reload: it needs a finish and no broken rules.
+    const outcome = outcomeOf(trace.finish, trace.verdict.nodes);
+    const configurator = outcome === 'declined'
+      ? c.agentFinished === 'pass' && c.rules === 'pass'
+      : ['agentFinished', 'rules', 'mesh', 'printPack', 'roundTrip'].every((k2) => c[k2] === 'pass');
     const over = overclaimed(trace);
+    const metButFails = (trace.acceptance?.checks ?? []).filter((x) => x.metButFails).map((x) => `${x.id}: ${x.why}`);
     row = {
       id: b.id,
       attempt,
-      pass: configurator && trace.briefChecks.pass && !over && c.claimsInScope !== 'fail',
+      pass: configurator && trace.briefChecks.pass && !over && c.claimsInScope !== 'fail' && !metButFails.length,
+      outcome,
+      ...(trace.acceptance ? { declared: trace.acceptance.requirements.length, pushbacks: trace.acceptance.pushbacks, metButFails } : {}),
       claimsInScope: c.claimsInScope,
       configurator,
       mesh: c.mesh,
@@ -86,9 +96,9 @@ async function runJob({ b, attempt }) {
     row = { id: b.id, attempt, pass: false, error: String(e.message ?? e).slice(0, 300) };
   }
   rows.push(row);
-  console.log(`${row.pass ? 'PASS' : 'FAIL'} ${row.id}#${row.attempt} ${row.error ?? `parts=${row.parts} refusals=${JSON.stringify(row.refusals)} calls=${row.calls} ${row.seconds}s $${row.costUsd}${row.overclaimed ? ' OVERCLAIMED' : ''}${row.forcedFinish ? ' FORCED-FINISH' : ''}${row.claimed?.some((c) => c !== 'met') ? ` claims=${row.claimed.join('/')}` : ''} ${row.briefChecks.filter((x) => x.startsWith('FAIL')).join(' ')}`}`);
+  console.log(`${row.pass ? 'PASS' : 'FAIL'} ${row.id}#${row.attempt} ${row.error ?? `parts=${row.parts} refusals=${JSON.stringify(row.refusals)} calls=${row.calls} ${row.seconds}s $${row.costUsd}${row.overclaimed ? ' OVERCLAIMED' : ''}${row.forcedFinish ? ' FORCED-FINISH' : ''}${row.claimed?.some((c) => c !== 'met') ? ` claims=${row.claimed.join('/')}` : ''}${row.outcome && row.outcome !== 'built' ? ` ${row.outcome}` : ''}${row.metButFails?.length ? ` MET-BUT-FAILS=${row.metButFails.length}` : ''}${row.pushbacks ? ` pushbacks=${row.pushbacks}` : ''} ${row.briefChecks.filter((x) => x.startsWith('FAIL')).join(' ')}`}`);
   rows.sort((x, y) => jobs.findIndex((j) => j.b.id === x.id && j.attempt === x.attempt) - jobs.findIndex((j) => j.b.id === y.id && j.attempt === y.attempt));
-  writeFileSync(`${root}/summary.json`, JSON.stringify({ suiteId, provider: model.provider, model: model.model, purpose, strategy, effort: model.effort, concurrency, rows }, null, 2) + '\n');
+  writeFileSync(`${root}/summary.json`, JSON.stringify({ suiteId, provider: model.provider, model: model.model, origin: process.env.HEX_URL || 'live', purpose, strategy, features, effort: model.effort, concurrency, rows }, null, 2) + '\n');
 }
 
 // N workers pull from one queue; each run has its own browser.

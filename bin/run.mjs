@@ -47,6 +47,8 @@ const { trace, dir } = await runSession({
   holdMs: Number(flag('hold-ms', flag('headless', false) ? 0 : 10_000)),
   maxTurns: Number(flag('max-turns', 30)),
   maxUsd: Number(flag('max-usd', 3)),
+  // --features=acceptance,abstain (A64/A63, A58)
+  features: Object.fromEntries(String(flag('features', '') || '').split(',').filter(Boolean).map((f) => [f, true])),
   onEvent: (e) => {
     if (e.type === 'model') console.log(`  [model] turn ${e.turn}: ${e.calls.map((c) => c.name).join(', ') || '(text)'}`);
     if (e.type === 'apply') console.log(`  [hex]   ${e.outcomes.map((o) => (o.ok ? `${o.op.op} ok` : `${o.op.op} ${o.code}`)).join('; ')}${e.rolledBack ? ' (rolled back)' : ''}`);

@@ -11,12 +11,37 @@
 //   { props: 3 }                        at least 3 props staged on or by the build
 //   { prop: 'basil', min: 2 }           props whose id contains the text
 //   { soil: 1 }                         parts filled with soil
+//   { outcome: ['declined'] }           finish.outcome is one of these (A58)
+//
+// A brief with no outcome expectation must not be declined: refusing a
+// buildable brief is a failure too.
+
+// The expectations an agent may write as its own acceptance tests (A64): the
+// ones that read the build, not the agent's report.
+export const BUILD_TESTS = ['family', 'drawers', 'bom', 'levels', 'noIssue', 'maxParts', 'props', 'prop', 'soil'];
+
+// What the run ended as: built, a compromise, or declined (A58). A finish that
+// does not say is read from what it left: nothing placed and nothing met is a
+// decline, anything not met a compromise.
+export const OUTCOMES = ['built', 'compromise', 'declined'];
+export function outcomeOf(finish, nodeCount) {
+  if (OUTCOMES.includes(finish?.outcome)) return finish.outcome;
+  const reqs = finish?.requirements ?? [];
+  if (!reqs.length) return 'built';
+  if (nodeCount === 0 && reqs.every((r) => r.status !== 'met')) return 'declined';
+  return reqs.some((r) => r.status !== 'met') ? 'compromise' : 'built';
+}
 
 export function checkBrief(expect, { state, verdict, finish }) {
   const nodes = state.nodes;
   const props = state.staging?.props ?? [];
   const soil = state.staging?.soil ?? [];
+  if (!expect.some((e) => e.outcome)) expect = [...expect, { outcome: ['built', 'compromise'], implicit: true }];
   const results = expect.map((e) => {
+    if (e.outcome) {
+      const o = outcomeOf(finish, nodes.length);
+      return { expect: e, saw: o, pass: e.outcome.includes(o) };
+    }
     if (e.props) return { expect: e, saw: props.length, pass: props.length >= e.props };
     if (e.prop) {
       const n = props.filter((p) => p.id.includes(e.prop)).length;

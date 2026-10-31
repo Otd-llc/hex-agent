@@ -9,7 +9,7 @@ import { metaModel } from './model.mjs';
 import { claudeModel } from './claude.mjs';
 import { basetenModel } from './baseten.mjs';
 import { openLedger } from './ledger.mjs';
-import { runAgent, verify } from './agent.mjs';
+import { runAgent, verify, ownChecks } from './agent.mjs';
 import { checkBrief } from './checks.mjs';
 
 // Reasoning effort when none is asked for. Muse Spark Open measured best at low
@@ -39,7 +39,7 @@ export function modelFor({ modelId, purpose, effort }) {
   return { model: metaModel({ model: modelId, reasoningEffort: effort ?? DEFAULT_EFFORT.meta }), ledger: openLedger() };
 }
 
-export async function runSession({ brief, briefId = null, expect = null, start = null, model, ledger, purpose, headless = true, overlay = !headless, holdMs = 0, strategy = 'interactive', maxTurns = 30, maxUsd = 3, outRoot = 'runs', onEvent = () => {} }) {
+export async function runSession({ brief, briefId = null, expect = null, start = null, model, ledger, purpose, headless = true, overlay = !headless, holdMs = 0, strategy = 'interactive', features = {}, maxTurns = 30, maxUsd = 3, outRoot = 'runs', onEvent = () => {} }) {
   const headroom = ledger.headroom(purpose);
   if (headroom <= 0) throw new Error(`no ${purpose} budget left: ${JSON.stringify(ledger.summary())}`);
   const runId = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`;
@@ -64,7 +64,7 @@ export async function runSession({ brief, briefId = null, expect = null, start =
         pushLines(hex.page, linesFor(e), e.t / 1000);
       };
     }
-    result = await runAgent({ hex, model, brief, ledger, purpose, runId, strategy, budget: { maxTurns, maxUsd: Math.min(maxUsd, headroom) }, onEvent: events });
+    result = await runAgent({ hex, model, brief, ledger, purpose, runId, strategy, features, budget: { maxTurns, maxUsd: Math.min(maxUsd, headroom) }, onEvent: events });
     verdict = await verify({ hex, openFresh: () => hex.fresh(), finish: result.finish });
     state = await hex.call('getState');
     checks = expect ? checkBrief(expect, { state, verdict, finish: result.finish }) : null;
@@ -93,6 +93,7 @@ export async function runSession({ brief, briefId = null, expect = null, start =
     briefId,
     purpose,
     strategy,
+    features: result.features,
     effort: model.effort,
     inference: model.kind,
     provider: model.provider,
@@ -114,6 +115,8 @@ export async function runSession({ brief, briefId = null, expect = null, start =
     forcedFinish: result.forcedFinish,
     verdict: { ...verdict, shareUrl: `${hexUrl().split('#')[0]}#${verdict.fragment}` },
     briefChecks: checks,
+    // A64/A63: the agent's own acceptance tests and roles, run on the final build.
+    ...(result.features.acceptance ? { acceptance: { requirements: result.requirements ?? [], pushbacks: result.pushbacks, checks: ownChecks({ declared: result.requirements ?? [], roles: result.roles, finish: result.finish, state, verdict }) } } : {}),
     // The final nodes (no opaque detail), so checks can be re-run on the trace later.
     finalNodes: state.nodes.map((n) => ({ ref: n.ref, family: n.family, at: n.at, stem: n.stem })),
     finalStaging: state.staging ? { props: state.staging.props.map((p) => ({ ref: p.ref, id: p.id, posMm: p.posMm, yawDeg: p.yawDeg, pot: p.pot })), soil: state.staging.soil } : null,

@@ -4,6 +4,7 @@
 // The model never gets load(), so it cannot replace the build.
 
 import { CONTRACT, checkerFor, refKinds } from './contract.mjs';
+import { BUILD_TESTS } from './checks.mjs';
 
 // Fields each op takes, [required, optional], from the vendored public contract
 // (contract/hex-api-public.json; bin/sync-contract.mjs refreshes it). Checked
@@ -81,7 +82,37 @@ const mm = (v) => Math.round(v);
 
 const obj = (properties, required = []) => ({ type: 'object', properties, required, additionalProperties: false });
 
+// The tests set_requirements takes, for its description and its check.
+const TEST_FORMS = '{"family":"drawer","min":2} (parts of a family), {"drawers":2} (any drawers), {"bom":"hex-acc-hook","min":3} ' +
+  '(parts-list lines containing the text), {"levels":2} (storeys used), {"maxParts":30}, {"noIssue":"OPEN_CAP_FACE"}, ' +
+  '{"props":3}, {"prop":"basil","min":2}, {"soil":2} (parts filled with soil)';
+
 export const TOOL_SPECS = [
+  {
+    name: 'set_requirements',
+    description:
+      'Before the first change: the brief as 3-6 acceptance tests, each a requirement a person could check on the finished ' +
+      'build, with an id (R1, R2, ...) and, where code can check it, one test: ' + TEST_FORMS + '. List every requirement ' +
+      'the brief states, also those you expect not to meet. Call it again to revise the list. Code runs the tests at finish.',
+    parameters: obj(
+      {
+        requirements: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 8,
+          items: obj(
+            {
+              id: { type: 'string', description: 'R1, R2, ...' },
+              requirement: { type: 'string' },
+              test: { type: 'object', description: 'Optional: one code check, as listed above.' },
+            },
+            ['id', 'requirement'],
+          ),
+        },
+      },
+      ['requirements'],
+    ),
+  },
   {
     name: 'get_build',
     description: 'The build on screen now: every placed part (ref, family, cell, part name) and counts per family.',
@@ -226,7 +257,7 @@ export const TOOL_SPECS = [
   {
     name: 'hang_spools',
     description: 'Hang a filament spool (or the prop id given) on every spool axle of the build that has none, in one call, then check them.',
-    parameters: obj({ id: { type: 'string', description: 'Default filament-spool.' } }),
+    parameters: obj({ id: { type: 'string', description: 'Default filament-spool.' }, role: { type: 'string', description: 'Optional: the requirement id these serve.' } }),
   },
   {
     name: 'fill_and_plant',
@@ -239,7 +270,7 @@ export const TOOL_SPECS = [
           type: 'array',
           minItems: 1,
           maxItems: 15,
-          items: obj({ part: { type: 'string' }, plant: { type: 'string' } }, ['part', 'plant']),
+          items: obj({ part: { type: 'string' }, plant: { type: 'string' }, role: { type: 'string' } }, ['part', 'plant']),
         },
       },
       ['beds'],
@@ -254,6 +285,7 @@ export const TOOL_SPECS = [
       {
         parts: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'string' }, description: 'Part refs from get_build.' },
         props: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'string' }, description: 'Prop ids from find_props, in the order to use them.' },
+        role: { type: 'string', description: 'Optional: the requirement id these serve.' },
       },
       ['parts', 'props'],
     ),
@@ -291,7 +323,37 @@ export const TOOL_SPECS = [
   },
 ];
 
-export function createTools(hex, { onEvent = () => {} } = {}) {
+// The tool list a session offers: set_requirements and a finish keyed by
+// requirement id only with acceptance tests (A64), an outcome only with
+// abstention (A58). Neither on is the interactive default as it was.
+export function toolSpecsFor({ acceptance = false, abstain = false } = {}) {
+  return TOOL_SPECS.filter((t) => acceptance || t.name !== 'set_requirements').map((t) => {
+    if (t.name !== 'finish' || (!acceptance && !abstain)) return t;
+    const req = {
+      ...(acceptance ? { id: { type: 'string', description: 'The id from set_requirements.' } } : {}),
+      requirement: { type: 'string' },
+      status: { type: 'string', enum: acceptance ? ['met', 'partial', 'unmet', 'unverified'] : ['met', 'partial', 'unmet'] },
+      evidence: { type: 'string', description: 'Which parts (refs or families) meet it, or why not.' },
+    };
+    return {
+      ...t,
+      description: t.description + (acceptance ? ' Give every id from set_requirements a status; unverified: it may hold but nothing here can check it.' : ''),
+      parameters: obj(
+        {
+          requirements: { type: 'array', items: obj(req, [...(acceptance ? ['id'] : []), 'requirement', 'status', 'evidence']) },
+          summary: { type: 'string' },
+          ...(abstain ? { outcome: { type: 'string', enum: ['built', 'compromise', 'declined'], description: 'built: the brief as asked; compromise: a safe or feasible part of it; declined: nothing built, and why.' } } : {}),
+        },
+        ['requirements', 'summary', ...(abstain ? ['outcome'] : [])],
+      ),
+    };
+  });
+}
+
+// Tools that change the build: with acceptance tests on, none runs before set_requirements.
+const MUTATING = new Set(['apply', 'dress', 'hang_spools', 'fill_and_plant', 'fill_compartments']);
+
+export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}) {
   const sockets = new Map();
   let nextSocket = 1;
   const surfaces = new Map();
@@ -300,6 +362,44 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
   let opsTotal = 0;
   let refusalStreak = 0;
   const counters = { applied: 0, refused: 0, refusalCodes: {} };
+  // A64: the brief as acceptance tests. A63: the requirement each placed
+  // object serves, by ref, so a change that drops a purpose says so.
+  let requirements = null;
+  const roles = new Map();
+
+  function takeRole(item) {
+    if (!item || typeof item !== 'object' || !('role' in item)) return [item, null];
+    const { role, ...rest } = item;
+    if (role == null) return [rest, null];
+    if (typeof role !== 'string') throw new Error('role must be a requirement id such as "R2"');
+    if (requirements && !requirements.some((r) => r.id === role)) {
+      throw new Error(`role ${role} is not a requirement id: use one of ${requirements.map((r) => r.id).join(', ')}`);
+    }
+    return [rest, role];
+  }
+
+  const roleCounts = (live) => {
+    const n = {};
+    for (const [ref, role] of roles) if (live.has(ref)) n[role] = (n[role] ?? 0) + 1;
+    return n;
+  };
+  const liveSet = (s) => new Set([...s.nodes.map((n) => n.ref), ...(s.staging?.props ?? []).map((p) => p.ref)]);
+
+  // After a change: which tagged objects went, and which roles have none left.
+  function roleChange(before, after) {
+    const removed = [...roles].filter(([ref]) => before.has(ref) && !after.has(ref)).map(([ref, role]) => ({ ref, role }));
+    const was = roleCounts(before), now = roleCounts(after);
+    const lost = Object.keys(was).filter((r) => !now[r]);
+    if (!removed.length && !lost.length) return null;
+    const what = (id) => requirements?.find((r) => r.id === id)?.requirement;
+    return {
+      ...(removed.length ? { removed } : {}),
+      ...(lost.length ? {
+        lost: lost.map((id) => ({ role: id, ...(what(id) ? { requirement: what(id) } : {}) })),
+        note: 'Nothing on the build serves these roles any more: put one back, serve the role another way, or report it unmet in finish.',
+      } : {}),
+    };
+  }
 
   const remember = (op) => {
     const id = `s${nextSocket++}`;
@@ -366,17 +466,46 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
     };
   }
 
+  const roleOf = (ref) => (roles.has(ref) ? { role: roles.get(ref) } : {});
+
   const handlers = {
+    async set_requirements({ requirements: list }) {
+      if (!Array.isArray(list) || !list.length || list.length > 8) throw new Error('requirements must be 1 to 8 items');
+      const ids = new Set();
+      const out = list.map((r) => {
+        if (!r || typeof r.id !== 'string' || !r.id || typeof r.requirement !== 'string') throw new Error('each requirement needs an id and a requirement');
+        if (ids.has(r.id)) throw new Error(`id ${r.id} is used twice`);
+        ids.add(r.id);
+        if (r.test != null) {
+          const keys = Object.keys(r.test);
+          const main = keys.filter((k) => BUILD_TESTS.includes(k));
+          if (main.length !== 1 || keys.some((k) => k !== main[0] && k !== 'min')) {
+            throw new Error(`${r.id}: test ${JSON.stringify(r.test)} is not one of ${TEST_FORMS}`);
+          }
+        }
+        return { id: r.id, requirement: r.requirement, ...(r.test != null ? { test: r.test } : {}) };
+      });
+      // A revision keeps the tags of ids it still has.
+      for (const [ref, role] of roles) if (!ids.has(role)) roles.delete(ref);
+      requirements = out;
+      return {
+        ok: true,
+        requirements: out.length,
+        note: 'Tag each op with the id it serves: role "R2" on an apply item or a dress prop, role on the helpers. ' +
+          'In finish, give every id a status. Code runs the tests at finish.',
+      };
+    },
+
     async get_build() {
       const s = await hex.call('getState');
       const counts = {};
       for (const n of s.nodes) counts[n.family] = (counts[n.family] ?? 0) + 1;
       return {
-        nodes: s.nodes.slice(0, LIMITS.nodesShown).map((n) => ({ ref: n.ref, family: n.family, at: n.at, stem: n.stem })),
+        nodes: s.nodes.slice(0, LIMITS.nodesShown).map((n) => ({ ref: n.ref, family: n.family, at: n.at, stem: n.stem, ...roleOf(n.ref) })),
         total: s.nodes.length,
         counts,
         props: (s.staging?.props ?? []).map((p) => ({
-          ref: p.ref, id: p.id, label: p.label, atMm: p.posMm.map(mm), yawDeg: mm(p.yawDeg), ...(p.pot ? { pot: p.pot } : {}),
+          ref: p.ref, id: p.id, label: p.label, atMm: p.posMm.map(mm), yawDeg: mm(p.yawDeg), ...(p.pot ? { pot: p.pot } : {}), ...roleOf(p.ref),
         })),
         soil: s.staging?.soil ?? [],
       };
@@ -488,14 +617,22 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
       if (dryRun) {
         // One op, nothing changes, nothing counts against the budget.
         if (ops.length !== 1) throw new Error('a dry run tries one op at a time');
-        const o = await hex.call('apply', await resolve(ops[0], await liveRefs()), { dryRun: true });
+        const o = await hex.call('apply', await resolve(takeRole(ops[0])[0], await liveRefs()), { dryRun: true });
         return { dryRun: true, outcomes: [summarizeOutcome(o)] };
       }
+      if (acceptance && !requirements) throw new Error('Call set_requirements first: the brief as acceptance tests, before the first change.');
       if (ops.length > LIMITS.opsPerCall) throw new Error(`at most ${LIMITS.opsPerCall} ops per call`);
       if (opsTotal + ops.length > LIMITS.opsTotal) throw new Error(`op budget of ${LIMITS.opsTotal} reached: finish now`);
       const refs = await liveRefs();
+      const before = new Set([...refs.node, ...refs.prop]);
       const resolved = [];
-      for (const item of ops) resolved.push(await resolve(item, refs));
+      const roleFor = new Map();
+      for (const item of ops) {
+        const [rest, role] = takeRole(item);
+        const op = await resolve(rest, refs);
+        resolved.push(op);
+        if (role) roleFor.set(op, role);
+      }
       opsTotal += resolved.length;
       const tally = (outcomes) => {
         for (const o of outcomes) {
@@ -529,7 +666,10 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
         tally(r.outcomes);
         onEvent({ type: 'apply', ops: batch, outcomes: r.outcomes, rolledBack: r.rolledBack, atomic, retryWithout: dropped.length });
       }
+      if (!r.rolledBack) tagRoles(batch, r.outcomes, roleFor);
       const out = { rolledBack: r.rolledBack, outcomes: r.outcomes.map(summarizeOutcome) };
+      const change = roles.size ? roleChange(before, liveSet(await hex.call('getState'))) : null;
+      if (change) out.roles = change;
       // Consecutive refusals across calls: past the limit, say so plainly.
       for (const o of r.outcomes) refusalStreak = o.ok ? 0 : refusalStreak + 1;
       if (refusalStreak >= STREAK_LIMIT) {
@@ -546,15 +686,19 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
     },
 
     async undo() {
+      const before = roles.size ? liveSet(await hex.call('getState')) : null;
       const ok = await hex.call('undo');
       await hex.call('settle');
-      return { undone: ok };
+      const change = before && roleChange(before, liveSet(await hex.call('getState')));
+      return { undone: ok, ...(change ? { roles: change } : {}) };
     },
 
     async redo() {
+      const before = roles.size ? liveSet(await hex.call('getState')) : null;
       const ok = await hex.call('redo');
       await hex.call('settle');
-      return { redone: ok };
+      const change = before && roleChange(before, liveSet(await hex.call('getState')));
+      return { redone: ok, ...(change ? { roles: change } : {}) };
     },
 
     async check_build() {
@@ -576,8 +720,9 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
       const ops = [];
       for (const p of props) {
         if (!p || typeof p.id !== 'string') throw new Error('each prop needs an id from find_props');
-        const { in: holder, ...rest } = p;
-        if (holder == null) { ops.push({ op: 'addProp', ...rest }); continue; }
+        const { in: holder, role, ...rest } = p;
+        const tag = role != null ? { role } : {};
+        if (holder == null) { ops.push({ op: 'addProp', ...rest, ...tag }); continue; }
         if ('on' in rest || 'surface' in rest) throw new Error(`${p.id}: give in, on or surface, one of them`);
         // In a prop (a pencil in a mug): on the prop itself, aimed at its middle, else its well's floor. Neither
         // always places: on 5310 (viz 9e448f92) a pencil stands in a mug only through the floor, in a pencil cup
@@ -586,24 +731,24 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
           const viaOn = { op: 'addProp', ...rest, on: holder };
           const well = !('atMm' in rest) && (await hex.call('surfaces', holder)).find((f) => f.kind === 'floor');
           const onOk = !well || (await hex.call('apply', viaOn, { dryRun: true })).ok;
-          ops.push(onOk ? viaOn : { op: 'addProp', ...rest, surface: tokenFor(well.id) });
+          ops.push(onOk ? { ...viaOn, ...tag } : { op: 'addProp', ...rest, surface: tokenFor(well.id), ...tag });
           continue;
         }
         // The first surface of the holder this prop fits that this call has not taken yet.
         const free = (await hex.call('surfaces', holder, { fits: p.id })).filter((f) => f.kind !== 'soil' && !used.has(f.id));
-        if (!free.length) { ops.push({ op: 'addProp', ...rest, on: holder }); continue; }
+        if (!free.length) { ops.push({ op: 'addProp', ...rest, on: holder, ...tag }); continue; }
         used.add(free[0].id);
-        ops.push({ op: 'addProp', ...rest, ...alongFor(free[0], rest), surface: tokenFor(free[0].id) });
+        ops.push({ op: 'addProp', ...rest, ...alongFor(free[0], rest), surface: tokenFor(free[0].id), ...tag });
       }
       return withPropCheck(await handlers.apply({ ops, atomic: false }));
     },
 
-    async hang_spools({ id = 'filament-spool' } = {}) {
+    async hang_spools({ id = 'filament-spool', role } = {}) {
       const s = await hex.call('getState');
       const axles = s.nodes.filter((n) => n.family === 'axle');
       if (!axles.length) return { hung: 0, note: 'The build has no spool axles: find_sockets family axle offers where one seats.' };
       // An axle already holding this prop refuses a second one; those come back as refusals, nothing changes.
-      return withPropCheck(await handlers.apply({ ops: axles.map((a) => ({ op: 'addProp', id, on: a.ref })), atomic: false }));
+      return withPropCheck(await handlers.apply({ ops: axles.map((a) => ({ op: 'addProp', id, on: a.ref, ...(role != null ? { role } : {}) })), atomic: false }));
     },
 
     async fill_and_plant({ beds }) {
@@ -611,13 +756,14 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
       const soil = new Set(((await hex.call('getState')).staging?.soil ?? []).map((x) => x.part));
       const ops = [];
       for (const b of beds) {
-        if (!soil.has(b.part)) { ops.push({ op: 'fillSoil', part: b.part }); soil.add(b.part); }
-        ops.push({ op: 'plant', id: b.plant, in: b.part });
+        const tag = b.role != null ? { role: b.role } : {};
+        if (!soil.has(b.part)) { ops.push({ op: 'fillSoil', part: b.part, ...tag }); soil.add(b.part); }
+        ops.push({ op: 'plant', id: b.plant, in: b.part, ...tag });
       }
       return withPropCheck(await handlers.apply({ ops, atomic: false }));
     },
 
-    async fill_compartments({ parts, props }) {
+    async fill_compartments({ parts, props, role }) {
       if (!Array.isArray(parts) || !parts.length || !Array.isArray(props) || !props.length) throw new Error('parts and props must be non-empty arrays');
       const ops = [];
       let k = 0;
@@ -631,7 +777,7 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
             if ((await hex.call('surfaces', part, { fits: id })).some((g) => g.id === f.id)) { pick = id; k += j + 1; }
           }
           const id = pick ?? props[k++ % props.length];
-          ops.push({ op: 'addProp', id, ...alongFor(f, { id }), surface: tokenFor(f.id) });
+          ops.push({ op: 'addProp', id, ...alongFor(f, { id }), surface: tokenFor(f.id), ...(role != null ? { role } : {}) });
         }
       }
       if (!ops.length) return { placed: 0, note: 'None of these parts has an open floor or compartment.' };
@@ -656,6 +802,17 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
     const deg = ((Math.atan2(-2 * sxz, sxx - szz) / 2) * 180) / Math.PI;
     const near = (a) => Math.abs(((deg - a + 540) % 180) - 0) < 15 || Math.abs(((deg - a + 540) % 180) - 180) < 15;
     return { orient: { longAlong: near(0) ? 'x' : near(90) ? 'z' : Math.round(deg) } };
+  }
+
+  // Each placed object takes the role of the op that placed it; an op that
+  // replaces an object (moveProp, replace, planting a pot) passes its role on.
+  function tagRoles(batch, outcomes, roleFor) {
+    const aligned = outcomes.length === batch.length;
+    outcomes.forEach((o, i) => {
+      if (!o.ok) return;
+      const role = (aligned ? roleFor.get(batch[i]) : null) ?? (o.removed ?? []).map((ref) => roles.get(ref)).find(Boolean);
+      if (role) for (const ref of o.added ?? []) roles.set(ref, role);
+    });
   }
 
   function tokenFor(id) {
@@ -687,6 +844,9 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
     } catch {
       return { error: 'arguments were not valid JSON' };
     }
+    if (acceptance && !requirements && MUTATING.has(name) && !(name === 'apply' && args?.dryRun)) {
+      return { error: 'Call set_requirements first: the brief as acceptance tests, before the first change.' };
+    }
     try {
       return await handler(args);
     } catch (e) {
@@ -694,5 +854,5 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
     }
   }
 
-  return { run, counters, opsUsed: () => opsTotal };
+  return { run, counters, opsUsed: () => opsTotal, requirements: () => requirements, roles: () => Object.fromEntries(roles) };
 }

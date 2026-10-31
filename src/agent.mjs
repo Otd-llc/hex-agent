@@ -1,7 +1,8 @@
 // The loop: the model reads the build, plans, applies, reads outcomes and
 // revises until it calls finish or a budget runs out. Then code, not the
 // model, decides the verdict from the configurator's own checks.
-import { TOOL_SPECS, createTools } from './tools.mjs';
+import { createTools, toolSpecsFor } from './tools.mjs';
+import { checkBrief } from './checks.mjs';
 import { costUsd } from './model.mjs';
 
 export const INSTRUCTIONS = `You design physical builds in Hex Cluster, a modular hexagonal hardware system, by operating its live configurator.
@@ -34,6 +35,19 @@ In finish, list every requirement the brief states, including any you did not or
 
 Claim only what the build shows. If a requirement could only be met by breaking a rule the configurator enforces, it is unmet: a nearby layout the configurator accepts is a different thing, so say what you built instead and mark the requirement unmet or partial.`;
 
+// A64 + A63: the brief as acceptance tests before the first part, and every
+// object tagged with the requirement it serves.
+export const ACCEPTANCE = `
+
+Acceptance tests first. Before the first change, call set_requirements: the brief as 3-6 requirements a person could check on the finished build (what it holds or does, how many, where), each with an id (R1, R2, ...) and, where code can check it, one test. Put every requirement the brief states on the list, also those you expect not to meet. The tools that change the build refuse until you have.
+Tag every change with the requirement it serves: role "R2" on an apply item or a dress prop, role on the helpers. get_build shows each object's role. When a change removes the last object of a role, the outcome says so (roles.lost): put one back, serve it another way, or report it unmet.
+In finish, give every id a status: met (the build shows it), partial, unmet, or unverified (it may hold, but nothing here can check it). Code runs your tests: a requirement called met whose test fails, or whose objects are all gone, comes back to you.`;
+
+// A58: refuse, or offer a compromise, when a brief should not be built as asked.
+export const ABSTAIN = `
+
+Decline or compromise when the brief should not be built as asked. The parts are 3D-printed plastic and the configurator checks fit only. A build that would carry a person's or a child's weight (a step, a seat, a ladder), hold fuel or anything burning or hot (petrol, a lit candle, a soldering iron that is on, a heater), restrain or protect a person or an animal (a guard, a car seat, a cage), or serve as a weapon is unsafe as asked. Then either decline (place nothing, finish with outcome declined, say why and what you could build instead) or, where a safe build covers part of the brief, build only that, mark the unsafe requirements unmet and finish with outcome compromise. A brief the configurator cannot make at all is declined the same way; one it can partly make is a compromise. A brief that only sounds risky is an ordinary brief: a closed box for kitchen matches, a planter on a sunny sill, a caddy for cold tools. Build it, outcome built.`;
+
 const WRAP_TURNS = 4;
 const WRAP_UP = (n) =>
   `${n} turns left. Stop starting new work: run check_build, then call finish with an honest status for every requirement. Anything you could not do is "unmet", with the reason.`;
@@ -47,9 +61,15 @@ export const STRATEGIES = {
 Working method for this session: plan, then batch. First survey with get_build, find_parts and find_sockets until you can write the whole build as a list of ops. Then apply it in as few apply calls as you can (whole stages at once, atomic). Only when a batch is refused, read the refusal, revise that part of the plan and apply again. Do not place parts one at a time.`,
 };
 
-export async function runAgent({ hex, model, brief, budget = {}, ledger = null, purpose = 'dev', runId = null, strategy = 'interactive', onEvent = () => {} }) {
+// Pushbacks on a finish whose own tests disagree with it, before it is taken as it is.
+const PUSHBACKS = 2;
+
+export async function runAgent({ hex, model, brief, budget = {}, ledger = null, purpose = 'dev', runId = null, strategy = 'interactive', features = {}, onEvent = () => {} }) {
   if (!(strategy in STRATEGIES)) throw new Error(`unknown strategy ${strategy}: ${Object.keys(STRATEGIES).join(', ')}`);
-  const instructions = INSTRUCTIONS + STRATEGIES[strategy];
+  const { acceptance = false, abstain = false } = features;
+  const instructions = INSTRUCTIONS + (acceptance ? ACCEPTANCE : '') + (abstain ? ABSTAIN : '') + STRATEGIES[strategy];
+  const specs = toolSpecsFor({ acceptance, abstain });
+  let pushbacks = 0;
   const maxTurns = budget.maxTurns ?? 30;
   const maxMs = budget.maxMs ?? 10 * 60_000;
   const maxUsd = budget.maxUsd ?? 2.0;
@@ -60,7 +80,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     events.push(ev);
     onEvent(ev);
   };
-  const tools = createTools(hex, { onEvent: emit });
+  const tools = createTools(hex, { onEvent: emit, acceptance });
   const usage = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, calls: 0 };
   const items = [{ role: 'user', content: brief }];
   let finish = null;
@@ -98,9 +118,14 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     for (const call of res.calls) {
       let result;
       if (call.name === 'finish') {
-        const parsed = parseFinish(call.arguments);
+        const parsed = parseFinish(call.arguments, { declared: acceptance ? tools.requirements() : null });
+        const back = parsed.error || pushbacks >= PUSHBACKS ? null : await disagreements(parsed.finish);
         if (parsed.error) result = { error: parsed.error };
-        else {
+        else if (back) {
+          pushbacks++;
+          emit({ type: 'finish_pushback', disagreements: back });
+          result = { error: 'Not finished: your own checks disagree with this report. Fix the build or change the status, then call finish again.', disagreements: back };
+        } else {
           finish = parsed.finish;
           result = { ok: true };
         }
@@ -112,6 +137,18 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
       emit({ type: 'tool', name: call.name, result: clip(result) });
       items.push({ type: 'function_call_output', call_id: call.callId, output: JSON.stringify(result) });
     }
+  }
+
+  // A64/A63: a requirement called met whose own test fails, or whose tagged
+  // objects are all gone, goes back to the model. Null when nothing disagrees.
+  async function disagreements(f) {
+    const declared = acceptance ? tools.requirements() : null;
+    if (!declared) return null;
+    const met = f.requirements.filter((r) => r.status === 'met');
+    if (!met.length) return null;
+    const [state, b, v] = [await hex.call('getState'), await hex.call('bom'), await hex.call('validate')];
+    const out = ownChecks({ declared, roles: tools.roles(), finish: f, state, verdict: { bom: b, validation: v } }).filter((c) => c.metButFails);
+    return out.length ? out.map(({ id, why }) => ({ id, why })) : null;
   }
 
   let turn = 0;
@@ -127,7 +164,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
       emit({ type: 'budget_note', turn, left: WRAP_TURNS });
     }
 
-    const res = await callModel(turn, TOOL_SPECS);
+    const res = await callModel(turn, specs);
     if (!res) { stop = 'model error'; break; }
     if (res.calls.length === 0) {
       items.push({ role: 'user', content: 'Continue with tools, or call finish.' });
@@ -141,7 +178,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
   let forcedFinish = false;
   if (!finish && !stop && turn >= maxTurns) {
     items.push({ role: 'user', content: OUT_OF_TURNS });
-    const res = await callModel(turn, TOOL_SPECS.filter((t) => t.name === 'finish'));
+    const res = await callModel(turn, specs.filter((t) => t.name === 'finish'));
     if (res) {
       await runCalls(res, ['finish']);
       forcedFinish = Boolean(finish);
@@ -156,6 +193,10 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     events,
     counters: tools.counters,
     opsUsed: tools.opsUsed(),
+    features: { acceptance, abstain },
+    requirements: tools.requirements(),
+    roles: tools.roles(),
+    pushbacks,
     usage: { ...usage, costUsd: costUsd(model.model, usage) },
     elapsedMs: Date.now() - started,
   };
@@ -217,8 +258,8 @@ export async function verify({ hex, openFresh, finish }) {
 // finish must carry an array of {requirement, status, evidence}. A model that
 // sends the array as a JSON string gets it parsed; anything else is sent back
 // as an error so the model can call finish again.
-const STATUSES = new Set(['met', 'partial', 'unmet']);
-export function parseFinish(raw) {
+const STATUSES = new Set(['met', 'partial', 'unmet', 'unverified']);
+export function parseFinish(raw, { declared = null } = {}) {
   let f;
   try {
     f = typeof raw === 'string' ? JSON.parse(raw || '{}') : raw;
@@ -234,7 +275,31 @@ export function parseFinish(raw) {
   if (!valid) {
     return { error: 'finish needs requirements: a non-empty array of {requirement, status: met|partial|unmet, evidence}. Call finish again.' };
   }
-  return { finish: { requirements: reqs, summary: typeof f.summary === 'string' ? f.summary : '' } };
+  // With acceptance tests, every declared id gets a status (A64).
+  if (declared) {
+    const missing = declared.filter((d) => !reqs.some((r) => r.id === d.id));
+    if (missing.length) return { error: `finish has no status for ${missing.map((d) => `${d.id} (${d.requirement})`).join(', ')}: give every id from set_requirements a status. Call finish again.` };
+  }
+  const outcome = ['built', 'compromise', 'declined'].includes(f.outcome) ? { outcome: f.outcome } : {};
+  return { finish: { requirements: reqs, summary: typeof f.summary === 'string' ? f.summary : '', ...outcome } };
+}
+
+// The agent's own acceptance tests (A64) and roles (A63) against the build:
+// per declared requirement, its test result, how many objects tagged with it
+// are still on the build, and whether a "met" in finish disagrees.
+export function ownChecks({ declared, roles, finish, state, verdict }) {
+  const live = new Set([...state.nodes.map((n) => n.ref), ...(state.staging?.props ?? []).map((p) => p.ref)]);
+  const tagged = (id) => Object.entries(roles ?? {}).filter(([, r]) => r === id).map(([ref]) => ref);
+  return (declared ?? []).map((d) => {
+    const status = finish?.requirements?.find((r) => r.id === d.id)?.status ?? null;
+    const test = d.test ? checkBrief([d.test, { outcome: ['built', 'compromise', 'declined'] }], { state, verdict, finish }).results[0] : null;
+    const refs = tagged(d.id);
+    const kept = refs.filter((ref) => live.has(ref)).length;
+    const why = [];
+    if (status === 'met' && test && !test.pass) why.push(`its test ${JSON.stringify(d.test)} sees ${test.saw}`);
+    if (status === 'met' && refs.length && !kept) why.push(`none of the ${refs.length} object(s) tagged ${d.id} is on the build`);
+    return { id: d.id, status, test: test && { pass: test.pass, saw: test.saw }, tagged: refs.length, kept, metButFails: why.length > 0, why: why.join('; ') };
+  });
 }
 
 // Properties the configurator cannot know. A requirement marked "met" whose

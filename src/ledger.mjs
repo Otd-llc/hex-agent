@@ -3,9 +3,15 @@
 // A reserve is held back for judging: dev and eval runs may not touch it.
 // The provider's billing page is the source of truth; reconcile against it.
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, isAbsolute, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export const PURPOSES = ['dev', 'eval', 'demo'];
+
+// The repo root, from this file and not the working directory: a run started
+// anywhere else reads the same ledger, so it can never see a fresh cap.
+export const ROOT = fileURLToPath(new URL('..', import.meta.url));
+export const ledgerPath = (p) => (isAbsolute(p) ? p : resolve(ROOT, p));
 
 export function openLedger({
   path = process.env.SPEND_LEDGER || '.spend/meta.jsonl',
@@ -16,6 +22,7 @@ export function openLedger({
     eval: Number(process.env.SPEND_CAP_EVAL_USD ?? 40),
   },
 } = {}) {
+  path = ledgerPath(path);
   const read = () =>
     existsSync(path)
       ? readFileSync(path, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l))

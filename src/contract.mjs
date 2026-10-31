@@ -92,3 +92,54 @@ export const CONTRACT = {
   valueOf: valueFields(),
   placeableFamilies: json.families.filter((f) => f.placeable).map((f) => f.family),
 };
+
+// The contract the target page serves, to hold the vendored copy against (a
+// smoke against a page on another contract proves nothing). The configurator
+// ships no contract file, so, in order: HEX_CONTRACT (a path or URL: a pinned
+// build's hex-api-public.json); a local dev server's source copy; for the live
+// site, the stamp on the published docs (academy /hex/api, 12 hex digits),
+// which the deploy runbook keeps in step with the configurator.
+export const DOCS_URL = 'https://academy.onethousanddrones.com/hex/api';
+const LIVE_HOST = 'hex.onethousanddrones.com';
+
+export async function servedContract(pageUrl, { env = process.env, fetchText = defaultFetch, readText = defaultRead } = {}) {
+  const fromJson = (text, source) => {
+    const hash = JSON.parse(text).hash;
+    if (typeof hash !== 'string' || !/^[0-9a-f]{64}$/.test(hash)) throw new Error(`${source} has no contract hash`);
+    return { hash, source };
+  };
+  const spec = env.HEX_CONTRACT;
+  if (spec) return fromJson(/^https?:/.test(spec) ? await fetchText(spec) : await readText(spec), spec);
+  const url = new URL(pageUrl);
+  if (['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) {
+    const src = `${url.origin}/src/hex/api/public/hex-api-public.json`;
+    try {
+      return fromJson(await fetchText(src), src);
+    } catch (e) {
+      return { hash: null, source: src, why: `${e.message}; a built page serves no contract: set HEX_CONTRACT to its hex-api-public.json` };
+    }
+  }
+  if (url.hostname === LIVE_HOST) {
+    const html = await fetchText(DOCS_URL);
+    // React may split the text node: "contract <!-- -->69c3c65be827".
+    const m = html.match(/contract\s*(?:<!--\s*-->)?\s*([0-9a-f]{12})\b/i);
+    if (!m) return { hash: null, source: DOCS_URL, why: 'no contract stamp on the docs page' };
+    return { prefix: m[1].toLowerCase(), source: DOCS_URL };
+  }
+  return { hash: null, source: pageUrl, why: 'unknown host: set HEX_CONTRACT to the hex-api-public.json it serves' };
+}
+
+// Same contract, or why not. A docs stamp is a 12-digit prefix of the hash.
+export function contractMatches(vendored, served) {
+  if (served.hash) return served.hash === vendored ? { ok: true } : { ok: false, why: `page ${served.hash.slice(0, 8)} != vendored ${vendored.slice(0, 8)}` };
+  if (served.prefix) return vendored.startsWith(served.prefix) ? { ok: true } : { ok: false, why: `page ${served.prefix.slice(0, 8)} != vendored ${vendored.slice(0, 8)}` };
+  return { ok: false, why: `cannot read the page's contract (${served.why})` };
+}
+
+async function defaultFetch(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
+  return r.text();
+}
+
+const defaultRead = (path) => readFileSync(path, 'utf8');

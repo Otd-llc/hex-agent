@@ -1,13 +1,19 @@
 // Drive every agent tool against a real configurator, no model: the A72 smoke
-// test, and the one to run after a deploy. HEX_URL picks the page.
+// test, and the one to run after a deploy. HEX_URL picks the page. It FAILS
+// when the vendored contract is not the one the page serves (HEX_CONTRACT names
+// a built page's hex-api-public.json; see servedContract).
 //   HEX_URL=http://127.0.0.1:5310/hex.html node bin/smoke-tools.mjs
 import { openHex, hexUrl } from '../src/bridge.mjs';
 import { createTools } from '../src/tools.mjs';
-import { CONTRACT } from '../src/contract.mjs';
+import { CONTRACT, servedContract, contractMatches } from '../src/contract.mjs';
+
+const served = await servedContract(hexUrl()).catch((e) => ({ hash: null, source: 'contract lookup', why: e.message }));
+const same = contractMatches(CONTRACT.hash, served);
+console.log(`${same.ok ? 'ok  ' : 'FAIL'} contract ${CONTRACT.hash.slice(0, 8)} is the page's (${served.source})${same.ok ? '' : `: ${same.why}`}`);
 
 const hex = await openHex({ headless: true });
 const t = createTools(hex);
-const results = [];
+const results = [same.ok];
 const step = async (name, tool, args, ok) => {
   const r = await t.run(tool, args);
   const pass = !r.error && ok(r);

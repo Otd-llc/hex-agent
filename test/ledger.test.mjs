@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { openLedger } from '../src/ledger.mjs';
+import { isAbsolute, join } from 'node:path';
+import { openLedger, ledgerPath, ROOT } from '../src/ledger.mjs';
 import { runAgent } from '../src/agent.mjs';
 
 const fresh = (opts = {}) =>
@@ -46,4 +46,17 @@ test('every live model call is recorded', async () => {
   };
   await runAgent({ hex: { call: async () => ({}) }, model, brief: 'x', ledger: l, purpose: 'eval', runId: 'r1' });
   assert.equal(l.spent('eval'), (100000 * 1.25 + 10000 * 4.25) / 1e6);
+});
+
+test('a relative ledger path resolves against the repo root, not the working directory', () => {
+  const was = process.cwd();
+  try {
+    process.chdir(tmpdir());
+    const l = openLedger({ path: '.spend/anthropic.jsonl' });
+    assert.equal(l.path, join(ROOT, '.spend', 'anthropic.jsonl'));
+    assert.ok(isAbsolute(l.path));
+  } finally {
+    process.chdir(was);
+  }
+  assert.equal(ledgerPath(join(tmpdir(), 'x.jsonl')), join(tmpdir(), 'x.jsonl'));
 });

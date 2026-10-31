@@ -41,11 +41,14 @@ async function bind(browser, { url, timeoutMs }) {
   await page.goto(url, { waitUntil: 'load', timeout: timeoutMs });
   await page.waitForFunction(() => typeof window.__loadHexAPI === 'function', null, { timeout: timeoutMs });
   const version = await page.evaluate(async () => (await window.__loadHexAPI()).version);
+  // Which deployed build answered: its hashed entry script (/assets/hex-<hash>.js), so a run is tied to a site version.
+  const build = await page.evaluate(() => [...document.scripts].map((s) => s.getAttribute('src')).find((s) => s && /assets[/].+[.]js$/.test(s)) ?? null);
   await call(page, 'settle');
 
   return {
     page,
     version,
+    build,
     call: (method, ...args) => call(page, method, ...args),
     close: () => context.close(),
   };

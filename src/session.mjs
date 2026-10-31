@@ -127,6 +127,7 @@ export async function runSession({ brief, briefId = null, expect = null, start =
     provider: model.provider,
     model: model.model,
     hexApiVersion: hex.version,
+    pageBuild: hex.build ?? null,
     origin: hexUrl(),
     // The contract the agent's op table came from; a run is only comparable with runs on the same one.
     contractHash: CONTRACT.hash,

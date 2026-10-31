@@ -45,11 +45,11 @@ try {
   const s = await t.run('find_surfaces', { fits: 'magazine' });
   const deck = s.surfaces.find((f) => f.deckOf);
   check(`deck for a magazine: ${deck?.label}`, Boolean(deck), s);
-  r = await t.run('dress', { props: [{ id: 'magazine', surface: deck.surface }, { id: 'pencil-cup', on: 'bench' }] });
-  check(`dress magazine + cup: ${r.placed} placed, flagged ${JSON.stringify(r.flagged?.map((f) => f.code))}`, clean(r) && r.placed === 2, r);
-  const cup = (await t.run('get_build', {})).props.find((p) => p.id === 'pencil-cup').ref;
+  r = await t.run('dress', { props: [{ id: 'magazine', surface: deck.surface }, { id: 'mug', on: 'bench' }] });
+  check(`dress magazine + mug: ${r.placed} placed, flagged ${JSON.stringify(r.flagged?.map((f) => f.code))}`, clean(r) && r.placed === 2, r);
+  const cup = (await t.run('get_build', {})).props.find((p) => p.id === 'mug').ref;
   r = await t.run('dress', { props: [{ id: 'pencil', in: cup, pose: 'stand' }] });
-  check(`pencil standing in the cup: ${r.placed} placed, flagged ${JSON.stringify(r.flagged?.map((f) => `${f.code} ${f.prop?.split('@')[0]}`))}`, !r.error && r.placed === 1, r);
+  check(`pencil standing in the mug: ${r.placed} placed, flagged ${JSON.stringify(r.flagged?.map((f) => `${f.code} ${f.prop?.split('@')[0]}`))}`, !r.error && r.placed === 1, r);
   await hex.page.screenshot({ path: 'scratch/smoke-deck.png' });
   await hex.close();
 

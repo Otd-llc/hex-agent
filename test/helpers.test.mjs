@@ -144,7 +144,7 @@ test('on takes a surface token (A95) and it reaches the page as the surface id',
 });
 
 test('the prompt teaches tryInstead, the lean in deep wells and pose heights', () => {
-  for (const w of ['tryInstead', 'shallow tray', 'poseHeightMm']) assert.ok(INSTRUCTIONS.includes(w), w);
+  for (const w of ['tryInstead', 'shallow tray', 'poseHeightMm', 'already holds its own pencils']) assert.ok(INSTRUCTIONS.includes(w), w);
   assert.match(JSON.stringify(TOOL_SPECS), /count bays, not offers/);
   assert.match(JSON.stringify(TOOL_SPECS), /kind mount/);
 });
@@ -153,4 +153,18 @@ test('a prop warning takes its prop from refs when the page gives it there', asy
   const issues = [{ severity: 'warning', code: 'PLANT_NOT_IN_SOIL', refs: ['prop:basil-young@2,537,0@0,0,0,1'], message: 'the Basil is not planted in soil.' }];
   const c = await createTools(fakeHex({ issues })).run('check_build', {});
   assert.equal(c.props[0].prop, 'prop:basil-young@2,537,0@0,0,0,1');
+});
+
+test('dress into a prop holder takes the well floor when on would not place', async () => {
+  const hex = fakeHex();
+  const base = hex.call;
+  hex.call = async (m, ...a) => {
+    if (m === 'surfaces' && a[0] === 'prop:mug@1') return [{ id: 'surface:floor@prop:mug@1', kind: 'floor' }];
+    if (m === 'apply' && a[1]?.dryRun) return { ok: false, code: 'PROP_WOULD_SHIFT' };
+    return base(m, ...a);
+  };
+  const t = createTools(hex);
+  const r = await t.run('dress', { props: [{ id: 'pencil', in: 'prop:mug@1', pose: 'stand' }] });
+  assert.equal(r.placed, 1);
+  assert.equal(applied(hex).at(-1).surface, 'surface:floor@prop:mug@1');
 });

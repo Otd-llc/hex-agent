@@ -159,8 +159,8 @@ export const TOOL_SPECS = [
       'Where a prop can go: the tops, floors, compartments and soil of one part or prop (ref) or of the whole build, each with a token ' +
       '(f1, f2, ...) to pass to addProp as surface, its height, centre, size and clear headroom. With no ref it also lists ' +
       'DECKS (flush neighbouring covers or lids offered as one surface, parts: the refs under it): a wide flat prop (a magazine, ' +
-      'a laptop, a plate, a keyboard) goes on a deck, not on one cover; and the surfaces of placed props (the well of a cup: ' +
-      'a pencil with pose stand in a cup is kept leaning up to 30 degrees, as in a deep bin, compartment, notch, bay or drawer; ' +
+      'a laptop, a plate, a keyboard) goes on a deck, not on one cover; and the surfaces of placed props (the well of a mug: ' +
+      'a pencil with pose stand in an empty mug is kept leaning up to 30 degrees, as in a deep bin, compartment, notch, bay or drawer; ' +
       'a shallow tray refuses it where it would tip). With fits "filament-spool" it also lists spool axles (kind mount): a ' +
       'spool hangs on one with surface set to that token. A floor or compartment gives depthMm, how far its ' +
       'rim stands over it: a prop lower than that hides under the rim (addProp warns PROP_BELOW_RIM). With fits (a prop id), ' +
@@ -187,7 +187,7 @@ export const TOOL_SPECS = [
       'Props: addProp with an id from find_props, on a part ref or "bench" (atMm moves it off the centre), or on a surface token ' +
       'from find_surfaces (surface or on, not both); several props can go in one apply (atomic false keeps the ones that rest); ' +
       'moveProp and removeProp take a prop ref from get_build. A filament spool hangs on a spool axle: on "axle:..." (an axle ref), no atMm. ' +
-      'pose stand on a prop (a pencil in a cup) is kept leaning up to 30 degrees. Soil: fillSoil a bin or pot part, then plant a plant id in it. ' +
+      'pose stand on a prop (a pencil in an empty mug: on the mug ref, not its floor surface) is kept leaning up to 30 degrees; the pencil-cup prop already holds its own pencils and takes no more. Soil: fillSoil a bin or pot part, then plant a plant id in it. ' +
       'A refused prop may carry tryInstead (a socket id for the same op varied so it places): apply that socket as it is. ' +
       'After dressing, call check_build and fix the prop warnings it lists. ' +
       `Ops and their fields (? = optional): ${OP_TABLE}. ` +
@@ -217,7 +217,7 @@ export const TOOL_SPECS = [
       'Place several props in one call, then check them. Each item is an addProp: id from find_props, and where: on (a part, ' +
       'prop or axle ref, or "bench"), surface (a token from find_surfaces), or in (a part or prop ref: the prop goes on the ' +
       'first surface of it that it fits and that this call has not used yet, so three items in one bin take three compartments; ' +
-      'in a prop such as a cup, all aim at its centre and a second is refused as overlapping the first, so give each its own atMm). ' +
+      'in a prop such as a mug, all aim at its centre and a second is refused as overlapping the first, so give each its own atMm). ' +
       'atMm, yawDeg, pose and facingDeg as addProp takes them. Returns each outcome and the prop warnings left (flagged, each ' +
       'with its fix): fix those, then check_build before finish.',
     parameters: obj(
@@ -588,9 +588,16 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
         const { in: holder, ...rest } = p;
         if (holder == null) { ops.push({ op: 'addProp', ...rest }); continue; }
         if ('on' in rest || 'surface' in rest) throw new Error(`${p.id}: give in, on or surface, one of them`);
-        // In a prop (a pencil in a cup): on the prop itself, where a standing prop is kept leaning; through
-        // the well as a surface the same pencil is refused PROP_WOULD_SHIFT (pencil-cup on the bench, viz 0c9c13fe, 2026-10-31).
-        if (holder.startsWith('prop:')) { ops.push({ op: 'addProp', ...rest, on: holder }); continue; }
+        // In a prop (a pencil in a mug): on the prop itself, aimed at its middle, else its well's floor. Neither
+        // always places: on 5310 (viz 9e448f92) a pencil stands in a mug only through the floor, in a pencil cup
+        // only on the cup. So the dry run picks; nothing changes and nothing counts against the budget.
+        if (holder.startsWith('prop:')) {
+          const viaOn = { op: 'addProp', ...rest, on: holder };
+          const well = !('atMm' in rest) && (await hex.call('surfaces', holder)).find((f) => f.kind === 'floor');
+          const onOk = !well || (await hex.call('apply', viaOn, { dryRun: true })).ok;
+          ops.push(onOk ? viaOn : { op: 'addProp', ...rest, surface: tokenFor(well.id) });
+          continue;
+        }
         // The first surface of the holder this prop fits that this call has not taken yet.
         const free = (await hex.call('surfaces', holder, { fits: p.id })).filter((f) => f.kind !== 'soil' && !used.has(f.id));
         if (!free.length) { ops.push({ op: 'addProp', ...rest, on: holder }); continue; }

@@ -122,7 +122,8 @@ export const TOOL_SPECS = [
       'A handle needs a cover on its face; spikes stand where three cells meet. ' +
       'A spool axle (family axle) seats in a rod socket (a hex-acc-rod accessory) that faces another rod socket across an ' +
       'empty cell; it is refused NO_PARTNER without one. A filament spool then HANGS on it: addProp {id:"filament-spool", ' +
-      'on:"axle:..."} with the axle ref from get_build, no atMm (hang_spools does every axle at once).',
+      'on:"axle:..."} with the axle ref from get_build, no atMm (hang_spools does every axle at once). ' +
+      'Each open bay is offered twice, once from each rod socket: either one seats the axle, so count bays, not offers.',
     parameters: obj(
       {
         family: { type: 'string', enum: FAMILIES },
@@ -159,10 +160,13 @@ export const TOOL_SPECS = [
       '(f1, f2, ...) to pass to addProp as surface, its height, centre, size and clear headroom. With no ref it also lists ' +
       'DECKS (flush neighbouring covers or lids offered as one surface, parts: the refs under it): a wide flat prop (a magazine, ' +
       'a laptop, a plate, a keyboard) goes on a deck, not on one cover; and the surfaces of placed props (the well of a cup: ' +
-      'a pencil with pose stand in a cup is kept leaning up to 30 degrees). A floor or compartment gives depthMm, how far its ' +
+      'a pencil with pose stand in a cup is kept leaning up to 30 degrees, as in a deep bin, compartment, notch, bay or drawer; ' +
+      'a shallow tray refuses it where it would tip). With fits "filament-spool" it also lists spool axles (kind mount): a ' +
+      'spool hangs on one with surface set to that token. A floor or compartment gives depthMm, how far its ' +
       'rim stands over it: a prop lower than that hides under the rim (addProp warns PROP_BELOW_RIM). With fits (a prop id), ' +
       'only surfaces the prop fits inside lying flat: a prop bigger than a top (a quad, a monitor) can still rest overhanging ' +
-      'it, so when fits finds nothing, try addProp on the part with apply dryRun.',
+      'it, so when fits finds nothing, try addProp on the part with apply dryRun. Hold a pose against a surface with the ' +
+      'poseHeightMm of the prop from find_props: under depthMm it hides below the rim, over headroomMm it does not fit.',
     parameters: obj({
       ref: { type: 'string', description: 'Optional part or prop ref from get_build.' },
       fits: { type: 'string', description: 'Optional prop id from find_props.' },
@@ -334,6 +338,7 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
     for (const [k, type] of Object.entries(CONTRACT.fieldTypes[item.op])) {
       const kinds = refKinds(type);
       if (!kinds || !(k in item) || kinds.literals.includes(item[k])) continue;
+      if (k === 'on' && surfaces.has(item[k])) continue; // a surface token, mapped below
       if ((kinds.node && refs.node.has(item[k])) || (kinds.prop && refs.prop.has(item[k]))) continue;
       const what = [kinds.node && 'part', kinds.prop && 'prop'].filter(Boolean).join(' or ');
       const also = kinds.literals.length ? ` or ${kinds.literals.map((l) => `"${l}"`).join(', ')}` : '';
@@ -344,6 +349,10 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
     }
     // The page refuses both at once (INVALID_INPUT); the contract types cannot say so.
     if (item.op === 'addProp' && 'surface' in item && 'on' in item) throw new Error('addProp takes surface or on, not both');
+    // on takes a surface too (A95): a token from find_surfaces becomes its surface id.
+    if ((item.op === 'addProp' || item.op === 'moveProp') && typeof item.on === 'string' && surfaces.has(item.on)) {
+      return { ...item, on: surfaces.get(item.on) };
+    }
     if (item.op === 'addProp' && 'surface' in item) {
       const id = surfaces.get(item.surface);
       if (!id) throw new Error(`unknown surface ${item.surface}: take tokens from find_surfaces`);

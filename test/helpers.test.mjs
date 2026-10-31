@@ -129,3 +129,22 @@ test('a refused prop hands back tryInstead as a socket id', async () => {
   await t.run('apply', { ops: [{ socket: ti.socket }] });
   assert.deepEqual(applied(hex).at(-1), varied);
 });
+
+test('on takes a surface token (A95) and it reaches the page as the surface id', async () => {
+  const hex = fakeHex();
+  const base = hex.call;
+  hex.call = async (m, ...a) => (m === 'surfaces' ? [{ id: 'surface:mount@axle:2#0,0#5', kind: 'mount', label: 'Spool axle', yMm: 300, centreMm: { x: 0, z: 0 }, outlineMm: [[0, 0], [1, 0], [0, 1]], headroomMm: null }] : base(m, ...a));
+  const t = createTools(hex);
+  const f = await t.run('find_surfaces', { fits: 'filament-spool' });
+  hex.call = base;
+  const r = await t.run('apply', { ops: [{ op: 'addProp', id: 'filament-spool', on: f.surfaces[0].surface }] });
+  assert.equal(r.outcomes[0].ok, true);
+  assert.equal(applied(hex).at(-1).on, 'surface:mount@axle:2#0,0#5');
+  assert.match((await t.run('apply', { ops: [{ op: 'addProp', id: 'pen', on: 'f99' }] })).error, /not on the build/);
+});
+
+test('the prompt teaches tryInstead, the lean in deep wells and pose heights', () => {
+  for (const w of ['tryInstead', 'shallow tray', 'poseHeightMm']) assert.ok(INSTRUCTIONS.includes(w), w);
+  assert.match(JSON.stringify(TOOL_SPECS), /count bays, not offers/);
+  assert.match(JSON.stringify(TOOL_SPECS), /kind mount/);
+});

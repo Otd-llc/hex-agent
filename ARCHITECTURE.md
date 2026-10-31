@@ -7,7 +7,7 @@
    is this session's alone), calls `window.__loadHexAPI()` and waits for
    `settle()`.
 2. `src/agent.mjs` runs the loop. Each turn sends the instructions, the
-   running item list and seven tool specs to the model (`src/model.mjs`, Meta
+   running item list and the tool specs (16 by default) to the model (`src/model.mjs`, Meta
    Responses API, `POST https://api.meta.ai/v1/responses`).
 3. Each tool call goes through `src/tools.mjs`, which checks it in code and
    calls `src/bridge.mjs`, which calls one documented `hexAPI` method in the

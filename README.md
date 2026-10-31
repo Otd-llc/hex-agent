@@ -6,9 +6,16 @@ configurator through its published browser API, reads each accept or refuse,
 revises, and ends with a share link, a parts list and a print-pack link that
 the configurator itself produced and checked.
 
-**Status (2026-10-27):** the bridge, tools, guardrails and checks run end to
-end against the live configurator with a scripted stand-in model. The live
-Meta model run is waiting on an API key. See [EVALUATION.md](EVALUATION.md).
+**Status (2026-10-31):** the agent runs end to end on the live configurator
+(viz `bbebadfa`, contract `69c3c65b`; after the final deploy: viz `________`,
+contract `________`). Meta's open-weights Muse Spark Open (served by Baseten)
+passes 172 of 180 runs on 36 briefs and 35 of 35 honesty and injection
+briefs. With abstention on, the Claude baselines decline unsafe briefs (a
+toddler step, a petrol caddy) or build only the safe part; Muse has not
+been measured on those yet. The Meta Model API (`muse-spark-1.3`,
+`muse-wonder-1.0`) has not been called yet: a cents-sized smoke comes first,
+then the demo runs. Claude runs here are development baselines, labeled as
+such. See [EVALUATION.md](EVALUATION.md).
 
 ## What is new here and what is not
 
@@ -37,7 +44,18 @@ outcome, then a verdict, the share link, the print-pack link and the trace
 path (`runs/<run-id>/trace.json`, plus `final.png`).
 
 Flags: `--model=muse-wonder-1.0` (or `muse-spark-1.3`), `--effort=medium`,
-`--max-turns=30`, `--max-usd=2`, `--headless`.
+`--max-turns=30`, `--max-usd=2`, `--headless`, `--features=...` (below).
+
+## Features (switched per run, for A/B on the same code)
+
+| `--features` | Default | What it does | Evidence |
+|---|---|---|---|
+| `abstain` | on | declines a brief that should not be built as asked (carrying a person, fuel or heat, restraint, a weapon), or builds only the safe part and reports the rest unmet | Haiku 6/12 -> 12/12, Opus 3/6 -> 6/6 |
+| `acceptance` | off | writes 3-6 checkable requirements before the first change, tags every object with the requirement it serves, and code sends back a "met" whose own test fails | ties on Claude at 12-31% more calls; a Muse check decides |
+| `rolegraph` | off | `plan_build`: the build as a role graph (site, zones, roles and relations), bound to configurator offers in code; a refusal rebinds one role | not measured yet |
+
+`--features=none` turns all off; `--features=abstain,acceptance` names
+exactly those on.
 
 ## How it decides
 
@@ -66,7 +84,9 @@ governed by the [API terms](https://academy.onethousanddrones.com/hex/api).
 ## Credit guard
 
 Each model call is priced from Meta's published Standard-mode rates and
-appended to `.spend/meta.jsonl`. Runs take `--purpose=dev|eval|demo`:
+appended to `.spend/meta.jsonl` (Claude and Baseten each have their own
+file beside it). Ledger paths resolve from the repo, not the working
+directory, so a run started anywhere reads the same balance. Runs take `--purpose=dev|eval|demo`:
 dev ($45 cap, `muse-spark-1.3` by default) and eval ($40 cap,
 `muse-wonder-1.0`) stop before they would touch the $50 judging reserve;
 only `demo` may spend it. Limits live in `.env` (see `.env.example`).
@@ -80,6 +100,27 @@ It exists to harden the model-agnostic parts on credit that would otherwise
 expire. Its spend goes to `.spend/anthropic.jsonl`, its traces say
 `provider: "anthropic"`, it refuses `--purpose=demo`, and no Claude run is
 reported as a Muse result. Prompts are tuned again on Muse before eval.
+
+## Checking after a deploy
+
+`node bin/smoke-tools.mjs` drives every tool on the page with no model. It
+fails first if the vendored contract (`contract/hex-api-public.json`) is not
+the one the page serves: on the live site that is the stamp on the
+published docs; for a pinned local build, name its file with
+`HEX_CONTRACT=<path>/hex-api-public.json`. `node bin/sync-contract.mjs <path>`
+updates the vendored copy.
+
+## Offline critic (A56)
+
+`node bin/critic.mjs --dir=<stills>` lists which builds have a full still
+sheet (`<name>.png`, `<name>-back.png`, `<name>-top.png`) and which the owner
+judged in the premades review rounds. With `--judge=claude-haiku-5-5` it asks
+three yes/no questions of each sheet (can you tell its purpose in two
+seconds; is everything at a believable scale and resting; is the work zone
+clear) and calibrates the answers against the owner's verdicts. It never
+outvotes a numeric check: a passing floating-prop or collision check
+overrules a "no" on the same question, and any other "no" asks a person to
+look rather than failing the build.
 
 ## Replaying a recorded run
 

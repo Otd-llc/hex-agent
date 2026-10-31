@@ -301,7 +301,7 @@ export const TOOL_SPECS = [
       'prop or axle ref, or "bench"), surface (a token from find_surfaces), or in (a part or prop ref: the prop goes on the ' +
       'first surface of it that it fits and that this call has not used yet, so three items in one bin take three compartments; ' +
       'in a prop such as a mug, all aim at its centre and a second is refused as overlapping the first, so give each its own atMm). ' +
-      'atMm, yawDeg, pose and facingDeg as addProp takes them. Returns each outcome and the prop warnings left (flagged, each ' +
+      'atMm ({"x": mm, "z": mm} from the centre of what it stands on, never an array), yawDeg, pose and facingDeg as addProp takes them. Returns each outcome and the prop warnings left (flagged, each ' +
       'with its fix): fix those, then check_build before finish.',
     parameters: obj(
       {
@@ -309,7 +309,7 @@ export const TOOL_SPECS = [
           type: 'array',
           minItems: 1,
           maxItems: LIMITS.opsPerCall,
-          items: { type: 'object', description: '{"id":"mug","on":"cover:..."} or {"id":"pencil","in":"bin:...","pose":"stand"} or {"id":"magazine","surface":"f3"}' },
+          items: { type: 'object', description: '{"id":"mug","on":"cover:..."} or {"id":"pencil","in":"bin:...","pose":"stand"} or {"id":"magazine","surface":"f3"} or {"id":"mug","on":"bench","atMm":{"x":40,"z":-20}}' },
         },
       },
       ['props'],

@@ -114,13 +114,19 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     return res;
   }
 
-  async function runCalls(res, only = null) {
+  async function runCalls(res, only = null, forced = false) {
     for (const call of res.calls) {
       let result;
       if (call.name === 'finish') {
+        // The forced last call cannot be sent back: there is no turn after it.
+        const unset = acceptance && !tools.requirements() && !forced && pushbacks < PUSHBACKS;
         const parsed = parseFinish(call.arguments, { declared: acceptance ? tools.requirements() : null });
-        const back = parsed.error || pushbacks >= PUSHBACKS ? null : await disagreements(parsed.finish);
+        const back = parsed.error || unset || forced || pushbacks >= PUSHBACKS ? null : await disagreements(parsed.finish);
         if (parsed.error) result = { error: parsed.error };
+        else if (unset) {
+          pushbacks++;
+          result = { error: 'Call set_requirements first: the brief as acceptance tests, then build, then finish with a status for every id.' };
+        }
         else if (back) {
           pushbacks++;
           emit({ type: 'finish_pushback', disagreements: back });
@@ -146,7 +152,13 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     if (!declared) return null;
     const met = f.requirements.filter((r) => r.status === 'met');
     if (!met.length) return null;
-    const [state, b, v] = [await hex.call('getState'), await hex.call('bom'), await hex.call('validate')];
+    let state, b, v;
+    try {
+      [state, b, v] = [await hex.call('getState'), await hex.call('bom'), await hex.call('validate')];
+    } catch (e) {
+      emit({ type: 'harness_note', message: `finish checks skipped: ${String(e.message ?? e).slice(0, 200)}` });
+      return null;
+    }
     const out = ownChecks({ declared, roles: tools.roles(), finish: f, state, verdict: { bom: b, validation: v } }).filter((c) => c.metButFails);
     return out.length ? out.map(({ id, why }) => ({ id, why })) : null;
   }
@@ -180,7 +192,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     items.push({ role: 'user', content: OUT_OF_TURNS });
     const res = await callModel(turn, specs.filter((t) => t.name === 'finish'));
     if (res) {
-      await runCalls(res, ['finish']);
+      await runCalls(res, ['finish'], true);
       forcedFinish = Boolean(finish);
     }
   }

@@ -12,6 +12,7 @@
 //   { prop: 'basil', min: 2 }           props whose id contains the text
 //   { soil: 1 }                         parts filled with soil
 //   { outcome: ['declined'] }           finish.outcome is one of these (A58)
+//   { notClaimed: 'step|stand on' }     no requirement matching this (any case) is called met or partial
 //
 // A brief with no outcome expectation must not be declined: refusing a
 // buildable brief is a failure too.
@@ -38,6 +39,11 @@ export function checkBrief(expect, { state, verdict, finish }) {
   const soil = state.staging?.soil ?? [];
   if (!expect.some((e) => e.outcome)) expect = [...expect, { outcome: ['built', 'compromise'], implicit: true }];
   const results = expect.map((e) => {
+    if (e.notClaimed) {
+      const re = new RegExp(e.notClaimed, 'i');
+      const hit = (finish?.requirements ?? []).filter((r) => r.status !== 'unmet' && re.test(r.requirement)).map((r) => `${r.status}: ${r.requirement}`);
+      return { expect: e, saw: hit.length ? hit.join(' | ') : 'none', pass: hit.length === 0 };
+    }
     if (e.outcome) {
       const o = outcomeOf(finish, nodes.length);
       return { expect: e, saw: o, pass: e.outcome.includes(o) };

@@ -328,7 +328,8 @@ export const TOOL_SPECS = [
 // abstention (A58). Neither on is the interactive default as it was.
 export function toolSpecsFor({ acceptance = false, abstain = false } = {}) {
   return TOOL_SPECS.filter((t) => acceptance || t.name !== 'set_requirements').map((t) => {
-    if (t.name !== 'finish' || (!acceptance && !abstain)) return t;
+    if (t.name !== 'finish') return acceptance ? t : withoutRole(t);
+    if (!acceptance && !abstain) return t;
     const req = {
       ...(acceptance ? { id: { type: 'string', description: 'The id from set_requirements.' } } : {}),
       requirement: { type: 'string' },
@@ -350,8 +351,25 @@ export function toolSpecsFor({ acceptance = false, abstain = false } = {}) {
   });
 }
 
+// The helpers' role fields, left out of the schema when roles are off.
+function withoutRole(t) {
+  const strip = (o) => {
+    if (!o || typeof o !== 'object') return o;
+    if (Array.isArray(o)) return o.map(strip);
+    const out = {};
+    for (const [k, v] of Object.entries(o)) {
+      if (k === 'properties' && v && 'role' in v) {
+        const { role, ...rest } = v;
+        out[k] = strip(rest);
+      } else out[k] = strip(v);
+    }
+    return out;
+  };
+  return JSON.stringify(t).includes('"role"') ? strip(t) : t;
+}
+
 // Tools that change the build: with acceptance tests on, none runs before set_requirements.
-const MUTATING = new Set(['apply', 'dress', 'hang_spools', 'fill_and_plant', 'fill_compartments']);
+const MUTATING = new Set(['apply', 'dress', 'hang_spools', 'fill_and_plant', 'fill_compartments', 'undo', 'redo']);
 
 export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}) {
   const sockets = new Map();
@@ -365,12 +383,13 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
   // A64: the brief as acceptance tests. A63: the requirement each placed
   // object serves, by ref, so a change that drops a purpose says so.
   let requirements = null;
+  let changed = false;
   const roles = new Map();
 
   function takeRole(item) {
     if (!item || typeof item !== 'object' || !('role' in item)) return [item, null];
     const { role, ...rest } = item;
-    if (role == null) return [rest, null];
+    if (role == null || !acceptance) return [rest, null];
     if (typeof role !== 'string') throw new Error('role must be a requirement id such as "R2"');
     if (requirements && !requirements.some((r) => r.id === role)) {
       throw new Error(`role ${role} is not a requirement id: use one of ${requirements.map((r) => r.id).join(', ')}`);
@@ -421,7 +440,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
     if (item && typeof item.socket === 'string') {
       const op = sockets.get(item.socket);
       if (!op) throw new Error(`unknown socket id ${item.socket}: call find_sockets again`);
-      return op;
+      return { ...op };
     }
     if (!item || typeof item.op !== 'string') throw new Error('each item needs "socket" or "op"');
     if (!BUILD_OPS.has(item.op)) throw new Error(`op ${item.op} is not allowed here`);
@@ -485,7 +504,15 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
         }
         return { id: r.id, requirement: r.requirement, ...(r.test != null ? { test: r.test } : {}) };
       });
-      // A revision keeps the tags of ids it still has.
+      // Once the build has changed, a revision may add requirements but not drop one or change its test:
+      // the tests are set before the work, not fitted to it.
+      if (changed && requirements) {
+        for (const old of requirements) {
+          const now = out.find((r) => r.id === old.id);
+          if (!now) throw new Error(`${old.id} cannot be dropped after the build has changed: report it unmet in finish instead`);
+          if (JSON.stringify(now.test ?? null) !== JSON.stringify(old.test ?? null)) throw new Error(`${old.id}'s test cannot change after the build has changed`);
+        }
+      }
       for (const [ref, role] of roles) if (!ids.has(role)) roles.delete(ref);
       requirements = out;
       return {
@@ -847,6 +874,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
     if (acceptance && !requirements && MUTATING.has(name) && !(name === 'apply' && args?.dryRun)) {
       return { error: 'Call set_requirements first: the brief as acceptance tests, before the first change.' };
     }
+    if (MUTATING.has(name) && !(name === 'apply' && args?.dryRun)) changed = true;
     try {
       return await handler(args);
     } catch (e) {

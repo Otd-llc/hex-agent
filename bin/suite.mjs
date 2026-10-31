@@ -65,7 +65,7 @@ async function runJob({ b, attempt }) {
     const c = trace.verdict.checks;
     // A decline leaves nothing to print or reload: it needs a finish and no broken rules.
     const outcome = outcomeOf(trace.finish, trace.verdict.nodes);
-    const configurator = outcome === 'declined'
+    const configurator = outcome === 'declined' && trace.counters.applied === 0
       ? c.agentFinished === 'pass' && c.rules === 'pass'
       : ['agentFinished', 'rules', 'mesh', 'printPack', 'roundTrip'].every((k2) => c[k2] === 'pass');
     const over = overclaimed(trace);

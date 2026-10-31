@@ -12,7 +12,7 @@ const summaryPath = args.find((a) => !a.startsWith('--'));
 const briefsArg = args.find((a) => a.startsWith('--briefs='))?.split('=')[1];
 const root = dirname(summaryPath);
 const summary = JSON.parse(readFileSync(summaryPath, 'utf8'));
-const briefs = [briefsArg, 'evals/briefs.json', 'evals/briefs-hard.json', 'evals/briefs-wide.json']
+const briefs = [briefsArg, 'evals/briefs.json', 'evals/briefs-hard.json', 'evals/briefs-wide.json', 'evals/briefs-a58.json']
   .filter(Boolean)
   .flatMap((p) => JSON.parse(readFileSync(p, 'utf8')));
 const byId = new Map(briefs.map((b) => [b.id, b]));
@@ -34,7 +34,7 @@ for (const row of summary.rows) {
     fresh.pass = fresh.results.every((r) => r.pass);
   }
   const t2 = { ...trace, briefChecks: fresh };
-  const after = row.configurator && fresh.pass && !overclaimed(t2);
+  const after = row.configurator && fresh.pass && !overclaimed(t2) && !(trace.acceptance?.checks ?? []).some((x) => x.metButFails);
   out.push({ id: row.id, attempt: row.attempt, before: row.pass, after, changed: before(row) !== after });
 }
 function before(row) { return row.pass; }

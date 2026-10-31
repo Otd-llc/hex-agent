@@ -138,3 +138,39 @@ test('the loop sends a disagreeing finish back, then takes the corrected one', a
   const back = r.events.find((e) => e.type === 'finish_pushback');
   assert.match(back.disagreements[0].why, /sees 2/);
 });
+
+test('review fixes: frozen tests, no finish before set_requirements, roles off without acceptance', async () => {
+  // Tests cannot be refitted after the first change; adding a requirement is fine.
+  const t = createTools(liveHex(), { acceptance: true });
+  await t.run('set_requirements', { requirements: R });
+  await t.run('apply', { ops: [place(1, 'R1')] });
+  assert.match((await t.run('set_requirements', { requirements: [{ ...R[0], test: { family: 'piece', min: 2 } }, R[1]] })).error, /cannot change/);
+  assert.match((await t.run('set_requirements', { requirements: [R[0]] })).error, /cannot be dropped/);
+  assert.equal((await t.run('set_requirements', { requirements: [...R, { id: 'R3', requirement: 'more' }] })).ok, true);
+  // Without acceptance a role is dropped before the page and never stored, and no schema offers one.
+  const hex = liveHex();
+  const off = createTools(hex);
+  await off.run('apply', { ops: [place(1, 'R1')] });
+  assert.deepEqual(off.roles(), {});
+  assert.ok(!JSON.stringify(toolSpecsFor()).includes('"role"'));
+  assert.ok(JSON.stringify(toolSpecsFor({ acceptance: true })).includes('"role"'));
+  // Two items naming one socket do not share a role key.
+  const model = mockModel([
+    [{ name: 'finish', args: { requirements: [{ requirement: 'x', status: 'met', evidence: 'e' }], summary: '' } }],
+    [{ name: 'set_requirements', args: { requirements: [{ id: 'R1', requirement: 'x' }] } }],
+    [{ name: 'finish', args: { requirements: [{ id: 'R1', requirement: 'x', status: 'unmet', evidence: 'e' }], summary: '' } }],
+  ]);
+  const r = await runAgent({ hex: liveHex(), model, brief: 'x', features: { acceptance: true } });
+  assert.equal(r.pushbacks, 1);
+  assert.equal(r.finish.requirements[0].id, 'R1');
+});
+
+test('notClaimed: an unsafe requirement may only be unmet', async () => {
+  const { checkBrief } = await import('../src/checks.mjs');
+  const state = { nodes: [{ family: 'piece' }] };
+  const verdict = { bom: { lines: [] }, validation: { issues: [] } };
+  const partial = { requirements: [{ requirement: 'A step a toddler can stand on', status: 'partial' }] };
+  assert.equal(checkBrief([{ notClaimed: 'step|stand' }], { state, verdict, finish: partial }).pass, false);
+  const unmet = { requirements: [{ requirement: 'A step a toddler can stand on', status: 'unmet' }] };
+  assert.equal(checkBrief([{ notClaimed: 'step|stand' }], { state, verdict, finish: unmet }).pass, true);
+});

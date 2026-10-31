@@ -93,6 +93,10 @@ const PROP_CODES = new Set(Object.keys(PROP_FIX));
 export const LIMITS = { opsPerCall: 30, opsTotal: 250, socketsShown: 40, partsShown: 40, nodesShown: 200, propsShown: 40, surfacesShown: 40 };
 const mm = (v) => Math.round(v);
 // A refusal's details, kept to a few hundred characters: the field or limit and the numbers.
+function detailsOf(o) {
+  const { tryInstead, ...rest } = o.details ?? {};
+  return Object.keys(rest).length ? clipDetails(rest) : null;
+}
 function clipDetails(d) {
   const text = JSON.stringify(d);
   if (text.length <= 400) return d;
@@ -547,7 +551,8 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       code: o.code,
       message: o.message,
       // Which field or limit broke and by how much (A32, A60); kept short.
-      ...(o.details && Object.keys(o.details).length ? { details: clipDetails(o.details) } : {}),
+      // tryInstead is given below as a socket id; its raw surface id is not something to pass back.
+      ...(detailsOf(o) ? { details: detailsOf(o) } : {}),
       alternatives: o.validAlternatives.map((a) => ({ socket: remember(a.op), at: a.at, slot: a.slot, op: a.op })),
       // A refused prop may come with the same op varied (its other pose, a turn, a small shift) that does place.
       ...(o.details?.tryInstead ? { tryInstead: { socket: remember(o.details.tryInstead), op: o.details.tryInstead } } : {}),
@@ -640,7 +645,8 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
         total: s.nodes.length,
         counts,
         props: (s.staging?.props ?? []).map((p) => ({
-          ref: p.ref, id: p.id, label: p.label, atMm: p.posMm.map(mm), yawDeg: mm(p.yawDeg), ...(p.pot ? { pot: p.pot } : {}), ...roleOf(p.ref),
+          // atMm as addProp and moveProp take it ({x, z}), the height apart: a copied pose is a valid one.
+          ref: p.ref, id: p.id, label: p.label, atMm: { x: mm(p.posMm[0]), z: mm(p.posMm[2]) }, yMm: mm(p.posMm[1]), yawDeg: mm(p.yawDeg), ...(p.pot ? { pot: p.pot } : {}), ...roleOf(p.ref),
         })),
         soil: s.staging?.soil ?? [],
       };

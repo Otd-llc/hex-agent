@@ -22,7 +22,7 @@ const step = async (name, tool, args, ok) => {
   return r;
 };
 // A bench x past every prop on the build.
-const mmFar = (b) => Math.max(0, ...b.props.map((p) => p.atMm[0])) + 600;
+const mmFar = (b) => Math.max(0, ...b.props.map((p) => p.atMm.x)) + 600;
 const firstOk =(r) => r.outcomes?.[0]?.ok === true && !r.rolledBack;
 
 try {

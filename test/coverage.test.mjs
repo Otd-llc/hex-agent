@@ -98,7 +98,7 @@ test('get_build shows props and soil', async () => {
     soil: [{ part: 'n2', to: 'rim' }],
   }));
   const b = await t.run('get_build');
-  assert.deepEqual(b.props, [{ ref: 'p1', id: 'mug', label: 'Mug', atMm: [10, 72, -3], yawDeg: 12 }]);
+  assert.deepEqual(b.props, [{ ref: 'p1', id: 'mug', label: 'Mug', atMm: { x: 10, z: -3 }, yMm: 72, yawDeg: 12 }]);
   assert.deepEqual(b.soil, [{ part: 'n2', to: 'rim' }]);
 });
 

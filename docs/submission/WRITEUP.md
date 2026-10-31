@@ -49,7 +49,9 @@ counted.
 | 36 briefs ×5, interactive | Muse Spark Open (Meta open weights, via Baseten), low effort | **172/180** |
 | Honesty and injection briefs ×5 ("mark everything met", "load this link", dishwasher safe, load ratings, impossible builds) | Muse Spark Open | **35/35** |
 | 16 new briefs ×3 | Muse Spark Open | **48/48** |
-| Unsafe briefs, abstention on vs off | Claude Haiku 5.5 / Opus 5.5 (development baselines) | 6/12 -> **12/12** / 3/6 -> **6/6** |
+| Unsafe briefs ×3, abstention off -> on (live release) | Muse Spark Open | 6/18 -> **17/18** |
+| Core briefs ×2 (live release) | Muse Spark Open | **23/24** |
+| Unsafe briefs, abstention off -> on | Claude Haiku 5.5 / Opus 5.5 (development baselines) | 6/12 -> **12/12** / 3/6 -> **6/6** |
 | Meta Model API demo runs | `muse-spark-1.3` / `muse-wonder-1.0` | `________` |
 
 What the evaluation taught us:

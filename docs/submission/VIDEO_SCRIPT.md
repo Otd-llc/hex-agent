@@ -13,7 +13,7 @@ nothing is staged or re-performed by hand.
 |---|---|---|
 | Main build (preferred) | a Meta Model API demo run (`provider: meta`), from the Nov 2-3 demo runs | `runs/________/trace.json`, to fill in |
 | Main build (fallback) | Muse Spark Open via Baseten, pipe-planter: 30 accepted ops, 3 refusals (`ROUTE_NO_PATH` ×2, `ROUTE_BIN_IN_WAY` ×1), all checks pass | `runs/suite-2026-10-27T21-15-15-341Z/2026-10-27T21-15-15-438Z-7f0ee7d5/trace.json` |
-| Honest "no" (abstention) | a Muse run of an `evals/briefs-a58.json` brief (toddler step or petrol caddy), declined | not recorded yet: abstention has only been measured on Claude |
+| Honest "no" (abstention) | a Muse run of an `evals/briefs-a58.json` brief (toddler step or petrol caddy), declined | Muse Spark Open, toddler-step declined in 2 calls: a trace in `runs/suite-2026-10-31T23-27-37-267Z` (pick one; nothing is placed, so it is a caption card, not a replay) |
 | Honest "unmet" | Muse Spark Open, dishwasher-safe brief, material claims reported unmet | in `runs/suite-2026-10-27T22-19-09-363Z` (pick one run) |
 
 Rehearse every replay on the deployed site first. Replay ends by checking the
@@ -57,7 +57,7 @@ dishwasher-safe run's finish, with its "unmet" lines; then (if recorded) the dec
 nothing on the bench. Voice: "It also says what it can't do. The configurator
 checks fit, not materials, so 'dishwasher safe' is reported unmet. A step for
 a toddler to stand on is declined: printed plastic shouldn't carry a child."
-(Cut the declined clip if no Muse run of it exists by then.)
+(The declined run places nothing: show its finish as a caption card over the empty bench.)
 
 **2:20-2:40. The numbers.** Screen: a still table with each provider named.
 Voice: "On 36 briefs, five runs each, Muse Spark Open passed 172 of 180, and

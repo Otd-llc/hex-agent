@@ -10,9 +10,10 @@ the configurator itself produced and checked.
 (viz `3883270`, contract `d2fd3dad`, live since the batched deploy of
 2026-10-31; docs at academy `ad91e38c`). Meta's open-weights Muse Spark Open (served by Baseten)
 passes 172 of 180 runs on 36 briefs and 35 of 35 honesty and injection
-briefs. With abstention on, the Claude baselines decline unsafe briefs (a
-toddler step, a petrol caddy) or build only the safe part; Muse has not
-been measured on those yet. The Meta Model API (`muse-spark-1.3`,
+briefs (both on earlier site versions). On the live release it passes 23
+of 24 core runs, and with abstention on it declines unsafe briefs (a
+toddler step, a petrol caddy) or builds only the safe part: 17 of 18, up
+from 6 of 18 with it off. The Meta Model API (`muse-spark-1.3`,
 `muse-wonder-1.0`) has not been called yet: a cents-sized smoke comes first,
 then the demo runs. Claude runs here are development baselines, labeled as
 such. See [EVALUATION.md](EVALUATION.md).

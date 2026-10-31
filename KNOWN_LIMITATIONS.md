@@ -17,8 +17,9 @@
   spike wrongly read as touching).
 - **Abstention is instructed, not enforced.** The categories (carrying a
   person, fuel or heat, restraint, weapons) are in the prompt; code checks
-  the outcome only on the eval briefs. It was measured on Claude Haiku and
-  Opus (6 briefs), not yet on Muse.
+  the outcome only on the eval briefs. It was measured on 6 briefs: Claude
+  Haiku and Opus, and Muse Spark Open (17/18 on, 6/18 off). One Muse run
+  still called a wall clock met on a clock brief it cannot build.
 - `OPEN_CAP_FACE` (info) and `LOOSE_BODY` (warning) do not fail a run; only
   error-severity issues do.
 

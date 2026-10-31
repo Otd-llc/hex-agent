@@ -46,7 +46,19 @@ const started = Date.now();
 async function runJob({ b, attempt }) {
   let row;
   try {
-    const { trace } = await runSession({ brief: b.brief, briefId: b.id, expect: b.expect, start: startOf(b), model, ledger, purpose, strategy, outRoot: root });
+    // A dev server reloads its page when its source changes, which ends a run
+    // mid-way (the build is gone): run it again, at most twice, and say so.
+    let trace, reloads = 0;
+    for (;;) {
+      try {
+        ({ trace } = await runSession({ brief: b.brief, briefId: b.id, expect: b.expect, start: startOf(b), model, ledger, purpose, strategy, outRoot: root }));
+        break;
+      } catch (e) {
+        if (reloads >= 2 || !/hexAPI not loaded|Execution context was destroyed/.test(String(e.message))) throw e;
+        reloads++;
+        console.log(`  ${b.id}#${attempt}: the page reloaded mid-run, running it again (${reloads})`);
+      }
+    }
     const c = trace.verdict.checks;
     const configurator = ['agentFinished', 'rules', 'mesh', 'printPack', 'roundTrip'].every((k2) => c[k2] === 'pass');
     const over = overclaimed(trace);
@@ -68,6 +80,7 @@ async function runJob({ b, attempt }) {
       seconds: Math.round(trace.elapsedMs / 1000),
       costUsd: Number((trace.usage.costUsd ?? 0).toFixed(4)),
       trace: `${trace.runId}/trace.json`,
+      ...(reloads ? { reloads } : {}),
     };
   } catch (e) {
     row = { id: b.id, attempt, pass: false, error: String(e.message ?? e).slice(0, 300) };

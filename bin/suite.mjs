@@ -54,7 +54,7 @@ async function runJob({ b, attempt }) {
         ({ trace } = await runSession({ brief: b.brief, briefId: b.id, expect: b.expect, start: startOf(b), model, ledger, purpose, strategy, outRoot: root }));
         break;
       } catch (e) {
-        if (reloads >= 2 || !/hexAPI not loaded|Execution context was destroyed/.test(String(e.message))) throw e;
+        if (reloads >= 2 || !/hexAPI not loaded|Execution context was destroyed|api\[m\] is not a function/.test(String(e.message))) throw e;
         reloads++;
         console.log(`  ${b.id}#${attempt}: the page reloaded mid-run, running it again (${reloads})`);
       }

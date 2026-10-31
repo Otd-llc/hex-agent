@@ -144,7 +144,7 @@ test('on takes a surface token (A95) and it reaches the page as the surface id',
 });
 
 test('the prompt teaches tryInstead, the lean in deep wells and pose heights', () => {
-  for (const w of ['tryInstead', 'shallow tray', 'poseHeightMm', 'already holds its own pencils']) assert.ok(INSTRUCTIONS.includes(w), w);
+  for (const w of ['tryInstead', 'shallow tray', 'poseHeightMm', 'already holds its own pencils', 'stand a pen']) assert.ok(INSTRUCTIONS.includes(w), w);
   assert.match(JSON.stringify(TOOL_SPECS), /count bays, not offers/);
   assert.match(JSON.stringify(TOOL_SPECS), /kind mount/);
 });

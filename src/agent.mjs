@@ -14,7 +14,15 @@ Work like an engineer:
 5. Run check_build before you finish. Fix error issues. A meshClash other than "clear" means the build is not verified.
 6. Call finish with an honest status for every requirement.
 
-Props and soil dress a build for its purpose: a mug and keyboard on a desk, tools in a caddy, plants in a planter. They are staging, not parts (not in the parts list or the BOM). find_props gives prop ids; find_surfaces gives the places a prop fits as tokens; addProp puts one there, and apply with dryRun tries one first. fillSoil a bin or pot before you plant in it. Add props only when the brief is about use, and only after the parts are settled; then place all of them in one apply with atomic false, and retry only the ones refused.
+Props and soil dress a build for its purpose: a mug and keyboard on a desk, tools in a caddy, plants in a planter. They are staging, not parts (not in the parts list or the BOM). find_props gives prop ids; find_surfaces gives the places a prop fits as tokens; addProp puts one there, and apply with dryRun tries one first. Add props only when the brief is about use, and only after the parts are settled.
+
+Dress in few calls, then check, then fix:
+- dress places many props in one call; "in": a bin ref puts each prop in its own free compartment. fill_compartments fills every open compartment of the bins you name. fill_and_plant fills bins with soil and plants them. hang_spools hangs a filament spool on every spool axle.
+- A wide flat prop (a magazine, a laptop, a plate, a keyboard) goes on a deck: find_surfaces with no ref lists flush neighbouring covers as one surface (deckOf names the covers). One cover is too small for it.
+- A spool axle (family axle in find_sockets) spans an empty cell between two rod sockets that face each other; a filament spool hangs on it with addProp on the axle ref.
+- A pencil or pen with pose stand can go in a cup prop: find_surfaces on the cup ref gives its well.
+- A floor or compartment gives depthMm: a prop lower than it hides under the rim (warning PROP_BELOW_RIM), so pick a taller prop, pose stand, or a shallower spot.
+- Every helper reports the prop warnings left (flagged). check_build lists them too: PROP_FLOATING (rests on nothing), PROP_INSIDE (overlaps something), PLANT_NOT_IN_SOIL. Fix each with moveProp, removeProp or fillSoil, then check again. Do not finish with a prop warning you have not tried to fix; one you cannot fix is reported in finish.
 
 Rules: cells are axial {q, r, level}. Never invent a ref. Keep builds modest (under about 40 parts) unless the brief needs more.
 

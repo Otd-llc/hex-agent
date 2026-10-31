@@ -73,7 +73,17 @@ export function checkOpShape(item) {
   }
 }
 const FAMILIES = ['piece', 'snap', 'spike', 'cover', 'cap', 'insert', 'handle', 'accessory', 'port', 'bin', 'binBolt',
-  'connector', 'run', 'riser', 'coverHub', 'drawer', 'jointBolt', 'notch', 'bay'];
+  'connector', 'run', 'riser', 'coverHub', 'drawer', 'jointBolt', 'notch', 'bay', 'axle'];
+
+// validate()'s prop warnings, and what fixes each: the dressing loop is
+// dress -> check -> fix what it flags (A99).
+const PROP_FIX = {
+  PROP_FLOATING: 'rests on nothing: moveProp it onto a surface from find_surfaces, or removeProp it',
+  PROP_INSIDE: 'overlaps a part or another prop: moveProp it to a clear spot (another atMm or surface), or removeProp it',
+  PLANT_NOT_IN_SOIL: 'stands in no soil: fillSoil the part first, then plant again',
+  PROP_BELOW_RIM: 'sits under the rim of what holds it, hard to see from the side: a taller prop, a shallower compartment (depthMm), or pose stand',
+};
+const PROP_CODES = new Set(Object.keys(PROP_FIX));
 
 export const LIMITS = { opsPerCall: 30, opsTotal: 250, socketsShown: 40, partsShown: 40, nodesShown: 200, propsShown: 40, surfacesShown: 40 };
 const mm = (v) => Math.round(v);
@@ -109,7 +119,10 @@ export const TOOL_SPECS = [
       '(a coupling next to a corner, or a fitting or hub at the corner) takes no bin at all. Deeper trays and hardware cells ' +
       'refuse bins with PIPE_THROUGH_CELL, and a run is refused ROUTE_BIN_IN_WAY where a bin is in its way, so lay the run ' +
       'first and take bin offers after it, or keep the run straight; -pvc bins are for a vertical riser through the floor. ' +
-      'A handle needs a cover on its face; spikes stand where three cells meet.',
+      'A handle needs a cover on its face; spikes stand where three cells meet. ' +
+      'A spool axle (family axle) seats in a rod socket (a hex-acc-rod accessory) that faces another rod socket across an ' +
+      'empty cell; it is refused NO_PARTNER without one. A filament spool then HANGS on it: addProp {id:"filament-spool", ' +
+      'on:"axle:..."} with the axle ref from get_build, no atMm (hang_spools does every axle at once).',
     parameters: obj(
       {
         family: { type: 'string', enum: FAMILIES },
@@ -142,12 +155,16 @@ export const TOOL_SPECS = [
   {
     name: 'find_surfaces',
     description:
-      'Where a prop can go: the tops, floors, compartments and soil of one part (ref) or of the whole build, each with a token ' +
-      '(f1, f2, ...) to pass to addProp as surface, its height, centre, size and clear headroom. With fits (a prop id), only ' +
-      'surfaces the prop fits inside lying flat: a prop bigger than a top (a quad, a monitor) can still rest overhanging it, ' +
-      'so when fits finds nothing, try addProp on the part with apply dryRun.',
+      'Where a prop can go: the tops, floors, compartments and soil of one part or prop (ref) or of the whole build, each with a token ' +
+      '(f1, f2, ...) to pass to addProp as surface, its height, centre, size and clear headroom. With no ref it also lists ' +
+      'DECKS (flush neighbouring covers or lids offered as one surface, parts: the refs under it): a wide flat prop (a magazine, ' +
+      'a laptop, a plate, a keyboard) goes on a deck, not on one cover; and the surfaces of placed props (the well of a cup: ' +
+      'a pencil with pose stand in a cup is kept leaning up to 30 degrees). A floor or compartment gives depthMm, how far its ' +
+      'rim stands over it: a prop lower than that hides under the rim (addProp warns PROP_BELOW_RIM). With fits (a prop id), ' +
+      'only surfaces the prop fits inside lying flat: a prop bigger than a top (a quad, a monitor) can still rest overhanging ' +
+      'it, so when fits finds nothing, try addProp on the part with apply dryRun.',
     parameters: obj({
-      ref: { type: 'string', description: 'Optional part ref from get_build.' },
+      ref: { type: 'string', description: 'Optional part or prop ref from get_build.' },
       fits: { type: 'string', description: 'Optional prop id from find_props.' },
     }),
   },
@@ -165,7 +182,9 @@ export const TOOL_SPECS = [
       'nearby alternatives (also given socket ids). Never invent a ref: take refs from get_build or an outcome. ' +
       'Props: addProp with an id from find_props, on a part ref or "bench" (atMm moves it off the centre), or on a surface token ' +
       'from find_surfaces (surface or on, not both); several props can go in one apply (atomic false keeps the ones that rest); ' +
-      'moveProp and removeProp take a prop ref from get_build. Soil: fillSoil a bin or pot part, then plant a plant id in it. ' +
+      'moveProp and removeProp take a prop ref from get_build. A filament spool hangs on a spool axle: on "axle:..." (an axle ref), no atMm. ' +
+      'pose stand on a prop (a pencil in a cup) is kept leaning up to 30 degrees. Soil: fillSoil a bin or pot part, then plant a plant id in it. ' +
+      'After dressing, call check_build and fix the prop warnings it lists. ' +
       `Ops and their fields (? = optional): ${OP_TABLE}. ` +
       `Named values: ${Object.entries(VALUES).filter(([k]) => k !== 'variant').map(([k, v]) => `${k}: ${v.join('|')}`).join('; ')}. ` +
       'Cover magnets are setCoverMagnets on a fitted cover, not a cover type.',
@@ -183,11 +202,73 @@ export const TOOL_SPECS = [
       ['ops'],
     ),
   },
+  // Compound helpers (A85): one call for what took a lookup, an apply and a
+  // check. Each is a thin wrapper: it builds addProp/fillSoil/plant ops, runs
+  // them through apply (atomic false: the ones that rest stay), then reports
+  // the prop warnings check_build would give.
+  {
+    name: 'dress',
+    description:
+      'Place several props in one call, then check them. Each item is an addProp: id from find_props, and where: on (a part, ' +
+      'prop or axle ref, or "bench"), surface (a token from find_surfaces), or in (a part or prop ref: the prop goes on the ' +
+      'first surface of it that it fits and that this call has not used yet, so three items in one bin take three compartments). ' +
+      'atMm, yawDeg, pose and facingDeg as addProp takes them. Returns each outcome and the prop warnings left (flagged, each ' +
+      'with its fix): fix those, then check_build before finish.',
+    parameters: obj(
+      {
+        props: {
+          type: 'array',
+          minItems: 1,
+          maxItems: LIMITS.opsPerCall,
+          items: { type: 'object', description: '{"id":"mug","on":"cover:..."} or {"id":"pencil","in":"bin:...","pose":"stand"} or {"id":"magazine","surface":"f3"}' },
+        },
+      },
+      ['props'],
+    ),
+  },
+  {
+    name: 'hang_spools',
+    description: 'Hang a filament spool (or the prop id given) on every spool axle of the build that has none, in one call, then check them.',
+    parameters: obj({ id: { type: 'string', description: 'Default filament-spool.' } }),
+  },
+  {
+    name: 'fill_and_plant',
+    description:
+      'Fill bins with soil and plant them in one call: each bed is a part ref (a bin, bolt-on bin, notch or bay bin) and a plug ' +
+      'plant id from find_props (plant: true). A part that already holds soil is not filled again. Then checks PLANT_NOT_IN_SOIL.',
+    parameters: obj(
+      {
+        beds: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 15,
+          items: obj({ part: { type: 'string' }, plant: { type: 'string' } }, ['part', 'plant']),
+        },
+      },
+      ['beds'],
+    ),
+  },
+  {
+    name: 'fill_compartments',
+    description:
+      'Put one prop in every open floor and compartment of the given parts (bins, trays, drawers; soil is skipped), taking the ' +
+      'props in turn and giving each surface the next one that fits it, in one call; then check them.',
+    parameters: obj(
+      {
+        parts: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'string' }, description: 'Part refs from get_build.' },
+        props: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'string' }, description: 'Prop ids from find_props, in the order to use them.' },
+      },
+      ['parts', 'props'],
+    ),
+  },
   { name: 'undo', description: 'Take back the last change (one apply is one step).', parameters: obj({}) },
   { name: 'redo', description: 'Put back the change undo took back.', parameters: obj({}) },
   {
     name: 'check_build',
-    description: 'Run the configurator checks: rule issues (errors, warnings) and the browser mesh-collision gate.',
+    description:
+      'Run the configurator checks: rule issues (errors, warnings), the browser mesh-collision gate, and the prop warnings: ' +
+      'PROP_FLOATING (a prop rests on nothing), PROP_INSIDE (a prop overlaps a part or another prop), PLANT_NOT_IN_SOIL. ' +
+      'Each prop warning comes back in props with its prop ref and the fix; fix every one before finish.',
     parameters: obj({}),
   },
   {
@@ -315,6 +396,8 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
           ...(p.plant ? { plant: true, stage: p.stage } : {}), ...(p.pot ? { pot: true } : {}),
           // its authored poses (A49): addProp pose stand or lie sets it so, facingDeg turns its front
           ...(p.poses?.length ? { poses: p.poses, defaultPose: p.defaultPose } : {}),
+          // how tall it stands in each pose, to hold against a surface's depthMm or headroomMm
+          ...(p.poseHeightMm && Object.keys(p.poseHeightMm).length ? { poseHeightMm: Object.fromEntries(Object.entries(p.poseHeightMm).map(([k, v]) => [k, mm(v)])) } : {}),
         })),
       };
     },
@@ -328,11 +411,12 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
       const out = {
         total: all.length,
         surfaces: all.slice(0, LIMITS.surfacesShown).map((f) => {
-          const token = `f${nextSurface++}`;
-          surfaces.set(token, f.id);
+          const token = tokenFor(f.id);
           return {
             surface: token, label: f.label, kind: f.kind, yMm: mm(f.yMm), centreMm: [mm(f.centreMm.x), mm(f.centreMm.z)],
             sizeMm: size(f.outlineMm), headroomMm: f.headroomMm == null ? null : mm(f.headroomMm),
+            // a deck names the lids under it; a floor or compartment how deep its rim stands
+            ...(f.parts ? { deckOf: f.parts } : {}), ...(f.depthMm != null ? { depthMm: mm(f.depthMm) } : {}),
           };
         }),
       };
@@ -447,6 +531,9 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
       if (refusalStreak >= STREAK_LIMIT) {
         out.warning = `${refusalStreak} refusals in a row. Stop guessing: read the refusal messages, change the build so find_sockets offers the part, or report the requirement as unmet.`;
       }
+      // A prop warning on an outcome (PROP_BELOW_RIM) comes with its fix.
+      const propWarned = [...new Set(r.outcomes.flatMap((o) => (o.ok ? o.warnings.map((w) => w.code) : [])).filter((c) => PROP_CODES.has(c)))];
+      if (propWarned.length) out.fix = Object.fromEntries(propWarned.map((c) => [c, PROP_FIX[c]]));
       if (dropped.length) {
         out.droppedAlreadyFitted = dropped;
         out.note = 'These ops were refused ALREADY_FITTED (that state already holds), so the batch was applied again without them.';
@@ -468,14 +555,116 @@ export function createTools(hex, { onEvent = () => {} } = {}) {
 
     async check_build() {
       const v = await hex.call('validate');
+      const props = v.issues.filter((i) => PROP_CODES.has(i.code)).map(propFlag);
       return {
         ok: v.ok,
         meshClash: v.meshClash,
-        issues: v.issues.map((i) => ({ severity: i.severity, code: i.code, refs: i.refs, message: i.message })),
-        note: 'ok covers rule errors only. meshClash must read "clear" for the meshes to be checked and clear.',
+        issues: v.issues.filter((i) => !PROP_CODES.has(i.code)).map((i) => ({ severity: i.severity, code: i.code, refs: i.refs, message: i.message })),
+        ...(props.length ? { props } : {}),
+        note: 'ok covers rule errors only. meshClash must read "clear" for the meshes to be checked and clear.' +
+          (props.length ? ' Fix each prop warning (props) before finish.' : ''),
       };
     },
+
+    async dress({ props }) {
+      if (!Array.isArray(props) || !props.length) throw new Error('props must be a non-empty array');
+      const used = new Set();
+      const ops = [];
+      for (const p of props) {
+        if (!p || typeof p.id !== 'string') throw new Error('each prop needs an id from find_props');
+        const { in: holder, ...rest } = p;
+        if (holder == null) { ops.push({ op: 'addProp', ...rest }); continue; }
+        if ('on' in rest || 'surface' in rest) throw new Error(`${p.id}: give in, on or surface, one of them`);
+        // In a prop (a pencil in a cup): on the prop itself, where a standing prop is kept leaning; through
+        // the well as a surface the same pencil is refused PROP_WOULD_SHIFT (live 5310, 2026-10-31).
+        if (holder.startsWith('prop:')) { ops.push({ op: 'addProp', ...rest, on: holder }); continue; }
+        // The first surface of the holder this prop fits that this call has not taken yet.
+        const free = (await hex.call('surfaces', holder, { fits: p.id })).filter((f) => f.kind !== 'soil' && !used.has(f.id));
+        if (!free.length) { ops.push({ op: 'addProp', ...rest, on: holder }); continue; }
+        used.add(free[0].id);
+        ops.push({ op: 'addProp', ...rest, ...alongFor(free[0], rest), surface: tokenFor(free[0].id) });
+      }
+      return withPropCheck(await handlers.apply({ ops, atomic: false }));
+    },
+
+    async hang_spools({ id = 'filament-spool' } = {}) {
+      const s = await hex.call('getState');
+      const axles = s.nodes.filter((n) => n.family === 'axle');
+      if (!axles.length) return { hung: 0, note: 'The build has no spool axles: find_sockets family axle offers where one seats.' };
+      // An axle already holding this prop refuses a second one; those come back as refusals, nothing changes.
+      return withPropCheck(await handlers.apply({ ops: axles.map((a) => ({ op: 'addProp', id, on: a.ref })), atomic: false }));
+    },
+
+    async fill_and_plant({ beds }) {
+      if (!Array.isArray(beds) || !beds.length) throw new Error('beds must be a non-empty array');
+      const soil = new Set(((await hex.call('getState')).staging?.soil ?? []).map((x) => x.part));
+      const ops = [];
+      for (const b of beds) {
+        if (!soil.has(b.part)) { ops.push({ op: 'fillSoil', part: b.part }); soil.add(b.part); }
+        ops.push({ op: 'plant', id: b.plant, in: b.part });
+      }
+      return withPropCheck(await handlers.apply({ ops, atomic: false }));
+    },
+
+    async fill_compartments({ parts, props }) {
+      if (!Array.isArray(parts) || !parts.length || !Array.isArray(props) || !props.length) throw new Error('parts and props must be non-empty arrays');
+      const ops = [];
+      let k = 0;
+      for (const part of parts) {
+        const open = (await hex.call('surfaces', part)).filter((f) => f.kind === 'floor' || f.kind === 'compartment');
+        for (const f of open) {
+          // The next prop in turn that fits this surface; none fits: the next in turn anyway, and the page decides.
+          let pick = null;
+          for (let j = 0; j < props.length && !pick; j++) {
+            const id = props[(k + j) % props.length];
+            if ((await hex.call('surfaces', part, { fits: id })).some((g) => g.id === f.id)) { pick = id; k += j + 1; }
+          }
+          const id = pick ?? props[k++ % props.length];
+          ops.push({ op: 'addProp', id, ...alongFor(f, { id }), surface: tokenFor(f.id) });
+        }
+      }
+      if (!ops.length) return { placed: 0, note: 'None of these parts has an open floor or compartment.' };
+      if (ops.length > LIMITS.opsPerCall) throw new Error(`${ops.length} compartments: at most ${LIMITS.opsPerCall} per call, pass fewer parts`);
+      return withPropCheck(await handlers.apply({ ops, atomic: false }));
+    },
   };
+
+  // A narrow compartment takes a prop only with its long side along the
+  // compartment's (a 46 x 34 heap in a 44 mm strip of a div3 bin): turn it so,
+  // unless the item already says how it turns or names an authored pose.
+  function alongFor(surface, item) {
+    if (['yawDeg', 'orient', 'pose', 'facingDeg'].some((k) => k in item) || !surface.outlineMm?.length) return {};
+    const xs = surface.outlineMm.map((p) => p[0]), zs = surface.outlineMm.map((p) => p[1]);
+    const mx = xs.reduce((a, b) => a + b) / xs.length, mz = zs.reduce((a, b) => a + b) / zs.length;
+    let sxx = 0, szz = 0, sxz = 0;
+    for (let i = 0; i < xs.length; i++) { sxx += (xs[i] - mx) ** 2; szz += (zs[i] - mz) ** 2; sxz += (xs[i] - mx) * (zs[i] - mz); }
+    // A round or square outline has no long side to follow.
+    const spread = Math.sqrt((sxx - szz) ** 2 + 4 * sxz ** 2);
+    if (spread < 0.15 * (sxx + szz)) return {};
+    // The principal axis in x, z, as a bearing about up from +x (a yaw takes +x to (cos, -sin)).
+    const deg = ((Math.atan2(-2 * sxz, sxx - szz) / 2) * 180) / Math.PI;
+    const near = (a) => Math.abs(((deg - a + 540) % 180) - 0) < 15 || Math.abs(((deg - a + 540) % 180) - 180) < 15;
+    return { orient: { longAlong: near(0) ? 'x' : near(90) ? 'z' : Math.round(deg) } };
+  }
+
+  function tokenFor(id) {
+    const token = `f${nextSurface++}`;
+    surfaces.set(token, id);
+    return token;
+  }
+
+  // A prop warning names its prop in the message: "(prop:...)".
+  function propFlag(i) {
+    return { code: i.code, prop: i.message.match(/\((prop:[^)]+)\)/)?.[1] ?? null, message: i.message, fix: PROP_FIX[i.code] };
+  }
+
+  // A compound helper's last step: the prop warnings validate() gives now.
+  async function withPropCheck(out) {
+    const v = await hex.call('validate');
+    const flagged = v.issues.filter((i) => PROP_CODES.has(i.code)).map(propFlag);
+    const placed = out.outcomes.filter((o) => o.ok).length;
+    return { placed, refused: out.outcomes.length - placed, ...out, flagged, ...(flagged.length ? {} : { note: 'No prop warnings.' }) };
+  }
 
   async function run(name, rawArgs) {
     const handler = handlers[name];

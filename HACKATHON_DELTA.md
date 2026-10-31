@@ -2,10 +2,10 @@
 
 ## Pre-existing (not entered as event work)
 
-| Asset | Owner | At the event start (2026-10-27) | Live 2026-10-31 | Final deploy |
+| Asset | Owner | At the event start (2026-10-27) | Before the batched deploy (2026-10-31) | Live after the batched deploy (2026-10-31) |
 |---|---|---|---|---|
-| Hex Cluster configurator (hex.onethousanddrones.com) | One Thousand Drones, proprietary | `Otd-llc/aplomado-viz` main `c65d2066` | `bbebadfa` | `________` |
-| `window.hexAPI` browser API, rules, collision gate, print packs | One Thousand Drones, proprietary | contract `9bb662c8dab613bd4eae8a8677e5ddefa727d8ac8bad408614134efb1d0f0e4f` (Academy PR #578) | contract `69c3c65be827e3a251d5a5f0b3f1f6a58670c3f53f7dabfaf779bee7965e938e` | `________` |
+| Hex Cluster configurator (hex.onethousanddrones.com) | One Thousand Drones, proprietary | `Otd-llc/aplomado-viz` main `c65d2066` | `bbebadfa` | `3883270` (PR #144; Pages deploy `46db6a6c`) |
+| `window.hexAPI` browser API, rules, collision gate, print packs | One Thousand Drones, proprietary | contract `9bb662c8dab613bd4eae8a8677e5ddefa727d8ac8bad408614134efb1d0f0e4f` (Academy PR #578) | contract `69c3c65be827e3a251d5a5f0b3f1f6a58670c3f53f7dabfaf779bee7965e938e` | contract `d2fd3dadd90ed381449432592937fd3fb21b2ae01060f53f253b310f3843c8af` (docs: academy `ad91e38c`, PR #585) |
 | Hex Cluster printable parts | One Thousand Drones; some under CC BY 4.0 | release 2026-10-14 (the pack link the API returns) | same | `________` |
 | Emotive Engine | Joshua Tollette, MIT | npm 3.5.0 (not used) | not used | not used |
 

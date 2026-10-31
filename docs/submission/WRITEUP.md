@@ -75,7 +75,7 @@ repository is the event work: the agent, the browser bridge, the checked
 tool layer, verification, abstention, acceptance tests, the role-graph
 planner, the offline critic, the spend ledgers, the evaluation suites and
 the replay tool. See HACKATHON_DELTA.md. Live configurator at submission:
-viz `________`, contract `________`.
+viz `3883270`, contract `d2fd3dad` (docs: academy `ad91e38c`).
 
 ## Honest limits
 

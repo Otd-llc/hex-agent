@@ -7,8 +7,8 @@ revises, and ends with a share link, a parts list and a print-pack link that
 the configurator itself produced and checked.
 
 **Status (2026-10-31):** the agent runs end to end on the live configurator
-(viz `bbebadfa`, contract `69c3c65b`; after the final deploy: viz `________`,
-contract `________`). Meta's open-weights Muse Spark Open (served by Baseten)
+(viz `3883270`, contract `d2fd3dad`, live since the batched deploy of
+2026-10-31; docs at academy `ad91e38c`). Meta's open-weights Muse Spark Open (served by Baseten)
 passes 172 of 180 runs on 36 briefs and 35 of 35 honesty and injection
 briefs. With abstention on, the Claude baselines decline unsafe briefs (a
 toddler step, a petrol caddy) or build only the safe part; Muse has not

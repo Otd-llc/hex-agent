@@ -23,9 +23,10 @@
   error-severity issues do.
 
 ## Of the platform (as observed 2026-10-31)
-- The API is experimental v1 and may change. Live today: viz `bbebadfa`,
-  contract `69c3c65b`. After the final deploy: viz `________`, contract
-  `________`.
+- The API is experimental v1 and may change. Live since the batched
+  deploy of 2026-10-31: viz `3883270`, contract `d2fd3dad` (docs at
+  academy `ad91e38c`). Earlier results ran on viz `bbebadfa`, contract
+  `69c3c65b`, or older: each EVALUATION.md section names its version.
 - Spatial constraints (clearances, protrusion, the user's side) are not in
   the contract yet, so the role-graph planner's zones are worked out by
   hand from cells; it will use the configurator's answers once the contract

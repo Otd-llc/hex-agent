@@ -299,3 +299,27 @@ catches are likelier. `runs/suite-2026-10-31T17-20-09-661Z` (off),
 `…18-13-45-707Z` (Opus).
 
 Claude spent $5.94 on these (ledger $17.56 -> $23.50 of $100). Baseten and Meta untouched.
+
+## Release contract d2fd3dad: migration, smokes, exploration (2026-10-31)
+
+Agent migrated to contract d2fd3dad (constraints checked in code, compact
+offers and parts, running budget and refusal details shown, `look` over
+view()/still(), suggestPlants in fill_and_plant, capOpenFaces/lockJoints in
+the instructions, overhang tops, wall hooks, PROP_BLOCKS_DRAWER).
+
+| Where | smoke-tools | smoke-helpers |
+|---|---|---|
+| pinned release candidate, 127.0.0.1:5330 | 32/32 | 10/10 |
+| live after the batched deploy (viz 3883270) | 32/32 | 10/10 |
+
+A moved prop keeps its ref (`prop:<n>`) on both. Exploration on 5330 (Haiku
+5.5, dev, while a premades harness ran on another port, so slower): dressing 4,
+A99 3 and 4 core briefs, **11/11**, $0.077. Every run used `look` (1-4 stills
+each) and most ran the house-rule ops. Read in the traces: five runs reported
+something partial or unmet, all honestly (food safety, a stapler the catalog
+lacks, portability, a partly dressed rack). One error was ours: get_build gave
+a prop's atMm as [x, y, z] while addProp takes {x, z}, so a copied pose was
+refused; now {x, z} plus yMm. lockJoints answers NO_CHANGE as a refusal when
+nothing is left to bolt (sent to lane 1). Not a baseline: the re-baseline on
+live runs after the harness finishes. `runs/suite-2026-10-31T21-41-55-202Z`,
+`…21-43-50-553Z`, `…21-45-21-213Z`.

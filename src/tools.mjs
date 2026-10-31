@@ -377,6 +377,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
   const surfaces = new Map();
   let nextSurface = 1;
   let propIds = null;
+  let partNames = null;
   let opsTotal = 0;
   let refusalStreak = 0;
   const counters = { applied: 0, refused: 0, refusalCodes: {} };
@@ -429,6 +430,11 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
   async function liveRefs() {
     const s = await hex.call('getState');
     return { node: new Set(s.nodes.map((n) => n.ref)), prop: new Set((s.staging?.props ?? []).map((p) => p.ref)) };
+  }
+
+  async function partValues() {
+    partNames ??= (await hex.call('listParts')).map((p) => p.value);
+    return partNames;
   }
 
   async function knownProps() {
@@ -491,7 +497,9 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
     async set_requirements({ requirements: list }) {
       if (!Array.isArray(list) || !list.length || list.length > 8) throw new Error('requirements must be 1 to 8 items');
       const ids = new Set();
-      const out = list.map((r) => {
+      const out = [];
+      const notes = [];
+      for (const r of list) {
         if (!r || typeof r.id !== 'string' || !r.id || typeof r.requirement !== 'string') throw new Error('each requirement needs an id and a requirement');
         if (ids.has(r.id)) throw new Error(`id ${r.id} is used twice`);
         ids.add(r.id);
@@ -502,8 +510,22 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
             throw new Error(`${r.id}: test ${JSON.stringify(r.test)} is not one of ${TEST_FORMS}`);
           }
         }
-        return { id: r.id, requirement: r.requirement, ...(r.test != null ? { test: r.test } : {}) };
-      });
+        // A test naming nothing that exists can only fail: say so now, not at finish.
+        const t = r.test ?? {};
+        if (typeof t.bom === 'string' && /\s/.test(t.bom.trim())) {
+          throw new Error(`${r.id}: bom "${t.bom}" is matched against part names such as hex-acc-hook: one word of a part name, no spaces`);
+        }
+        if (typeof t.family === 'string' && !CONTRACT.placeableFamilies.includes(t.family)) {
+          throw new Error(`${r.id}: family "${t.family}" is not one of ${CONTRACT.placeableFamilies.join(', ')}`);
+        }
+        if (typeof t.prop === 'string' && ![...(await knownProps())].some((id) => id.includes(t.prop))) {
+          throw new Error(`${r.id}: no prop id contains "${t.prop}": take it from find_props`);
+        }
+        if (typeof t.bom === 'string' && !(await partValues()).some((v) => v.includes(t.bom))) {
+          notes.push(`${r.id}: no catalog part contains "${t.bom}" (covers, caps and magnets show only in bom once placed): check it with bom`);
+        }
+        out.push({ id: r.id, requirement: r.requirement, ...(r.test != null ? { test: r.test } : {}) });
+      }
       // Once the build has changed, a revision may add requirements but not drop one or change its test:
       // the tests are set before the work, not fitted to it.
       if (changed && requirements) {
@@ -520,6 +542,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
         requirements: out.length,
         note: 'Tag each op with the id it serves: role "R2" on an apply item or a dress prop, role on the helpers. ' +
           'In finish, give every id a status. Code runs the tests at finish.',
+        ...(notes.length ? { check: notes } : {}),
       };
     },
 

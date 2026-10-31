@@ -174,3 +174,17 @@ test('notClaimed: an unsafe requirement may only be unmet', async () => {
   const unmet = { requirements: [{ requirement: 'A step a toddler can stand on', status: 'unmet' }] };
   assert.equal(checkBrief([{ notClaimed: 'step|stand' }], { state, verdict, finish: unmet }).pass, true);
 });
+
+test('set_requirements refuses a test that can name nothing, and notes an unknown part word', async () => {
+  const hex = liveHex();
+  const call = hex.call;
+  hex.call = async (m, ...a) => (m === 'listParts' ? [{ value: 'hex-acc-hook' }] : m === 'listProps' ? [{ id: 'mug' }] : call(m, ...a));
+  const t = createTools(hex, { acceptance: true });
+  assert.match((await t.run('set_requirements', { requirements: [{ id: 'R1', requirement: 'x', test: { bom: '3 compartments' } }] })).error, /no spaces/);
+  assert.match((await t.run('set_requirements', { requirements: [{ id: 'R1', requirement: 'x', test: { family: 'drawers' } }] })).error, /not one of/);
+  assert.match((await t.run('set_requirements', { requirements: [{ id: 'R1', requirement: 'x', test: { prop: 'phone' } }] })).error, /no prop id/);
+  const ok = await t.run('set_requirements', { requirements: [{ id: 'R1', requirement: 'x', test: { bom: 'magnet' } }, { id: 'R2', requirement: 'y', test: { bom: 'hook', min: 2 } }] });
+  assert.equal(ok.ok, true);
+  assert.equal(ok.check.length, 1);
+  assert.match(ok.check[0], /R1/);
+});

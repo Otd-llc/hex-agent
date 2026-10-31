@@ -93,14 +93,25 @@ const ask = claudeJudge({
   },
 });
 // The cap is checked before every question, not every sheet (three calls each).
+// A dropped connection or an overloaded API is tried again, three times in all.
 const judge = async (q) => {
-  if (over()) throw Object.assign(new Error('budget'), { budget: true });
-  return ask(q);
+  for (let attempt = 1; ; attempt++) {
+    if (over()) throw Object.assign(new Error('budget'), { budget: true });
+    try {
+      return await ask(q);
+    } catch (e) {
+      const transient = /connection|timeout|overloaded|ECONNRESET|socket/i.test(String(e.message)) || [429, 500, 502, 503, 529].includes(e.status);
+      if (!transient || attempt >= 3) throw e;
+      await new Promise((r) => setTimeout(r, 5000 * attempt));
+    }
+  }
 };
-const results = [];
+// --resume=<runs/critic-*.json>: keep its answers and ask only for the rest.
+const resumed = flag('resume', null) ? JSON.parse(readFileSync(flag('resume'), 'utf8')).results : [];
+const results = [...resumed];
 let stopped = null;
 try {
-  for (const s of complete) {
+  for (const s of complete.filter((x) => !resumed.some((r) => r.name === x.name))) {
     const r = await critique(s, judge);
     results.push(r);
     console.log(`${s.name}: ${Object.entries(r.answers).map(([q, a]) => `${q} ${a.answer ?? '?'}`).join(', ')}`);

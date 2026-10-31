@@ -197,3 +197,15 @@ test('features: abstention on by default, acceptance off; none turns all off', a
   assert.deepEqual(parseFeatures('acceptance'), { acceptance: true, abstain: false, rolegraph: false });
   assert.throws(() => parseFeatures('roles'), /unknown feature/);
 });
+
+test('a tool the session does not offer is not run (plan_build with rolegraph off)', async () => {
+  const hex = liveHex();
+  const model = mockModel([
+    [{ name: 'plan_build', args: { plan: { roles: [{ id: 'b', need: { family: 'piece' } }] } } }],
+    [{ name: 'finish', args: { requirements: [{ requirement: 'a base', status: 'unmet', evidence: 'x' }], summary: '', outcome: 'declined' } }],
+  ]);
+  const r = await runAgent({ hex, model, brief: 'a base' });
+  const ev = r.events.find((e) => e.type === 'tool' && e.name === 'plan_build');
+  assert.match(ev.result.error, /unknown tool plan_build/);
+  assert.ok(!hex.calls.some(([m]) => m === 'openSockets' || m === 'applyAll'));
+});

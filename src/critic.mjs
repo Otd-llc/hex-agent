@@ -12,7 +12,9 @@ import { join } from 'node:path';
 // Each view and the file it is, next to the build's own name: <name>.png, <name>-back.png, <name>-top.png.
 export const VIEWS = { threeQuarter: '', opposite: '-back', top: '-top' };
 
-// yes is good on all three. covers: the predicates that measure the same thing.
+// yes is good on every question. covers: the predicates that, together, measure
+// all of what the question asks; a question code only partly measures covers none.
+// Scale and floating absurdity is two questions: resting is measured, pose is not.
 export const QUESTIONS = [
   {
     id: 'purpose',
@@ -20,9 +22,14 @@ export const QUESTIONS = [
     covers: [],
   },
   {
-    id: 'plausible',
-    ask: 'Is everything at a believable scale and resting the way a real object would (nothing floating, on its side, upside down, standing on a point, or overhanging an edge)?',
-    covers: ['propFloating', 'propInside', 'meshClash'],
+    id: 'rests',
+    ask: 'Does every object rest on something, with nothing floating in the air and nothing sunk into a part or another object?',
+    covers: ['propFloating', 'propInside'],
+  },
+  {
+    id: 'pose',
+    ask: 'Is everything at a believable scale and sitting the way a real object would (not on its side, upside down, balanced on a point, or overhanging an edge)?',
+    covers: [],
   },
   {
     id: 'workZone',
@@ -39,6 +46,14 @@ export function sheetFor(name, dir, { views = Object.keys(VIEWS), exists = exist
   }
   const missing = views.filter((v) => !paths[v]);
   return { name, views: paths, missing, complete: !missing.length };
+}
+
+// Build names from still file names: <name>-back.png and <name>-top.png are views of
+// <name> only when <name>.png is there too, so a build named "...-back" keeps its name.
+export function buildNames(files) {
+  const stems = new Set(files.filter((f) => f.endsWith('.png')).map((f) => f.slice(0, -4)));
+  const view = (s) => Object.values(VIEWS).some((suf) => suf && s.endsWith(suf) && stems.has(s.slice(0, -suf.length)));
+  return [...stems].filter((s) => !view(s)).sort();
 }
 
 // "yes", "No.", "**yes** - because" -> 'yes' | 'no'; anything else is null.
@@ -62,13 +77,16 @@ export async function critique(sheet, judge, { questions = QUESTIONS } = {}) {
 }
 
 // The verdict. A failing predicate fails the build whatever the critic says; a
-// critic no on a question a passing predicate covers is overruled; any other no
-// is a "review" (a person looks), never a fail.
+// critic no on a question whose covering predicates all ran and passed is
+// overruled; any other no is a "review" (a person looks), never a fail.
 export function combine(critic, predicates = [], { questions = QUESTIONS } = {}) {
   const failed = predicates.filter((p) => !p.ok).map((p) => p.id);
   const passed = new Set(predicates.filter((p) => p.ok).map((p) => p.id));
   const noes = Object.entries(critic?.answers ?? {}).filter(([, a]) => a.answer === 'no').map(([id]) => id);
-  const covered = (id) => (questions.find((q) => q.id === id)?.covers ?? []).some((c) => passed.has(c));
+  const covered = (id) => {
+    const covers = questions.find((q) => q.id === id)?.covers ?? [];
+    return covers.length > 0 && covers.every((c) => passed.has(c));
+  };
   const overruled = noes.filter(covered);
   const flags = noes.filter((id) => !covered(id));
   const unanswered = Object.entries(critic?.answers ?? {}).filter(([, a]) => a.answer == null).map(([id]) => id);
@@ -122,7 +140,8 @@ function expandNames(text) {
 
 // Which questions an owner's fix note implicates; gate failures belong to the predicates, not the critic.
 const IMPLICATES = [
-  { id: 'plausible', note: /on its side|upside down|standing (straight )?up|by itself|float|overhang|on (the )?floor/i, chips: ['wrong_end'] },
+  { id: 'rests', note: /float|sunk|inside/i, chips: [] },
+  { id: 'pose', note: /on its side|upside down|standing (straight )?up|by itself|overhang|on (the )?floor/i, chips: ['wrong_end'] },
   { id: 'purpose', note: /not enough props|underdressed|empty|no (magazines|shoes)|plant it out|generic|raise the height/i, chips: ['legal_but_generic', 'invisible_in_bin', 'taste_only'] },
   { id: 'workZone', note: /work zone|in the way|blocks|reach/i, chips: [] },
 ];
@@ -132,6 +151,9 @@ export function implicated(v) {
 
 // How the critic lines up with the owner: a flag (any no, overruled or not) against
 // fix or drop, per build and per question. Builds the owner did not judge are left out.
+// A round that lists no keeps (round 1) measures recall only: agreement is null there,
+// since a critic that says no to everything would score 100%. The verdicts must be on
+// the same stills the critic sees: a build fixed after the review is a different build.
 export function calibrate(results, verdicts) {
   const m = { n: 0, agree: 0, fixFlagged: 0, fixMissed: 0, keepFlagged: 0, keepPassed: 0, incomplete: 0 };
   const perQuestion = Object.fromEntries(QUESTIONS.map((q) => [q.id, { implicated: 0, caught: 0, noOnKeep: 0 }]));
@@ -159,7 +181,9 @@ export function calibrate(results, verdicts) {
     }
     if (!bad) for (const id of noes) perQuestion[id].noOnKeep++;
   }
-  return { ...m, agreement: m.n ? m.agree / m.n : null, perQuestion, disagreements };
+  const recallOnly = ![...verdicts.values()].some((v) => v.verdict === 'keep');
+  const bad = m.fixFlagged + m.fixMissed;
+  return { ...m, recallOnly, agreement: m.n && !recallOnly ? m.agree / m.n : null, recall: bad ? m.fixFlagged / bad : null, perQuestion, disagreements };
 }
 
 // A judge on a Claude vision model: the sheet's images and one question, answered

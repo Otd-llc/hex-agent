@@ -137,7 +137,7 @@ export function contractMatches(vendored, served) {
 }
 
 async function defaultFetch(url) {
-  const r = await fetch(url);
+  const r = await fetch(url, { signal: AbortSignal.timeout(15_000) });
   if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
   return r.text();
 }

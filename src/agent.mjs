@@ -88,6 +88,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
   const { acceptance, abstain, rolegraph } = { ...DEFAULT_FEATURES, ...features };
   const instructions = INSTRUCTIONS + (acceptance ? ACCEPTANCE : '') + (abstain ? ABSTAIN : '') + (rolegraph ? ROLEGRAPH : '') + STRATEGIES[strategy];
   const specs = toolSpecsFor({ acceptance, abstain, rolegraph });
+  const offered = new Set(specs.map((t) => t.name));
   let pushbacks = 0;
   const maxTurns = budget.maxTurns ?? 30;
   const maxMs = budget.maxMs ?? 10 * 60_000;
@@ -156,6 +157,9 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
         }
       } else if (only && !only.includes(call.name)) {
         result = { error: `only ${only.join(', ')} can be called now` };
+      } else if (!offered.has(call.name)) {
+        // A tool this session does not offer (plan_build with rolegraph off) is not run.
+        result = { error: `unknown tool ${call.name}` };
       } else {
         result = await tools.run(call.name, call.arguments);
       }

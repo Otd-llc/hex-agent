@@ -218,8 +218,42 @@ test('plan_build: binds through find_sockets, keeps work_clear empty, tags roles
   assert.equal(r.ok, true, JSON.stringify(r));
   assert.deepEqual(r.roles.base.sort(), ['piece:0,-1', 'piece:1,-1']);
   assert.deepEqual(t.roles(), { 'piece:0,-1': 'R1', 'piece:1,-1': 'R1' });
-  const bad = await t.run('plan_build', { plan: { roles: [] } });
+  assert.match((await t.run('plan_build', { plan })).error, /last plan still has 2 objects/);
+  const bad = await createTools(socketHex()).run('plan_build', { plan: { roles: [] } });
   assert.equal(bad.ok, false);
   assert.match(bad.note, /Nothing was placed/);
   assert.match((await createTools(socketHex()).run('plan_build', { rebind: 'base' })).error, /needs a plan placed/);
+});
+
+test('review fixes: bad shapes are errors, cell-less offers do not bind near work_clear, prop zones hold, tool errors are retried', async () => {
+  assert.ok(checkPlan({ site: null, zones: null, roles: [{ id: 'a', need: 'piece' }] }).some((e) => /need names a family/.test(e)));
+  assert.ok(checkPlan({ zones: [{ id: 'z', kind: 'store', cells: 'all' }], roles: [{ id: 'a', need: { family: 'piece' }, relations: 'x' }] }).length >= 2);
+  // A spike-like offer with no cell: refused under work_clear, said why.
+  const spikes = { sockets: async () => [{ key: 'k', cell: null, use: { op: 'addSpike' } }], surfaces: async () => [], apply: async () => [{ ok: true, added: ['spike:1'] }] };
+  const r = await runPlan({ site: SITE, zones: [{ id: 'w', kind: 'work_clear', side: 'user' }], roles: [{ id: 's', need: { family: 'spike' } }] }, spikes);
+  assert.match(r.short[0].why, /name no cell/);
+  // A prop role with a zone goes only on a host in that zone.
+  const w = world();
+  const plan = desk();
+  plan.zones.push({ id: 'shelf', kind: 'display', cells: [{ q: 9, r: 9 }] });
+  plan.roles[2].zone = 'shelf';
+  const res = await runPlan(plan, w.lookup);
+  assert.deepEqual(res.short.find((s) => s.role === 'pens')?.placed, 0);
+  // A tool error does not rule the offer out: the next try takes it.
+  let n = 0;
+  const flaky = { ...world().lookup };
+  const real = flaky.apply;
+  flaky.apply = async (items) => (n++ === 0 ? [{ ok: false, code: 'TOOL_ERROR' }] : real(items));
+  const ok = await runPlan({ roles: [{ id: 'b', need: { family: 'piece' } }] }, flaky);
+  assert.equal(ok.ok, true);
+  assert.equal(ok.log[0].key, ok.log[1].key);
+});
+
+test('rebind: a removal that half fails keeps only what is still on the page', async () => {
+  const w = world();
+  const res = await runPlan(desk(), w.lookup);
+  const pens = res.bindings.pens[0].refs[0];
+  const failing = { ...w.lookup, apply: async () => [{ ok: false, code: 'NO_SUCH_REF' }] };
+  await assert.rejects(rebind(res, 'pens', failing), /0 of 1 came off/);
+  assert.deepEqual(res.state.placed.get('pens')[0].refs, [pens]);
 });

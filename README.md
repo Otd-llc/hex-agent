@@ -115,12 +115,13 @@ updates the vendored copy.
 `node bin/critic.mjs --dir=<stills>` lists which builds have a full still
 sheet (`<name>.png`, `<name>-back.png`, `<name>-top.png`) and which the owner
 judged in the premades review rounds. With `--judge=claude-haiku-5-5` it asks
-three yes/no questions of each sheet (can you tell its purpose in two
-seconds; is everything at a believable scale and resting; is the work zone
-clear) and calibrates the answers against the owner's verdicts. It never
-outvotes a numeric check: a passing floating-prop or collision check
-overrules a "no" on the same question, and any other "no" asks a person to
-look rather than failing the build.
+four yes/no questions of each sheet: can you tell its purpose in two
+seconds; does everything rest on something; is everything at a believable
+scale and the right way up; is the work zone clear. It then calibrates the
+answers against the owner's verdicts. It never outvotes a numeric check. A
+"no" is overruled only when every check that measures the same thing ran
+and passed (the floating-prop and overlap checks, for "rests"). Any other
+"no" asks a person to look rather than failing the build.
 
 ## Replaying a recorded run
 

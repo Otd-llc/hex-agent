@@ -30,8 +30,10 @@
   the contract yet, so the role-graph planner's zones are worked out by
   hand from cells; it will use the configurator's answers once the contract
   carries them.
-- The configurator does not serve its contract file: the smoke check reads
-  the stamp on the published docs, which the deploy keeps in step.
+- The configurator does not serve its contract file. On the live site, the
+  smoke check reads the stamp on the published docs, so it could pass while
+  the docs and the configurator disagree. For a deploy smoke, set
+  `HEX_CONTRACT` to the deployed build's own `hex-api-public.json`.
 
 ## Of this build
 - **The Meta Model API has not been called yet.** Every Muse result so far
@@ -44,5 +46,8 @@
   and stays off unless it wins. The offline critic (A56) has a framework and
   tests, but has not been calibrated against the owner's verdicts. The
   premades stills have two views, and the full sheet needs a top view.
+  Calibration needs the stills each review round actually judged: a build
+  fixed after review is a different build. Round 1 lists only its fixes and
+  drops, so it measures recall only.
 - One visible Chrome window per run; no web UI beyond it and the printed log.
 - Pricing constants were copied from the providers' pages on 2026-10-27.

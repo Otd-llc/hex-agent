@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { sheetFor, parseAnswer, critique, combine, ownerVerdicts, implicated, calibrate, claudeJudge, QUESTIONS } from '../src/critic.mjs';
+import { buildNames, sheetFor, parseAnswer, critique, combine, ownerVerdicts, implicated, calibrate, claudeJudge, QUESTIONS } from '../src/critic.mjs';
 
 const on = (files) => (p) => files.some((f) => p.endsWith(f));
 
@@ -28,7 +28,7 @@ test('critique asks every question with every view, and skips an incomplete shee
   const r = await critique(sheet, judge);
   assert.equal(asked.length, QUESTIONS.length);
   assert.ok(asked.every(([, n]) => n === 3));
-  assert.deepEqual(Object.fromEntries(Object.entries(r.answers).map(([k, a]) => [k, a.answer])), { purpose: 'yes', plausible: 'no', workZone: 'yes' });
+  assert.deepEqual(Object.fromEntries(Object.entries(r.answers).map(([k, a]) => [k, a.answer])), { purpose: 'yes', rests: 'no', pose: 'yes', workZone: 'yes' });
   const none = await critique(sheetFor('desk', 'D', { exists: on(['desk.png']) }), judge);
   assert.equal(none.complete, false);
   assert.equal(asked.length, QUESTIONS.length, 'not judged');
@@ -39,25 +39,34 @@ test('critique asks every question with every view, and skips an incomplete shee
 const crit = (answers, complete = true) => ({ complete, missing: complete ? [] : ['top'], answers: Object.fromEntries(Object.entries(answers).map(([k, a]) => [k, { answer: a }])) });
 
 test('combine: a failing predicate fails whatever the critic says', () => {
-  const r = combine(crit({ purpose: 'yes', plausible: 'yes', workZone: 'yes' }), [{ id: 'meshClash', ok: false }]);
+  const r = combine(crit({ purpose: 'yes', rests: 'yes', pose: 'yes', workZone: 'yes' }), [{ id: 'meshClash', ok: false }]);
   assert.equal(r.verdict, 'fail');
   assert.deepEqual(r.failed, ['meshClash']);
 });
 
 test('combine: the critic never outvotes a passing predicate on the same thing', () => {
-  const r = combine(crit({ purpose: 'yes', plausible: 'no', workZone: 'yes' }), [{ id: 'propFloating', ok: true }]);
+  const both = [{ id: 'propFloating', ok: true }, { id: 'propInside', ok: true }];
+  const r = combine(crit({ purpose: 'yes', rests: 'no', pose: 'yes', workZone: 'yes' }), both);
   assert.equal(r.verdict, 'pass');
-  assert.deepEqual(r.overruled, ['plausible']);
-  // With no predicate on it, the same no is a review, never a fail.
-  const alone = combine(crit({ purpose: 'yes', plausible: 'no', workZone: 'yes' }), []);
-  assert.equal(alone.verdict, 'review');
-  assert.deepEqual(alone.flags, ['plausible']);
-  assert.equal(combine(crit({ purpose: 'no', plausible: 'yes', workZone: 'yes' }), [{ id: 'propFloating', ok: true }]).verdict, 'review');
+  assert.deepEqual(r.overruled, ['rests']);
+  // Only part of what the question asks was measured: a person looks.
+  const half = combine(crit({ purpose: 'yes', rests: 'no', pose: 'yes', workZone: 'yes' }), [{ id: 'propFloating', ok: true }, { id: 'meshClash', ok: true }]);
+  assert.equal(half.verdict, 'review');
+  assert.deepEqual(half.flags, ['rests']);
+  // No predicate measures pose: its no is a review, never a fail, and no passing check overrules it.
+  const pose = combine(crit({ purpose: 'yes', rests: 'yes', pose: 'no', workZone: 'yes' }), [...both, { id: 'meshClash', ok: true }]);
+  assert.equal(pose.verdict, 'review');
+  assert.deepEqual(pose.flags, ['pose']);
+  assert.equal(combine(crit({ purpose: 'no', rests: 'yes', pose: 'yes', workZone: 'yes' }), both).verdict, 'review');
+});
+
+test('buildNames: a view suffix is a view only beside its build', () => {
+  assert.deepEqual(buildNames(['desk.png', 'desk-back.png', 'desk-top.png', 'bench-back.png', 'bench-back-back.png', 'notes.txt']), ['bench-back', 'desk']);
 });
 
 test('combine: all yes and all predicates passing is a pass; unanswered or incomplete is a review', () => {
-  assert.equal(combine(crit({ purpose: 'yes', plausible: 'yes', workZone: 'yes' }), [{ id: 'meshClash', ok: true }]).verdict, 'pass');
-  assert.deepEqual(combine(crit({ purpose: null, plausible: 'yes', workZone: 'yes' })).unanswered, ['purpose']);
+  assert.equal(combine(crit({ purpose: 'yes', rests: 'yes', pose: 'yes', workZone: 'yes' }), [{ id: 'meshClash', ok: true }]).verdict, 'pass');
+  assert.deepEqual(combine(crit({ purpose: null, rests: 'yes', pose: 'yes', workZone: 'yes' })).unanswered, ['purpose']);
   assert.equal(combine(crit({}, false)).verdict, 'review');
 });
 
@@ -92,10 +101,10 @@ test('ownerVerdicts reads round 1 markdown, shorthand included, and round 2 pick
 });
 
 test('implicated maps an owner note or chip to the question it is about', () => {
-  assert.deepEqual(implicated({ note: 'Coffee cup is on its side.' }), ['plausible']);
+  assert.deepEqual(implicated({ note: 'Coffee cup is on its side.' }), ['pose']);
   assert.deepEqual(implicated({ note: 'Not enough props. Fill the bins with appropriate props.' }), ['purpose']);
   assert.deepEqual(implicated({ note: null, chips: ['gate_failure'] }), []);
-  assert.deepEqual(implicated({ note: 'Screwdriver is upside down and standing up.', chips: ['invisible_in_bin'] }), ['plausible', 'purpose']);
+  assert.deepEqual(implicated({ note: 'Screwdriver is upside down and standing up.', chips: ['invisible_in_bin'] }), ['pose', 'purpose']);
 });
 
 test('calibrate counts agreement with the owner, per build and per question', () => {
@@ -107,19 +116,30 @@ test('calibrate counts agreement with the owner, per build and per question', ()
   ]);
   const res = (name, answers, complete = true) => ({ name, ...crit(answers, complete) });
   const c = calibrate([
-    res('a', { purpose: 'yes', plausible: 'no', workZone: 'yes' }),
-    res('b', { purpose: 'yes', plausible: 'yes', workZone: 'yes' }),
-    res('c', { purpose: 'yes', plausible: 'yes', workZone: 'yes' }),
-    res('d', { purpose: 'no', plausible: 'yes', workZone: 'yes' }),
+    res('a', { purpose: 'yes', rests: 'yes', pose: 'no', workZone: 'yes' }),
+    res('b', { purpose: 'yes', rests: 'yes', pose: 'yes', workZone: 'yes' }),
+    res('c', { purpose: 'yes', rests: 'yes', pose: 'yes', workZone: 'yes' }),
+    res('d', { purpose: 'no', rests: 'yes', pose: 'yes', workZone: 'yes' }),
     res('e', { purpose: 'no' }),
     res('a2', {}, false),
   ], verdicts);
   assert.equal(c.n, 4);
   assert.equal(c.agreement, 0.5);
   assert.deepEqual([c.fixFlagged, c.fixMissed, c.keepFlagged, c.keepPassed], [1, 1, 1, 1]);
-  assert.deepEqual(c.perQuestion.plausible, { implicated: 1, caught: 1, noOnKeep: 0 });
+  assert.deepEqual(c.perQuestion.pose, { implicated: 1, caught: 1, noOnKeep: 0 });
   assert.deepEqual(c.perQuestion.purpose, { implicated: 1, caught: 0, noOnKeep: 1 });
+  assert.equal(c.recallOnly, false);
+  assert.equal(c.recall, 0.5);
   assert.deepEqual(c.disagreements.map((d) => d.name), ['c', 'd']);
+});
+
+test('calibrate: a round that lists no keeps gives recall, never agreement', () => {
+  const verdicts = new Map([['a', { verdict: 'fix', note: 'x' }], ['b', { verdict: 'drop', note: 'y' }]]);
+  const allNo = ['a', 'b'].map((name) => ({ name, ...crit({ purpose: 'no', rests: 'no', pose: 'no', workZone: 'no' }) }));
+  const c = calibrate(allNo, verdicts);
+  assert.equal(c.recallOnly, true);
+  assert.equal(c.agreement, null);
+  assert.equal(c.recall, 1);
 });
 
 test('claudeJudge sends every view as an image and parses the answer', async () => {

@@ -516,7 +516,8 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
 
   const handlers = {
     async plan_build({ plan, rebind: roleId, reason } = {}) {
-      const lookup = planLookup(run);
+      // Lookups see every offer (ranked and filtered in code); changes go through apply and its checks.
+      const lookup = planLookup((name, args) => (name === 'apply' ? run(name, args) : handlers[name](args, { all: true }).catch((e) => ({ error: String(e.message ?? e) }))));
       if (roleId) {
         if (!lastPlan?.state) throw new Error('rebind needs a plan placed by plan_build first');
         lastPlan = await rebind(lastPlan, roleId, lookup, { reason });
@@ -525,6 +526,12 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
         const ids = new Set((requirements ?? []).map((r) => r.id));
         const stray = acceptance ? (plan?.roles ?? []).filter((r) => r.serves != null && !ids.has(r.serves)) : [];
         if (stray.length) throw new Error(`serves must be a requirement id (${[...ids].join(', ')}): ${stray.map((r) => r.id).join(', ')}`);
+        // A new plan over a placed one would stack on its objects and lose the way to rebind them.
+        if (lastPlan?.state) {
+          const live = liveSet(await hex.call('getState'));
+          const still = [...lastPlan.state.placed.values()].flat().flatMap((b) => b.refs).filter((r) => live.has(r));
+          if (still.length) throw new Error(`the last plan still has ${still.length} objects on the build: rebind its roles, or take them off (undo or remove) before a new plan`);
+        }
         lastPlan = await runPlan(plan, lookup, { families: FAMILIES });
       }
       return planSummary(lastPlan);
@@ -621,7 +628,8 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       };
     },
 
-    async find_surfaces({ ref, fits } = {}) {
+    // all: every surface, not the first LIMITS.surfacesShown (the planner's path, never the model's).
+    async find_surfaces({ ref, fits } = {}, { all: every = false } = {}) {
       const all = await hex.call('surfaces', ...(fits ? [ref, { fits }] : ref ? [ref] : []));
       const size = (o) => {
         const xs = o.map((p) => p[0]), zs = o.map((p) => p[1]);
@@ -629,7 +637,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       };
       const out = {
         total: all.length,
-        surfaces: all.slice(0, LIMITS.surfacesShown).map((f) => {
+        surfaces: (every ? all : all.slice(0, LIMITS.surfacesShown)).map((f) => {
           const token = tokenFor(f.id);
           return {
             surface: token, label: f.label, kind: f.kind, yMm: mm(f.yMm), centreMm: [mm(f.centreMm.x), mm(f.centreMm.z)],
@@ -687,12 +695,12 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       };
     },
 
-    async find_sockets(query) {
+    async find_sockets(query, { all = false } = {}) {
       const offers = await hex.call('openSockets', query);
       const out = {
         total: offers.length,
         // The op already names the cell and the face, bearing or slot: no need to repeat them (A59).
-        sockets: offers.slice(0, LIMITS.socketsShown).map((o) => ({ socket: remember(o.op), op: o.op })),
+        sockets: (all ? offers : offers.slice(0, LIMITS.socketsShown)).map((o) => ({ socket: remember(o.op), op: o.op })),
       };
       if (!offers.length) out.note = NO_OFFERS;
       return out;

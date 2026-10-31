@@ -7,7 +7,7 @@
 // Owner verdicts: --round1 (markdown) and --round2 (picks JSON), defaulting to C:/zzz/_premades.
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { sheetFor, critique, ownerVerdicts, calibrate, claudeJudge, VIEWS } from '../src/critic.mjs';
+import { sheetFor, critique, ownerVerdicts, calibrate, claudeJudge, buildNames, VIEWS } from '../src/critic.mjs';
 import { ROOT, openLedger } from '../src/ledger.mjs';
 
 const args = process.argv.slice(2);
@@ -28,7 +28,8 @@ const views = String(flag('views', Object.keys(VIEWS).join(','))).split(',');
 const report = (results) => {
   for (const [round, verdicts] of Object.entries(owner)) {
     const c = calibrate(results, verdicts);
-    console.log(`${round}: ${c.n} judged builds, agreement ${c.agreement == null ? '-' : (c.agreement * 100).toFixed(0) + '%'}, ` +
+    const pct = (x) => (x == null ? '-' : (x * 100).toFixed(0) + '%');
+    console.log(`${round}: ${c.n} judged builds, ${c.recallOnly ? 'recall only (no keeps listed)' : `agreement ${pct(c.agreement)}`}, recall ${pct(c.recall)}, ` +
       `fix flagged ${c.fixFlagged} / missed ${c.fixMissed}, keep flagged ${c.keepFlagged} / passed ${c.keepPassed}, incomplete ${c.incomplete}`);
     for (const [q, p] of Object.entries(c.perQuestion)) console.log(`  ${q}: owner notes ${p.implicated}, caught ${p.caught}, no on a keep ${p.noOnKeep}`);
   }
@@ -46,7 +47,7 @@ if (!dir) {
   process.exit(2);
 }
 const only = flag('only', null)?.split(',');
-const names = [...new Set(readdirSync(dir).filter((f) => f.endsWith('.png')).map((f) => f.replace(/(-back|-top)?\.png$/, '')))]
+const names = buildNames(readdirSync(dir))
   .filter((n) => !only || only.includes(n))
   .sort();
 const sheets = names.map((n) => sheetFor(n, dir, { views }));
@@ -67,34 +68,51 @@ if (!String(judgeModel).startsWith('claude-')) {
 }
 const { default: Anthropic } = await import('@anthropic-ai/sdk');
 const { loadEnv } = await import('../src/env.mjs');
-const { claudeCostUsd } = await import('../src/claude.mjs');
+const { claudeCostUsd, CLAUDE_PRICES } = await import('../src/claude.mjs');
+// An unpriced model would ledger at $0 and never trip a cap.
+if (!CLAUDE_PRICES[judgeModel]) {
+  console.error(`no price for ${judgeModel}: add it to CLAUDE_PRICES first`);
+  process.exit(2);
+}
 loadEnv();
 const credit = Number(process.env.CLAUDE_CREDIT_USD ?? 100);
 const ledger = openLedger({ path: '.spend/anthropic.jsonl', creditUsd: credit, reserveUsd: 0, caps: { dev: credit, eval: credit } });
 const maxUsd = Number(flag('max-usd', 2));
 let spent = 0;
-const judge = claudeJudge({
+const over = () => spent >= maxUsd || ledger.headroom('eval') <= 0;
+const ask = claudeJudge({
   client: new Anthropic(),
   model: judgeModel,
-  onUsage: (u) => {
-    const usage = { inputTokens: u.input_tokens, outputTokens: u.output_tokens, cachedInputTokens: u.cache_read_input_tokens ?? 0, cacheWriteTokens: u.cache_creation_input_tokens ?? 0 };
-    const costUsd = claudeCostUsd(judgeModel, usage) ?? 0;
+  onUsage: (u = {}) => {
+    // As src/claude.mjs: input_tokens excludes the cache, so add it back before pricing.
+    const read = u.cache_read_input_tokens ?? 0, write = u.cache_creation_input_tokens ?? 0;
+    const usage = { inputTokens: (u.input_tokens ?? 0) + read + write, outputTokens: u.output_tokens ?? 0, cachedInputTokens: read, cacheWriteTokens: write };
+    const costUsd = claudeCostUsd(judgeModel, usage);
     spent += costUsd;
     ledger.add({ purpose: 'eval', model: judgeModel, provider: 'anthropic', what: 'critic', costUsd, usage });
   },
 });
+// The cap is checked before every question, not every sheet (three calls each).
+const judge = async (q) => {
+  if (over()) throw Object.assign(new Error('budget'), { budget: true });
+  return ask(q);
+};
 const results = [];
-for (const s of complete) {
-  if (spent >= maxUsd || ledger.headroom('eval') <= 0) {
-    console.log(`stopping: $${spent.toFixed(2)} spent of --max-usd=${maxUsd}`);
-    break;
+let stopped = null;
+try {
+  for (const s of complete) {
+    const r = await critique(s, judge);
+    results.push(r);
+    console.log(`${s.name}: ${Object.entries(r.answers).map(([q, a]) => `${q} ${a.answer ?? '?'}`).join(', ')}`);
   }
-  const r = await critique(s, judge);
-  results.push(r);
-  console.log(`${s.name}: ${Object.entries(r.answers).map(([q, a]) => `${q} ${a.answer ?? '?'}`).join(', ')}`);
+} catch (e) {
+  stopped = e.budget ? `budget: $${spent.toFixed(2)} of --max-usd=${maxUsd}` : String(e.message ?? e);
+  console.log(`stopping: ${stopped}`);
+} finally {
+  // Whatever was answered is kept: the spend is in the ledger already.
+  mkdirSync(join(ROOT, 'runs'), { recursive: true });
+  const out = join(ROOT, 'runs', `critic-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
+  writeFileSync(out, JSON.stringify({ dir, views, model: judgeModel, spentUsd: spent, stopped, results }, null, 2) + '\n');
+  console.log(`wrote ${out}`);
 }
-mkdirSync(join(ROOT, 'runs'), { recursive: true });
-const out = join(ROOT, 'runs', `critic-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
-writeFileSync(out, JSON.stringify({ dir, views, model: judgeModel, spentUsd: spent, results }, null, 2) + '\n');
-console.log(`wrote ${out}`);
 report(results);

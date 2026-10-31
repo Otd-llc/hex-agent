@@ -19,8 +19,11 @@ export const LIMITS = { roles: 16, count: 12, triesPerObject: 4 };
 // Problems with a plan, as messages; empty when it can be bound.
 export function checkPlan(plan, { families = null } = {}) {
   const errs = [];
-  if (!plan || typeof plan !== 'object') return ['plan must be an object'];
-  const { site = {}, zones = [], roles } = plan;
+  if (!isObj(plan)) return ['plan must be an object'];
+  const site = plan.site ?? {}, zones = plan.zones ?? [], roles = plan.roles;
+  if (!isObj(site)) return ['site must be an object'];
+  if (!Array.isArray(zones)) return ['zones must be a list'];
+  if (site.anchor != null && !isCell(site.anchor)) errs.push('site.anchor must be a cell {q, r}');
   for (const k of ['userSide', 'wallSide']) {
     if (site[k] != null && !isSide(site[k])) errs.push(`site.${k} must be an axial neighbour step such as {"q":0,"r":1}`);
   }
@@ -31,6 +34,8 @@ export function checkPlan(plan, { families = null } = {}) {
     if (!ZONE_KINDS.includes(z?.kind)) errs.push(`zone ${z?.id}: kind must be one of ${ZONE_KINDS.join(', ')}`);
     const by = ['cells', 'side'].filter((k) => z?.[k] != null);
     if (by.length !== 1) errs.push(`zone ${z?.id}: give cells or side, one of them`);
+    if (z?.cells != null && !(Array.isArray(z.cells) && z.cells.every(isCell))) errs.push(`zone ${z.id}: cells must be a list of {q, r}`);
+    if (z?.depth != null && !(typeof z.depth === 'number' && z.depth > 0)) errs.push(`zone ${z.id}: depth must be a positive number`);
     if (z?.side != null && !['user', 'wall'].includes(z.side)) errs.push(`zone ${z.id}: side is user or wall`);
     if (z?.side != null && !site[`${z.side}Side`]) errs.push(`zone ${z.id}: side ${z.side} needs site.${z.side}Side`);
   }
@@ -39,7 +44,11 @@ export function checkPlan(plan, { families = null } = {}) {
   for (const r of roles) {
     const at = `role ${r?.id}`;
     if (!r?.id || seen.has(r.id)) errs.push(`role ids must be present and unique (${r?.id})`);
-    const need = r?.need ?? {};
+    if (!isObj(r)) {
+      errs.push('each role must be an object');
+      continue;
+    }
+    const need = isObj(r.need) ? r.need : {};
     const isProp = 'prop' in need, isPart = 'family' in need;
     if (isProp === isPart) errs.push(`${at}: need names a family (a part) or a prop, one of them`);
     if (isPart && families && !families.includes(need.family)) errs.push(`${at}: family ${need.family} is not placeable: ${families.join(', ')}`);
@@ -50,7 +59,8 @@ export function checkPlan(plan, { families = null } = {}) {
       else if (zones.find((z) => z.id === r.zone).kind === 'work_clear') errs.push(`${at}: work_clear is a void, nothing binds in it`);
     }
     const allowed = isProp ? PROP_RELATIONS : PART_RELATIONS;
-    for (const rel of r?.relations ?? []) {
+    if (r.relations != null && !Array.isArray(r.relations)) errs.push(`${at}: relations must be a list`);
+    for (const rel of Array.isArray(r.relations) ? r.relations : []) {
       if (!allowed.includes(rel?.rel)) errs.push(`${at}: relation ${rel?.rel} is not one of ${allowed.join(', ')}`);
       else if (!seen.has(rel.of)) errs.push(`${at}: ${rel.rel} ${rel.of} must name a role listed before it`);
       else if (seen.get(rel.of).isProp) errs.push(`${at}: ${rel.rel} ${rel.of} names a prop; relate to a part role`);
@@ -61,6 +71,8 @@ export function checkPlan(plan, { families = null } = {}) {
   return errs;
 }
 
+const isObj = (x) => x != null && typeof x === 'object' && !Array.isArray(x);
+const isCell = (c) => isObj(c) && Number.isInteger(c.q) && Number.isInteger(c.r);
 const isSide = (s) => SIDES.some(([q, r]) => s?.q === q && s?.r === r);
 const cube = (c) => [c.q, c.r, -c.q - c.r];
 const dist = (a, b) => {
@@ -85,7 +97,9 @@ export function inZone(cell, zone, site = {}) {
 function partRank(cand, role, plan, placed) {
   const zones = plan.zones ?? [];
   const cell = cand.cell;
-  if (cell && zones.some((z) => z.kind === 'work_clear' && inZone(cell, z, plan.site))) return null;
+  // An offer with no cell (a spike, connector or run names a junction or edge) cannot be
+  // shown to keep out of work_clear, nor to sit in a zone or on a role: it does not bind.
+  if (zones.some((z) => z.kind === 'work_clear' && (!cell || inZone(cell, z, plan.site)))) return null;
   if (role.zone && !inZone(cell, zones.find((z) => z.id === role.zone), plan.site)) return null;
   for (const rel of role.relations ?? []) {
     const under = (placed.get(rel.of) ?? []).map((b) => b.cell).filter(Boolean);
@@ -102,10 +116,13 @@ function partRank(cand, role, plan, placed) {
 }
 
 // A prop role's surfaces: those of the parts its relations name, 'in' preferring floors and compartments.
-async function propCandidates(role, lookup, placed) {
+async function propCandidates(role, lookup, placed, plan) {
   const out = [];
+  const zone = role.zone ? plan.zones.find((z) => z.id === role.zone) : null;
   for (const rel of role.relations) {
     for (const b of placed.get(rel.of) ?? []) {
+      // A prop in a zone goes only on a part standing in it.
+      if (zone && !inZone(b.cell, zone, plan.site)) continue;
       for (const ref of b.refs) {
         const surfaces = await lookup.surfaces({ ref, prop: role.need.prop });
         for (const s of surfaces) {
@@ -143,23 +160,27 @@ async function bindRole(state, role, lookup, want) {
   while (have.length < want && tries < want * LIMITS.triesPerObject) {
     tries++;
     // Fresh offers each time: the last placement may have used or opened sockets.
+    const offers = isProp ? null : await lookup.sockets(role.need);
     const cands = isProp
-      ? await propCandidates(role, lookup, placed)
-      : (await lookup.sockets(role.need))
+      ? await propCandidates(role, lookup, placed, plan)
+      : offers
           .map((c) => ({ ...c, rank: partRank(c, role, plan, placed) }))
           .filter((c) => c.rank != null)
           .sort((a, b) => a.rank - b.rank);
     const cand = cands.find((c) => !bad.has(c.key) && !have.some((h) => h.key === c.key));
     if (!cand) {
       state.short = state.short.filter((s) => s.role !== role.id);
-      state.short.push({ role: role.id, placed: have.length, want, why: cands.length ? 'every offer was refused' : 'no offer fits the role' });
+      const cellless = offers?.length && offers.every((o) => !o.cell);
+      const why = cands.length ? 'every offer was refused' : cellless ? 'its offers name no cell, so zones and relations cannot place them: use apply' : 'no offer fits the role';
+      state.short.push({ role: role.id, placed: have.length, want, why });
       return;
     }
     const item = itemFor(role, cand);
     const [o] = await lookup.apply([item]);
     log.push({ role: role.id, key: cand.key, item, ok: !!o?.ok, ...(o?.ok ? {} : { code: o?.code ?? 'ERROR' }) });
     if (o?.ok) have.push({ key: cand.key, cell: cand.cell ?? null, refs: o.added ?? [] });
-    else bad.add(cand.key);
+    // A refusal rules the offer out for this role; a tool error does not (the next try asks again).
+    else if (o?.code !== 'TOOL_ERROR') bad.add(cand.key);
   }
   state.short = state.short.filter((s) => s.role !== role.id);
   if (have.length < want) state.short.push({ role: role.id, placed: have.length, want, why: 'out of tries' });
@@ -183,7 +204,19 @@ export async function rebind(result, roleId, lookup, { remove = removeOps, reaso
   const refs = old.flatMap((b) => b.refs);
   if (refs.length) {
     const outs = await lookup.apply(remove(refs, isProp));
-    if (outs.some((o) => !o.ok)) throw new Error(`could not take ${roleId} off: ${outs.find((o) => !o.ok).code}`);
+    if (outs.some((o) => !o?.ok)) {
+      // Some came off (apply is not atomic here): the bindings keep only what is still on the page.
+      const gone = new Set(refs.filter((_, i) => outs[i]?.ok));
+      const left = [];
+      for (const b of old) {
+        const kept = b.refs.filter((r) => !gone.has(r));
+        if (kept.length) left.push({ ...b, refs: kept });
+        else state.excluded.get(roleId).add(b.key);
+      }
+      state.placed.set(roleId, left);
+      state.log.push({ role: roleId, rebind: true, failed: outs.find((o) => !o?.ok)?.code ?? 'ERROR', removed: [...gone] });
+      throw new Error(`could not take ${roleId} off: ${outs.find((o) => !o?.ok)?.code}; ${gone.size} of ${refs.length} came off`);
+    }
   }
   for (const b of old) state.excluded.get(roleId).add(b.key);
   state.placed.set(roleId, []);

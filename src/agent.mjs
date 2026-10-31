@@ -61,12 +61,25 @@ export const STRATEGIES = {
 Working method for this session: plan, then batch. First survey with get_build, find_parts and find_sockets until you can write the whole build as a list of ops. Then apply it in as few apply calls as you can (whole stages at once, atomic). Only when a batch is refused, read the refusal, revise that part of the plan and apply again. Do not place parts one at a time.`,
 };
 
+// Defaults (evals 2026-10-31, EVALUATION.md): abstention won on Haiku and Opus, so on; acceptance tests
+// tied on pass rate at 12-31% more calls, so off until a Muse check says otherwise.
+export const DEFAULT_FEATURES = { acceptance: false, abstain: true };
+
+// Parse --features: a list of names turns exactly those on; 'none' turns all off; absent keeps the defaults.
+export function parseFeatures(arg) {
+  if (arg == null || arg === true || arg === '') return { ...DEFAULT_FEATURES };
+  const on = String(arg).split(',').filter((f) => f && f !== 'none');
+  const unknown = on.filter((f) => !(f in DEFAULT_FEATURES));
+  if (unknown.length) throw new Error(`unknown feature ${unknown.join(', ')}: ${Object.keys(DEFAULT_FEATURES).join(', ')} or none`);
+  return Object.fromEntries(Object.keys(DEFAULT_FEATURES).map((f) => [f, on.includes(f)]));
+}
+
 // Pushbacks on a finish whose own tests disagree with it, before it is taken as it is.
 const PUSHBACKS = 2;
 
 export async function runAgent({ hex, model, brief, budget = {}, ledger = null, purpose = 'dev', runId = null, strategy = 'interactive', features = {}, onEvent = () => {} }) {
   if (!(strategy in STRATEGIES)) throw new Error(`unknown strategy ${strategy}: ${Object.keys(STRATEGIES).join(', ')}`);
-  const { acceptance = false, abstain = false } = features;
+  const { acceptance, abstain } = { ...DEFAULT_FEATURES, ...features };
   const instructions = INSTRUCTIONS + (acceptance ? ACCEPTANCE : '') + (abstain ? ABSTAIN : '') + STRATEGIES[strategy];
   const specs = toolSpecsFor({ acceptance, abstain });
   let pushbacks = 0;

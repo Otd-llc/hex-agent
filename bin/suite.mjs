@@ -9,6 +9,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { loadEnv } from '../src/env.mjs';
 import { modelFor, runSession } from '../src/session.mjs';
 import { overclaimed, outcomeOf } from '../src/checks.mjs';
+import { parseFeatures } from '../src/agent.mjs';
 
 loadEnv();
 const args = process.argv.slice(2);
@@ -23,9 +24,9 @@ const modelId = flag('model', purpose === 'dev' ? 'muse-spark-1.3' : 'muse-wonde
 const repeat = Number(flag('repeat', 1));
 const strategy = flag('strategy', 'interactive');
 const only = flag('only', null)?.split(',');
-// A64 acceptance tests + A63 roles, A58 abstention: --features=acceptance,abstain (none: the default as it was).
-const featureList = String(flag('features', '') || '').split(',').filter(Boolean);
-const features = { acceptance: featureList.includes('acceptance'), abstain: featureList.includes('abstain') };
+// A64 acceptance tests + A63 roles, A58 abstention: --features=acceptance,abstain, or none; absent: the defaults.
+const features = parseFeatures(flag('features', null));
+const featureList = Object.keys(features).filter((f) => features[f]);
 // A brief's start: a build file (tools/catalog/builds/*.json, its state; props are left out) or a state object.
 const startOf = (b) => {
   if (!b.start) return null;

@@ -21,7 +21,12 @@ const flag = (name, dflt) => {
   return v ?? true;
 };
 const purpose = flag('purpose', 'dev');
-const modelId = flag('model', purpose === 'dev' ? 'muse-spark-1.3' : 'muse-wonder-1.0');
+// No default model: a run names its model, so nothing reaches the Meta Model API by omission.
+const modelId = flag('model', null);
+if (typeof modelId !== 'string' || !modelId) {
+  console.error('name the model: --model=<id>');
+  process.exit(2);
+}
 const repeat = Number(flag('repeat', 1));
 const strategy = flag('strategy', 'interactive');
 const only = flag('only', null)?.split(',');
@@ -42,14 +47,23 @@ const briefs = briefFiles.flatMap((f) => JSON.parse(readFileSync(f, 'utf8')).map
 // --max-minutes: no run starts after this long (runs already going finish).
 const maxMinutes = flag('max-minutes', null) == null ? null : Number(flag('max-minutes'));
 
-const { model, ledger } = modelFor({ modelId, purpose, effort: flag('effort', undefined) });
+const concurrency = Math.max(1, Number(flag('concurrency', 1)));
+// The segment spec a Modal Dedicated run is checked against (the ledger's approval for MODAL_SEGMENT).
+const spec = {
+  sets: briefFiles.map((f) => f.replace(/^.*[\\/]/, '').replace(/[.]json$/, '')),
+  only: only ?? null,
+  repeat,
+  concurrency,
+  maxMinutes,
+  effort: flag('effort', 'default'),
+};
+const { model, ledger } = modelFor({ modelId, purpose, effort: flag('effort', undefined), spec });
 const suiteId = `suite-${new Date().toISOString().replace(/[:.]/g, '-')}`;
 const root = `runs/${suiteId}`;
 mkdirSync(root, { recursive: true });
 console.log(`${suiteId}: ${briefs.length} briefs x ${repeat}, ${model.provider}/${publicModelId(model.model)}, ${purpose}, strategy ${strategy}, features ${featureList.join('+') || 'none'}, effort ${model.effort}`);
 
 const rows = [];
-const concurrency = Math.max(1, Number(flag('concurrency', 1)));
 const jobs = briefs.flatMap((b) => Array.from({ length: repeat }, (_, k) => ({ b, attempt: k + 1 })));
 const started = Date.now();
 
@@ -105,7 +119,7 @@ async function runJob({ b, attempt }) {
     row = { id: b.id, attempt, pass: false, error, ...(/^no \w+ budget left/.test(error) ? { budget: 'refused' } : {}) };
   }
   // Stopped part-way by the budget: kept, but not scored as the model's result.
-  if (row.stop && /credit budget/.test(row.stop)) row.budget = 'stopped';
+  if (row.stop && /^(cost budget|\w+ credit budget)$/.test(row.stop)) row.budget = 'stopped';
   row.set = b.set;
   rows.push(row);
   console.log(`${row.pass ? 'PASS' : 'FAIL'} ${row.id}#${row.attempt} ${row.error ?? `parts=${row.parts} refusals=${JSON.stringify(row.refusals)} calls=${row.calls} ${row.seconds}s $${row.costUsd}${row.overclaimed ? ' OVERCLAIMED' : ''}${row.forcedFinish ? ' FORCED-FINISH' : ''}${row.claimed?.some((c) => c !== 'met') ? ` claims=${row.claimed.join('/')}` : ''}${row.outcome && row.outcome !== 'built' ? ` ${row.outcome}` : ''}${row.metButFails?.length ? ` MET-BUT-FAILS=${row.metButFails.length}` : ''}${row.pushbacks ? ` pushbacks=${row.pushbacks}` : ''} ${row.briefChecks.filter((x) => x.startsWith('FAIL')).join(' ')}`}`);
@@ -130,6 +144,22 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
     writeSummary();
     process.exit(130);
   });
+}
+// Started by bin/modal-window.mjs: if that process is gone (killed, closed), stop as on a signal.
+const parentPid = Number(process.env.SUITE_PARENT_PID);
+if (parentPid > 0) {
+  setInterval(() => {
+    try {
+      process.kill(parentPid, 0);
+    } catch {
+      if (!stopping) {
+        stopping = 'parent gone';
+        console.log(`\nthe window process (${parentPid}) is gone: no new runs; writing the summary`);
+        writeSummary();
+        process.exit(130);
+      }
+    }
+  }, 5000).unref();
 }
 await Promise.all(Array.from({ length: Math.min(concurrency, jobs.length) }, async () => {
   while (next < jobs.length && !stopping) {

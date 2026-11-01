@@ -5,14 +5,14 @@ import { randomUUID, createHash } from 'node:crypto';
 import { openHex, dismissCookies, hexUrl } from './bridge.mjs';
 import { CONTRACT } from './contract.mjs';
 import { installOverlay, pushLines, linesFor } from './overlay.mjs';
-import { metaModel } from './model.mjs';
+import { metaModel, PRICES } from './model.mjs';
 import { claudeModel } from './claude.mjs';
 import { basetenModel } from './baseten.mjs';
 import { hostedModel, hostOf, dedicatedHost, publicModelId } from './hosted.mjs';
 import { heldFromEnvFile } from './env.mjs';
 import { agentCommit, vizCommit } from './provenance.mjs';
 import { openLedger } from './ledger.mjs';
-import { openUptimeLedger } from './uptime.mjs';
+import { openUptimeLedger, CREDIT_CEILING_USD, RESERVE_FLOOR_USD } from './uptime.mjs';
 import { runAgent, verify, ownChecks } from './agent.mjs';
 import { checkBrief } from './checks.mjs';
 
@@ -47,7 +47,17 @@ export function dedicatedGate(modelId) {
   dedicatedHost(modelId);
 }
 
-export function modelFor({ modelId, purpose, effort }) {
+// The Meta Model API is kept for the demo and judging: its switch, too, is taken from
+// the command line only, and only the Meta ids this code prices go to it.
+export function metaGate(modelId) {
+  if (heldFromEnvFile.has('META_API_ALLOWED')) throw new Error('META_API_ALLOWED is in .env: remove it; it is set on the command line only, with the owner\'s OK');
+  if (!(modelId in PRICES)) throw new Error(`${modelId} is not a known model id: refused (Muse Spark Open runs: meta-models/... (Baseten), accounts/fireworks/models/muse-spark-open, modal-dedicated:<endpoint host>.modal.run; claude-*; Meta Model API: ${Object.keys(PRICES).join(', ')})`);
+  if (process.env.META_API_ALLOWED !== '1') throw new Error(`${modelId}: the Meta Model API is off (set META_API_ALLOWED=1 on the command line only with the owner's OK)`);
+}
+
+// segment + spec: a Modal Dedicated run's segment and exact spec, checked against the ledger.
+export function modelFor({ modelId, purpose, effort, segment = process.env.MODAL_SEGMENT ?? null, spec = null }) {
+  if (!modelId) throw new Error('name the model: --model=<id>');
   // Each provider has its own credit, so its own ledger.
   if (modelId.startsWith('claude-')) {
     if (purpose === 'demo') throw new Error('Claude runs are development and baseline only: never --purpose=demo');
@@ -74,40 +84,36 @@ export function modelFor({ modelId, purpose, effort }) {
     // Modal Shared Endpoints bill the owner's card, never the plan credit (owner, 2026-11-01:
     // spend no own money): refused outright, whatever is set.
     if (host === 'modal') throw new Error('Modal Shared Endpoints bill the card, not the credit: refused (a Dedicated Endpoint is modal-dedicated:<host>.modal.run)');
-    // Modal-dedicated takes the Modal plan credit (MODAL_CREDIT_USD / MODAL_RESERVE_USD).
-    const name = host === 'modal-dedicated' ? 'MODAL' : host.toUpperCase();
-    if (host === 'modal-dedicated') dedicatedGate(modelId);
+    if (host === 'modal-dedicated') {
+      dedicatedGate(modelId);
+      // The Modal plan credit: the ledger holds its ceiling and the reserve floor, and refuses
+      // a setting that would loosen them (or is not a number).
+      const ledger = openUptimeLedger({ creditUsd: process.env.MODAL_CREDIT_USD ?? CREDIT_CEILING_USD, reserveUsd: process.env.MODAL_RESERVE_USD ?? RESERVE_FLOOR_USD });
+      const m = hostedModel({ model: modelId, effort: effort ?? DEFAULT_EFFORT['modal-dedicated'] });
+      // The token goes only to the host pinned when the up window was recorded, and only for
+      // the validation or a segment approved with this exact spec after it passed.
+      ledger.authorize({ host: dedicatedHost(modelId), segment, spec: spec ?? {} });
+      return { model: m, ledger };
+    }
+    const name = host.toUpperCase();
     const credit = Number(process.env[`${name}_CREDIT_USD`]);
     if (!(credit > 0)) throw new Error(`set ${name}_CREDIT_USD (the ${host} credit in USD) before a ${host} run`);
     const reserve = Number(process.env[`${name}_RESERVE_USD`] ?? 0);
-    if (host === 'modal-dedicated') {
-      const ledger = openUptimeLedger({ creditUsd: credit, reserveUsd: reserve });
-      // The token goes only to the host pinned when the up window was recorded.
-      const up = ledger.open();
-      const want = dedicatedHost(modelId);
-      if (!up) throw new Error('no Modal up window is open: record it with node bin/modal-session.mjs start');
-      if (up.host !== want) throw new Error(`the open up window is pinned to ${up.host}, not ${want}: refused`);
-      return {
-        model: hostedModel({ model: modelId, effort: effort ?? DEFAULT_EFFORT['modal-dedicated'] }),
-        ledger,
-      };
-    }
     return {
       model: hostedModel({ model: modelId, effort: effort ?? DEFAULT_EFFORT[host] }),
       ledger: openLedger({ path: `.spend/${host}.jsonl`, creditUsd: credit, reserveUsd: reserve, caps: { dev: credit - reserve, eval: credit - reserve } }),
     };
   }
-  // The Meta Model API credit is kept for the demo and judging (owner, 2026-10-31): nothing
-  // reaches it unless META_API_ALLOWED=1, so a mistyped id never spends it.
-  if (process.env.META_API_ALLOWED !== '1') {
-    throw new Error(`${modelId}: the Meta Model API is off (set META_API_ALLOWED=1 only with the owner's OK). Muse Spark Open runs: meta-models/... (Baseten), accounts/fireworks/models/muse-spark-open, modal-dedicated:<endpoint host>.modal.run`);
-  }
+  // The Meta Model API credit is kept for the demo and judging (owner, 2026-10-31): only a
+  // known Meta id with the command-line switch reaches it; a mistyped id is refused.
+  metaGate(modelId);
   return { model: metaModel({ model: modelId, reasoningEffort: effort ?? DEFAULT_EFFORT.meta }), ledger: openLedger() };
 }
 
 export async function runSession({ brief, briefId = null, expect = null, start = null, model, ledger, purpose, headless = true, overlay = !headless, holdMs = 0, strategy = 'interactive', features = {}, maxTurns = 30, maxUsd = 3, outRoot = 'runs', onEvent = () => {} }) {
   const headroom = ledger.headroom(purpose);
-  if (headroom <= 0) throw new Error(`no ${purpose} budget left: ${JSON.stringify(ledger.summary())}`);
+  // Written so a NaN (a bad setting) refuses too.
+  if (!(headroom > 0)) throw new Error(`no ${purpose} budget left: ${JSON.stringify(ledger.summary())}`);
   const runId = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`;
   const dir = `${outRoot}/${runId}`;
   mkdirSync(dir, { recursive: true });

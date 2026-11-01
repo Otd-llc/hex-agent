@@ -217,7 +217,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     if (Date.now() - started > maxMs) { stop = 'time budget'; break; }
     const spent = costUsd(model.model, usage);
     if (spent != null && spent > maxUsd) { stop = 'cost budget'; break; }
-    if (ledger && ledger.headroom(purpose) <= 0) { stop = `${purpose} credit budget`; break; }
+    if (ledger && !(ledger.headroom(purpose) > 0)) { stop = `${purpose} credit budget`; break; }
     // A few turns before the limit, say so: a model that keeps trying should
     // report what it could not do rather than run out mid-attempt.
     if (turn === maxTurns - WRAP_TURNS) {

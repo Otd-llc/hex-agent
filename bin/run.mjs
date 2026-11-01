@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Run one brief end to end:
 //   node bin/run.mjs "a portable electronics organizer with removable bins and a carry handle"
-// Flags: --purpose=dev|eval|demo, --model=<id> (muse-spark-1.3 for dev, muse-wonder-1.0
-// otherwise; claude-* for development only), --effort=medium, --max-turns=30, --max-usd=3, --headless
+// Flags: --purpose=dev|eval|demo, --model=<id> (required; claude-* for development only),
+// --effort=medium, --max-turns=30, --max-usd=3, --headless
 import { loadEnv } from '../src/env.mjs';
 import { PURPOSES } from '../src/ledger.mjs';
+import { publicModelId } from '../src/hosted.mjs';
 import { modelFor, runSession } from '../src/session.mjs';
 import { parseFeatures } from '../src/agent.mjs';
 
@@ -26,7 +27,12 @@ if (!PURPOSES.includes(purpose)) {
   console.error(`--purpose must be one of ${PURPOSES.join(', ')}`);
   process.exit(2);
 }
-const modelId = flag('model', purpose === 'dev' ? 'muse-spark-1.3' : 'muse-wonder-1.0');
+// No default model: a run names its model, so nothing reaches the Meta Model API by omission.
+const modelId = flag('model', null);
+if (typeof modelId !== 'string' || !modelId) {
+  console.error('name the model: --model=<id>');
+  process.exit(2);
+}
 
 let model, ledger;
 try {
@@ -35,7 +41,7 @@ try {
   console.error(e.message);
   process.exit(2);
 }
-console.log(`${model.provider}/${model.model}, ${purpose}, $${ledger.headroom(purpose).toFixed(2)} headroom`);
+console.log(`${model.provider}/${publicModelId(model.model)}, ${purpose}, $${ledger.headroom(purpose).toFixed(2)} headroom`);
 
 const { trace, dir } = await runSession({
   brief,

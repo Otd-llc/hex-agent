@@ -1,121 +1,134 @@
 // Steps of one warm window on the Modal Dedicated Endpoint (GPU seconds bill while it is up).
-//   MODAL_DEDICATED_ALLOWED=1 MODAL_CREDIT_USD=130 MODAL_RESERVE_USD=5 \
-//   node bin/modal-window.mjs --host=<x.modal.run> --step=warmup|validate|run [options]
-// warmup    tiny requests until one answers 200 fast (the cold start), nothing else.
-// validate  warmup, then minimal-bin x1 + three-storey x1 in one queue, checked: each passed,
-//           no model error left unrecovered, the host said what it served, the page build
-//           matches lane 1's latest live note (and its viz commit), three-storey had a
-//           refusal with a tryInstead.
-// run       one pre-approved segment (--approved): --sets=briefs,briefs-hard,briefs-wide
-//           [--only=ids] --repeat=N --concurrency=C [--max-minutes=M], one shared queue.
-// Every suite runs at --effort=low (Baseten's setting for the same NVFP4 weights).
-// Needs an up window for the same host (bin/modal-session.mjs start). SIGINT / SIGTERM
-// stop the suite it started. It never stops the endpoint: it says when to.
-import { spawn } from 'node:child_process';
+//   MODAL_DEDICATED_ALLOWED=1 node bin/modal-window.mjs --host=<x.modal.run> --step=warmup|validate|run [--segment=<name>]
+// warmup    tiny requests until one answers 200 fast (the cold start); a 400/401/403/404
+//           stops it at once (no amount of waiting fixes those).
+// validate  warmup, then the fixed validation spec (minimal-bin + three-storey) checked; the
+//           outcome is written to the ledger, and a later segment needs it passed.
+// run       --segment=<name>: the segment the owner approved in this window
+//           (bin/modal-session.mjs approve), run with exactly its spec.
+// Every suite runs at effort low. Needs an up window for the same host. SIGINT / SIGTERM
+// stop the suite and everything it started (the whole process tree on Windows) and write
+// the report. A failed step exits non-zero. It never stops the endpoint: it says when to.
+import { spawn, execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { loadEnv } from '../src/env.mjs';
 import { modelFor } from '../src/session.mjs';
 import { liveNote } from '../src/provenance.mjs';
 import { dedicatedHost } from '../src/hosted.mjs';
-import { validationChecks, validationPassed } from '../src/modal-checks.mjs';
+import { validationChecks, validationPassed, warmup } from '../src/modal-checks.mjs';
+import { VALIDATE_SPEC } from '../src/uptime.mjs';
 
 loadEnv();
 const args = process.argv.slice(2);
 const flag = (name, dflt = null) => args.find((a) => a.startsWith(`--${name}=`))?.split('=').slice(1).join('=') ?? dflt;
-const fail = (msg) => {
+const fail = (msg, code = 1) => {
   console.error(msg);
-  process.exit(1);
+  process.exit(code);
 };
 const step = flag('step');
-if (!['warmup', 'validate', 'run'].includes(step)) fail('usage: node bin/modal-window.mjs --host=<x.modal.run> --step=warmup|validate|run [--approved --sets=... --repeat=N --concurrency=C --max-minutes=M]');
+if (!['warmup', 'validate', 'run'].includes(step)) fail('usage: node bin/modal-window.mjs --host=<x.modal.run> --step=warmup|validate|run [--segment=<approved name>]', 2);
 let host;
 try {
   host = dedicatedHost(`modal-dedicated:${flag('host') ?? ''}`);
 } catch (e) {
   fail(e.message);
 }
-if (!host) fail('--host is required');
+if (!host) fail('--host is required', 2);
 const modelId = `modal-dedicated:${host}`;
-// The same gates a run has (flag on the command line, credit, no account tokens, the window pinned to this host).
-let model, ledger;
+
+// The segment and its spec: the validation's fixed one, or the approved one, read from the ledger.
+const segment = step === 'run' ? flag('segment') : 'validate';
+if (!segment) fail('--step=run needs --segment=<name> (approved in this window with bin/modal-session.mjs approve)', 2);
+let model, ledger, spec;
 try {
-  ({ model, ledger } = modelFor({ modelId, purpose: 'eval', effort: 'low' }));
+  // The same gates any run has; modelFor checks the window, host, validation and approval.
+  ({ ledger } = modelFor({ modelId, purpose: 'eval', effort: 'low', segment: 'validate', spec: VALIDATE_SPEC }));
+  spec = segment === 'validate' ? VALIDATE_SPEC : ledger.approval(segment)?.spec;
+  if (!spec) throw new Error(`segment ${segment} is not approved in this window`);
+  ({ model } = modelFor({ modelId, purpose: 'eval', effort: 'low', segment, spec }));
 } catch (e) {
   fail(e.message);
 }
-if (ledger.headroom('eval') <= 0) fail(`no headroom: ${JSON.stringify(ledger.summary())}`);
-if (step === 'run' && !args.includes('--approved')) fail('--step=run needs --approved (the owner\'s OK for this segment)');
+if (!(ledger.headroom() > 0)) fail(`no headroom: ${JSON.stringify(ledger.summary())}`);
 
-let child = null;
-for (const sig of ['SIGINT', 'SIGTERM']) {
-  process.on(sig, () => {
-    if (child) child.kill(sig);
-    console.error(`${sig}: stopped${child ? ' the suite' : ''}. The endpoint is still up and billing: see the last line.`);
-    endNote();
-    process.exit(130);
-  });
-}
-
+const report = { step, segment, spec, startedAt: new Date().toISOString(), windowBefore: ledger.summary(), note: liveNote() };
+const reportPath = `runs/modal-window-${report.startedAt.replace(/[:.]/g, '-')}.json`;
+const writeReport = () => {
+  report.windowAfter = ledger.summary();
+  writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n');
+};
 function endNote() {
   console.log(`window: ${JSON.stringify(ledger.summary())}`);
   console.log('>>> When the last segment is done: tell lane 1 (zzz-2e) to have the owner DELETE the endpoint and the proxy token, then: node bin/modal-session.mjs stop --down-at=<ISO+zone>; 30 min later reconcile from the usage page.');
 }
 
-// Tiny requests until one is a fast 200. Each try is logged; the window bills either way.
-async function warmup({ maxMinutes = Number(flag('warmup-minutes', 30)), fastMs = Number(flag('fast-ms', 20000)), everyMs = 15000 } = {}) {
-  const until = Date.now() + maxMinutes * 60_000;
-  const tries = [];
-  while (Date.now() < until) {
-    if (ledger.headroom('eval') <= 0) return { ok: false, tries, why: 'headroom gone during warm-up' };
-    const p = await model.probe();
-    tries.push(p);
-    console.log(`warmup ${tries.length}: ${p.status ?? p.error} in ${p.ms} ms${p.servedBy ? ` (${p.servedBy})` : ''}`);
-    if (p.ok && p.ms <= fastMs) return { ok: true, tries };
-    await new Promise((r) => setTimeout(r, everyMs));
-  }
-  return { ok: false, tries, why: `no fast 200 in ${maxMinutes} min` };
+let child = null;
+// The suite and every browser under it: on Windows a signal does not reach a child's tree.
+function killTree(sig) {
+  if (!child) return;
+  if (process.platform === 'win32') {
+    try {
+      execFileSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    } catch {}
+  } else child.kill(sig);
+}
+for (const sig of ['SIGINT', 'SIGTERM']) {
+  process.on(sig, () => {
+    const had = !!child;
+    killTree(sig);
+    report.interrupted = sig;
+    writeReport();
+    console.error(`${sig}: stopped${had ? ' the suite and its browsers' : ''}; report ${reportPath}. The endpoint is still up and billing.`);
+    endNote();
+    process.exit(130);
+  });
 }
 
-// One suite as a child process, at effort low; resolves to its summary path (null if none).
-function suite({ sets, only = null, repeat = 1, concurrency = 1, maxMinutes = null }) {
+// One suite as a child process, at the spec's effort, exactly the spec; resolves to its summary path.
+function suite(s) {
   return new Promise((done) => {
-    const a = ['bin/suite.mjs', `--model=${modelId}`, '--purpose=eval', '--effort=low', `--briefs=${sets.map((s) => `evals/${s}.json`).join(',')}`,
-      `--repeat=${repeat}`, `--concurrency=${concurrency}`, ...(only ? [`--only=${only}`] : []), ...(maxMinutes ? [`--max-minutes=${maxMinutes}`] : [])];
-    child = spawn(process.execPath, a, { stdio: ['ignore', 'pipe', 'inherit'], env: process.env });
+    const a = ['bin/suite.mjs', `--model=${modelId}`, '--purpose=eval', `--effort=${s.effort}`, `--briefs=${s.sets.map((x) => `evals/${x}.json`).join(',')}`,
+      `--repeat=${s.repeat}`, `--concurrency=${s.concurrency}`, ...(s.only ? [`--only=${s.only.join(',')}`] : []), ...(s.maxMinutes ? [`--max-minutes=${s.maxMinutes}`] : [])];
+    child = spawn(process.execPath, a, { stdio: ['ignore', 'pipe', 'inherit'], env: { ...process.env, MODAL_SEGMENT: segment, SUITE_PARENT_PID: String(process.pid) } });
     let out = '';
     child.stdout.on('data', (d) => {
       out += d;
       process.stdout.write(d);
     });
-    child.on('close', () => {
+    child.on('close', (code) => {
       child = null;
+      report.suiteExit = code;
       done(out.match(/summary (\S+summary\.json)/)?.[1] ?? null);
     });
   });
 }
 
-const report = { step, startedAt: new Date().toISOString(), windowBefore: ledger.summary(), note: liveNote() };
 const t0 = Date.now();
+let ok = true;
 if (step === 'warmup' || step === 'validate') {
-  report.warmup = await warmup();
+  report.warmup = await warmup(() => model.probe(), {
+    maxMinutes: Number(flag('warmup-minutes', 30)), fastMs: Number(flag('fast-ms', 20000)), everyMs: 15000, headroom: () => ledger.headroom(),
+    log: (p, n) => console.log(`warmup ${n}: ${p.status ?? p.error} in ${p.ms} ms${p.servedBy ? ` (${p.servedBy})` : ''}`),
+  });
   if (!report.warmup.ok) console.log(`warm-up failed: ${report.warmup.why}`);
+  ok = report.warmup.ok;
 }
-if (step === 'validate' && report.warmup.ok) {
-  report.summary = await suite({ sets: ['briefs-wide', 'briefs-hard'], only: 'minimal-bin,three-storey', repeat: 1, concurrency: 2 });
+if (step === 'validate' && ok) {
+  report.summary = await suite(VALIDATE_SPEC);
   report.checks = validationChecks(report.summary, report.note);
   for (const c of report.checks) console.log(`${c.ok ? 'ok  ' : c.gate === false ? 'miss' : 'FAIL'} ${c.check}${c.gate === false ? ' (reported, not gated)' : ''}${c.saw != null ? ` (saw ${c.saw})` : ''}`);
-  report.ok = validationPassed(report.checks);
-  console.log(report.ok ? 'VALIDATION PASSED' : 'VALIDATION FAILED: no segment until it is understood');
+  ok = validationPassed(report.checks);
+  console.log(ok ? 'VALIDATION PASSED' : 'VALIDATION FAILED: no segment until it is understood');
 }
+if (step === 'validate') ledger.recordValidation({ passed: ok, summary: report.summary ?? null });
 if (step === 'run') {
-  const sets = String(flag('sets', 'briefs,briefs-hard,briefs-wide')).split(',');
-  report.segment = { sets, only: flag('only'), repeat: Number(flag('repeat', 1)), concurrency: Number(flag('concurrency', 9)), maxMinutes: flag('max-minutes') ? Number(flag('max-minutes')) : null };
-  report.summary = await suite(report.segment);
+  report.summary = await suite(spec);
+  ok = report.summary != null && report.suiteExit === 0;
 }
+report.ok = ok;
 report.seconds = Math.round((Date.now() - t0) / 1000);
-report.windowAfter = ledger.summary();
-const out = `runs/modal-window-${report.startedAt.replace(/[:.]/g, '-')}.json`;
-writeFileSync(out, JSON.stringify(report, null, 2) + '\n');
+writeReport();
 if (report.summary) console.log(`tally: node bin/tally.mjs ${report.summary}`);
-console.log(`report: ${out} (gitignored: it is local only)`);
+console.log(`report: ${reportPath} (gitignored: it is local only)`);
 endNote();
+process.exit(ok ? 0 : 1);

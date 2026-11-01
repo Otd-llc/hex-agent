@@ -36,3 +36,21 @@ export function validationChecks(summaryPath, note) {
   return out;
 }
 
+
+// Tiny requests until one is a fast 200. A client error is final (waiting does not fix a bad
+// token, host or model name); anything else is taken as the cold start, until maxMinutes.
+const FINAL = new Set([400, 401, 403, 404]);
+export async function warmup(probe, { maxMinutes, fastMs, everyMs, headroom, log = () => {}, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), now = () => Date.now() }) {
+  const until = now() + maxMinutes * 60_000;
+  const tries = [];
+  while (now() < until) {
+    if (!(headroom() > 0)) return { ok: false, tries, why: 'headroom gone during warm-up' };
+    const p = await probe();
+    tries.push(p);
+    log(p, tries.length);
+    if (p.ok && p.ms <= fastMs) return { ok: true, tries };
+    if (FINAL.has(p.status)) return { ok: false, tries, why: `HTTP ${p.status}: ${p.body ?? ''} (final: check the token, the host and the model name)` };
+    await sleep(everyMs);
+  }
+  return { ok: false, tries, why: `no fast 200 in ${maxMinutes} min` };
+}

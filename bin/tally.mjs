@@ -1,13 +1,13 @@
-// API confirmations from traces, one table per provider + model (never mixed):
+// API confirmations from traces, one table per comparable group (never mixed):
 // runs attempted / completed / passed (a run refused or stopped by the budget is
 // not a result and is left out of completed and passed), and per refusal code how
 // often it came with a tryInstead, how often the agent sent that op next, and how
 // often that op went on; plus the validate issues left on finished builds
 // (PROP_INSIDE, PLANT_NOT_IN_SOIL, ...) and how many runs overclaimed.
 // node bin/tally.mjs <suite dir|summary.json> ... [--json]
-import { readFileSync, existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadRuns, KEY_FIELDS } from '../src/runkey.mjs';
 
 // Key order does not matter when matching the op the agent sent to the one offered.
 const canon = (v) => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object'
@@ -24,9 +24,9 @@ export function tally(runs) {
   const codes = {};
   const issues = {};
   let attempted = 0, completed = 0, passed = 0, overclaimed = 0, budget = 0;
-  for (const { row, t } of runs) {
+  for (const { row, t, cut } of runs) {
     attempted++;
-    if (row.budget) {
+    if (cut ?? row.budget) {
       budget++;
       continue;
     }
@@ -56,20 +56,13 @@ export function tally(runs) {
   return { attempted, completed, passed, budgetExcluded: budget, overclaimed, codes, issues };
 }
 
-// Runs from suite dirs, grouped by provider + model as each summary names them.
+// Runs from suite dirs, grouped by the comparable key (src/runkey.mjs: provider, model,
+// effort, contract, page build, agent commit).
 export function groups(dirs) {
   const out = new Map();
-  for (const dir of dirs) {
-    const s = JSON.parse(readFileSync(join(dir, 'summary.json'), 'utf8'));
-    const key = `${s.provider}/${s.model}`;
-    if (!out.has(key)) out.set(key, []);
-    for (const row of s.rows) {
-      const p = row.trace ? join(dir, row.trace) : null;
-      const t = p && existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null;
-      // A trace that names another provider or model than its summary is not counted under it.
-      if (t && (t.provider !== s.provider || (t.model && t.model !== s.model))) throw new Error(`${p}: trace is ${t.provider}/${t.model}, summary says ${key}`);
-      out.get(key).push({ row, t });
-    }
+  for (const r of loadRuns(dirs)) {
+    if (!out.has(r.key)) out.set(r.key, []);
+    out.get(r.key).push(r);
   }
   return out;
 }
@@ -86,7 +79,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   if (asJson) console.log(JSON.stringify(result, null, 2));
   else {
     for (const [key, r] of Object.entries(result)) {
-      console.log(`\n## ${key}: ${r.attempted} attempted, ${r.completed} completed, ${r.passed} passed${r.budgetExcluded ? `, ${r.budgetExcluded} left out (budget)` : ''}, ${r.overclaimed} overclaimed`);
+      console.log(`\n## ${KEY_FIELDS.join(' | ')} = ${key}\n${r.attempted} attempted, ${r.completed} completed, ${r.passed} passed${r.budgetExcluded ? `, ${r.budgetExcluded} left out (budget)` : ''}, ${r.overclaimed} overclaimed`);
       console.log('code | refused | with tryInstead | sent next | next ok');
       for (const [code, c] of Object.entries(r.codes).sort((a, b) => b[1].refused - a[1].refused)) {
         console.log(`${code} | ${c.refused} | ${c.withTry} | ${c.sentNext} | ${c.nextOk}`);

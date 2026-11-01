@@ -3,7 +3,7 @@
 // not loaded, and is remembered so the code that reads the switch can refuse.
 import { existsSync, readFileSync } from 'node:fs';
 
-export const COMMAND_LINE_ONLY = new Set(['MODAL_DEDICATED_ALLOWED']);
+export const COMMAND_LINE_ONLY = new Set(['MODAL_DEDICATED_ALLOWED', 'META_API_ALLOWED']);
 export const heldFromEnvFile = new Set();
 
 export function loadEnv(path = '.env') {

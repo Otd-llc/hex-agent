@@ -72,7 +72,7 @@ test('modelFor: each host has its own ledger and needs its credit set; the Meta 
     Object.assign(process.env, { MODAL_ALLOWED: '1', MODAL_DEDICATED_ALLOWED: '1' });
     assert.throws(() => modelFor({ modelId: 'modal:m.us-west.modal.direct', purpose: 'eval' }), /bill the card/);
     assert.throws(() => modelFor({ modelId: 'muse-spark-1.3', purpose: 'dev' }), /Meta Model API is off/);
-    assert.throws(() => modelFor({ modelId: 'modl:typo', purpose: 'dev' }), /Meta Model API is off/);
+    assert.throws(() => modelFor({ modelId: 'modl:typo', purpose: 'dev' }), /not a known model id/);
   } finally {
     for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];
     Object.assign(process.env, saved);

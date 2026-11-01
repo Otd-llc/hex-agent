@@ -11,6 +11,7 @@
 // this adapter refuses to price one, and making one needs the owner's OK.
 import { parseChat, toChat } from './baseten.mjs';
 import { timedPost, requestParams } from './http.mjs';
+import { createHash } from 'node:crypto';
 
 // USD per 1M tokens, Standard/shared, checked 2026-10-31:
 // https://fireworks.ai/models/fireworks/muse-spark-open ("no US-only premium") and
@@ -62,11 +63,21 @@ export function dedicatedHost(model) {
   const h = String(model).slice('modal-dedicated:'.length).trim().toLowerCase()
     .replace(/^https?:[/][/]/, '').replace(/[/](v1[/]?)?$/, '');
   if (!h) return '';
-  if (/[.]modal[.]direct$/.test(h)) throw new Error(`${h} is a Modal Shared Endpoint host (billed to the card, not the credit): refused`);
+  // Refusals name the host by its label only: the text reaches consoles and logs.
+  if (/[.]modal[.]direct$/.test(h)) throw new Error(`${hostLabel(h)} is a Modal Shared Endpoint host (*.modal.direct, billed to the card, not the credit): refused`);
   if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?([.][a-z0-9]([a-z0-9-]*[a-z0-9])?)*[.]modal[.]run$/.test(h)) {
-    throw new Error(`${h} is not a Modal Dedicated Endpoint host (*.modal.run): refused`);
+    throw new Error(`${hostLabel(h)} is not a Modal Dedicated Endpoint host (*.modal.run): refused`);
   }
   return h;
+}
+
+// A host by a short hash, for anything printed or written: the same host, the same label.
+export const hostLabel = (h) => `host#${createHash('sha256').update(String(h)).digest('hex').slice(0, 8)}`;
+
+// Text with the endpoint host (and its URL) replaced by its label.
+export function redactHost(text, host) {
+  const t = String(text ?? '');
+  return host ? t.split(host).join(hostLabel(host)) : t;
 }
 
 // A modal-dedicated id with its host hidden, for traces and anything published.
@@ -104,6 +115,8 @@ export function hostedModel({ model, apiKey, effort = null, timeoutMs = 120_000,
   if (!wire) throw new Error(`${model}: name the Modal endpoint host, e.g. ${provider}:<name>.modal.run`);
   const base = typeof h.base === 'function' ? h.base(model) : h.base;
   const auth = { Authorization: `Bearer ${key}` };
+  // A Dedicated Endpoint's host is the account's own: kept out of error text.
+  const secretHost = provider === 'modal-dedicated' ? dedicatedHost(model) : null;
   return {
     kind: 'live',
     provider,
@@ -119,8 +132,16 @@ export function hostedModel({ model, apiKey, effort = null, timeoutMs = 120_000,
         ...(effort ? { reasoning_effort: effort } : {}),
         max_completion_tokens: 16000,
       };
-      const { res, raw, http } = await timedPost(fetchImpl, `${base}/chat/completions`, { headers: { ...auth, 'Content-Type': 'application/json' }, body, timeoutMs });
-      if (!res.ok) throw Object.assign(new Error(`${provider} ${res.status}: ${raw.slice(0, 500)}`), { status: res.status, http });
+      let got;
+      try {
+        got = await timedPost(fetchImpl, `${base}/chat/completions`, { headers: { ...auth, 'Content-Type': 'application/json' }, body, timeoutMs });
+      } catch (e) {
+        // A network error names the host it could not reach.
+        if (secretHost) e.message = redactHost(e.message, secretHost);
+        throw e;
+      }
+      const { res, raw, http } = got;
+      if (!res.ok) throw Object.assign(new Error(redactHost(`${provider} ${res.status}: ${raw.slice(0, 500)}`, secretHost)), { status: res.status, http });
       return { ...parseChat(JSON.parse(raw)), http, params: requestParams(body) };
     },
     // One tiny request, for a warm-up probe: its status and time, no tools.
@@ -130,9 +151,9 @@ export function hostedModel({ model, apiKey, effort = null, timeoutMs = 120_000,
         const { res, raw, http } = await timedPost(fetchImpl, `${base}/chat/completions`, { headers: { ...auth, 'Content-Type': 'application/json' }, body, timeoutMs });
         let servedBy = null;
         try { servedBy = JSON.parse(raw).model ?? null; } catch {}
-        return { ...http, ok: res.ok, servedBy, body: res.ok ? undefined : raw.slice(0, 200) };
+        return { ...http, ok: res.ok, servedBy, body: res.ok ? undefined : redactHost(raw.slice(0, 200), secretHost) };
       } catch (e) {
-        return { ...(e.http ?? {}), ok: false, error: String(e.message ?? e).slice(0, 200) };
+        return { ...(e.http ?? {}), ok: false, error: redactHost(String(e.message ?? e).slice(0, 200), secretHost) };
       }
     },
   };

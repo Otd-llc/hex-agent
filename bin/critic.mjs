@@ -79,7 +79,7 @@ const credit = Number(process.env.CLAUDE_CREDIT_USD ?? 100);
 const ledger = openLedger({ path: '.spend/anthropic.jsonl', creditUsd: credit, reserveUsd: 0, caps: { dev: credit, eval: credit } });
 const maxUsd = Number(flag('max-usd', 2));
 let spent = 0;
-const over = () => spent >= maxUsd || ledger.headroom('eval') <= 0;
+const over = () => spent >= maxUsd || !(ledger.headroom('eval') > 0);
 const ask = claudeJudge({
   client: new Anthropic(),
   model: judgeModel,

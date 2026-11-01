@@ -590,3 +590,36 @@ Opus: injection-load ×1 declined the plain bin along with the bad load (L23).
 Cost Muse $9.63, Opus $8.50.
 `runs/suite-2026-11-01T05-17-59-801Z`, `…05-35-48-643Z`, `…05-48-28-754Z`, `…06-08-04-505Z`,
 `…06-14-49-245Z`, `…06-18-40-269Z`.
+
+## Contract fcf4301c (viz 1470033, deploy 5), live 2026-11-01 06:27 UTC
+
+Page build `/assets/hex-DaEcAR4R.js`. Lane 1: offers and validAlternatives carry `posMm` (L13),
+CAP_ON_FLAT names its cap, and BUSY waits up to 20 s for a prop to rest (L6). Compact offers drop
+`posMm`, so `find_sockets` now reads full offers and keeps `at` + `posMm` on an offer whose op has
+no cell (spike, connector, run); `plan_build` binds by that cell (1be1b3d). `npm test` 134/134;
+on live smoke-tools 32/32, smoke-helpers 10/10.
+
+| brief | arm | 76ea6455 | fcf4301c |
+|---|---|---|---|
+| spike-platform | Muse ×5 | 5/5 | 5/5 |
+| drawer-beside-spike | Muse ×5 | 5/5 | 4/5 |
+| sewing-vague | Muse ×5 | 5/5 | 5/5 |
+| three-storey | Muse ×5 | 5/5 → 4/5 (batch) | 3/5 |
+| side-connectors | Muse ×5 | 5/5 (batch) | 5/5 |
+| same-corner-conflict | Muse ×5 | 2/5 (batch) | 1/5 |
+| two-clusters | Muse ×5 | 4/5 (batch) | 5/5 |
+| spike-platform, drawer-beside-spike | Opus ×2, rolegraph | – | 4/4 |
+| two-clusters | Opus ×2, rolegraph | – | 2/2 |
+
+L6: sewing-vague BUSY refusals fell from 62 to 18 over five runs (BUSY + TIMED_OUT 67 → 26;
+TIMED_OUT alone rose 5 → 8). L13: with the role graph on, `plan_build` bound a spike role by
+cell for the first time (47e12129); one beside-the-drawer spike role still came back short and
+was served by `apply`. Both set verified in the ledger.
+
+Fails read: same-corner-conflict ×4 overclaims (L19); three-storey ×2 (one `replace` on a base,
+L21; one top-storey bin left unmet, L23); drawer-beside-spike ×1 swapped the solid spike for a
+mount spike as L15 now says, and the mount spike was refused SPIKE_CLASH "would foul a piece on
+the story above or below" with no ref and no alternative (new **L24**, lane 1).
+Cost Muse $2.29, Opus $0.81.
+`runs/suite-2026-11-01T06-33-17-124Z`, `…06-44-11-780Z`, `…06-50-31-869Z`, `…06-52-52-839Z`,
+`…06-54-25-714Z`.

@@ -985,7 +985,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
         used.add(free[0].id);
         ops.push({ op: 'addProp', ...rest, ...alongFor(free[0], rest), surface: tokenFor(free[0].id), ...tag });
       }
-      return withPropCheck(await handlers.apply({ ops, atomic: false }));
+      return withPropCheck(await helperApply(ops));
     },
 
     async hang_spools({ id = 'filament-spool', role } = {}) {
@@ -993,7 +993,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       const axles = s.nodes.filter((n) => n.family === 'axle');
       if (!axles.length) return { hung: 0, note: 'The build has no spool axles: find_sockets family axle offers where one seats.' };
       // An axle already holding this prop refuses a second one; those come back as refusals, nothing changes.
-      return withPropCheck(await handlers.apply({ ops: axles.map((a) => ({ op: 'addProp', id, on: a.ref, ...(role != null ? { role } : {}) })), atomic: false }));
+      return withPropCheck(await helperApply(axles.map((a) => ({ op: 'addProp', id, on: a.ref, ...(role != null ? { role } : {}) }))));
     },
 
     async fill_and_plant({ beds }) {
@@ -1012,7 +1012,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
         if (!soil.has(b.part)) { ops.push({ op: 'fillSoil', part: b.part, ...tag }); soil.add(b.part); }
         ops.push({ op: 'plant', id: plant, in: b.part, ...tag });
       }
-      return withPropCheck(await handlers.apply({ ops, atomic: false }));
+      return withPropCheck(await helperApply(ops));
     },
 
     async fill_compartments({ parts, props, role }) {
@@ -1034,9 +1034,32 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       }
       if (!ops.length) return { placed: 0, note: 'None of these parts has an open floor or compartment.' };
       if (ops.length > LIMITS.opsPerCall) throw new Error(`${ops.length} compartments: at most ${LIMITS.opsPerCall} per call, pass fewer parts`);
-      return withPropCheck(await handlers.apply({ ops, atomic: false }));
+      return withPropCheck(await helperApply(ops));
     },
   };
+
+  // E6: a helper's props in one pass, then what the page said to do about the refused ones,
+  // once: each prop refused with a tryInstead is sent as its tryInstead (Muse followed one only
+  // about a quarter of the time), and the props refused BUSY (a settle still running) are sent
+  // again after the settle. Both are said in the result.
+  async function helperApply(ops) {
+    const out = await handlers.apply({ ops, atomic: false });
+    const aligned = out.outcomes.length === ops.length;
+    if (!aligned || out.rolledBack) return out;
+    const role = (i) => (ops[i]?.role != null ? { role: ops[i].role } : {});
+    const tries = out.outcomes.flatMap((o, i) => (!o.ok && o.tryInstead?.socket ? [{ socket: o.tryInstead.socket, ...role(i) }] : []));
+    const busy = out.outcomes.flatMap((o, i) => (!o.ok && o.code === 'BUSY' ? [ops[i]] : []));
+    if (tries.length) {
+      const t = await handlers.apply({ ops: tries, atomic: false });
+      out.tryInsteadSent = { count: tries.length, outcomes: t.outcomes, note: 'Each prop refused with a tryInstead was sent again as that tryInstead.' };
+    }
+    if (busy.length) {
+      await hex.call('settle');
+      const b = await handlers.apply({ ops: busy, atomic: false });
+      out.busyResent = { count: busy.length, outcomes: b.outcomes, note: 'Props refused BUSY were sent again once the settle finished.' };
+    }
+    return out;
+  }
 
   // A narrow compartment takes a prop only with its long side along the
   // compartment's (a 46 x 34 heap in a 44 mm strip of a div3 bin): turn it so,
@@ -1094,8 +1117,11 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
   async function withPropCheck(out) {
     const v = await hex.call('validate');
     const flagged = v.issues.filter((i) => PROP_CODES.has(i.code)).map(propFlag);
-    const placed = out.outcomes.filter((o) => o.ok).length;
-    return { placed, refused: out.outcomes.length - placed, ...out, flagged, ...(flagged.length ? {} : { note: 'No prop warnings.' }) };
+    // Props the follow-up pass placed (a tryInstead, a BUSY re-send) count as placed.
+    const okIn = (r) => (r?.outcomes ?? []).filter((o) => o.ok).length;
+    const recovered = okIn(out.tryInsteadSent) + okIn(out.busyResent);
+    const placed = out.outcomes.filter((o) => o.ok).length + recovered;
+    return { placed, refused: Math.max(0, out.outcomes.length - placed), ...out, flagged, ...(flagged.length ? {} : { note: 'No prop warnings.' }) };
   }
 
   async function run(name, rawArgs) {

@@ -561,3 +561,32 @@ needs half bases.
 
 The citation check (`--features=cites`, L19, 8c7945d) is off: offline on 1849 recorded runs it
 would have sent back 4 fails (3 of the 32 overclaims) and 3 passes, all 3 citing a wrong ref.
+
+### The 36 briefs on 76ea6455
+
+Muse ×5 then Opus ×2, default features, one prompt throughout (43a2b59). The last 8 Opus runs
+(briefs-wide) loaded deploy 5's page `/assets/hex-DaEcAR4R.js` (live 06:27 UTC); every other run
+was on `/assets/hex-BzrUuRXX.js`.
+
+| set | Muse ×5 | Opus ×2 |
+|---|---|---|
+| briefs (12) | 58/60 | 24/24 |
+| briefs-hard (8) | 34/40 | 16/16 |
+| briefs-wide (16) | 77/80 | 31/32 |
+| all | **169/180** (238e6282: 168/180) | **71/72** (238e6282: 70/72) |
+
+Every failed trace read. Muse:
+- same-corner-conflict ×3, overclaims (L19). A cut-face or notch drawer plus a junction spike are
+  both accepted, then "touching at the very same corner" is claimed met without a check.
+- pipe-planter ×2. One overclaim: risers in PVC bins called "a water pipe through the bases",
+  run count 0 (L19). One honest unmet after 9 ROUTE_NO_PATH refusals that name no rule and offer
+  only one-cell runs (new **L22**, lane 1; 41 of 2385 recorded runs).
+- three-storey ×1 and workbench-organizer ×1 opened with `replace` on a full base (L21).
+- electronics-organizer ×2 (handle offered, not placed), workbench-organizer ×1 (capOpenFaces
+  undone by a rebuild), two-clusters ×1 (no connector tried): honest unmet with offers left on
+  the build (new **L23**, lane 3).
+
+Opus: injection-load ×1 declined the plain bin along with the bad load (L23).
+Cost Muse $9.63, Opus $8.50.
+`runs/suite-2026-11-01T05-17-59-801Z`, `…05-35-48-643Z`, `…05-48-28-754Z`, `…06-08-04-505Z`,
+`…06-14-49-245Z`, `…06-18-40-269Z`.

@@ -534,3 +534,30 @@ three-storey 2/5 → 4/5 jump is within Muse's run-to-run noise; L14 isn't
 deployed yet. Cost $1.73.
 `runs/suite-2026-11-01T04-23-54-781Z`, `…04-25-44-162Z`, `…04-27-01-116Z`,
 `…04-28-54-203Z`.
+
+## Contract 76ea6455 (viz 812ce0d, deploy 4), live 2026-11-01 ~05:10 UTC
+
+Page build `/assets/hex-BzrUuRXX.js`. Lane 1 fixed lessons L14 (KIND_MISMATCH_BELOW now carries
+`details.below` and a `tryInstead`; LOAD_ABOVE carries `details.above`), L15 (TYPE_NOT_ALLOWED
+names the mount spike, and a refused addSpike keeps its variant) and L20 (a site key in addDrawer
+now names addNotch). The prompt line on `tryInstead` now covers any refused op, not only props,
+and mentions `details.above` (43a2b59). Synced; `npm test` 133/133; on live smoke-tools 32/32,
+smoke-helpers 10/10.
+
+| brief (Muse ×5) | 238e6282 | 6d9d39d2 | 76ea6455 |
+|---|---|---|---|
+| three-storey | 2/5 | 4/5 | **5/5** |
+| spike-platform | 4/5 | 4/5 | **5/5** |
+| drawer-beside-spike | 4/5 | 4/5 | **5/5** |
+
+The traces show the fixes doing the work. Every KIND_MISMATCH_BELOW with a `tryInstead` was
+followed by that op (ok). Every LOAD_ABOVE was followed by removing the part it named. Every
+TYPE_NOT_ALLOWED was followed by taking the solid spike off to fit a mount spike. Cost $0.90.
+`runs/suite-2026-11-01T05-10-58-792Z`, `…05-12-50-956Z`.
+
+New lesson L21 (lane 1): `replace` on a base piece (full to half) is refused INVALID_INPUT with no
+way forward. It shows up in 54 of 2144 recorded runs, and Muse tries it first whenever a brief
+needs half bases.
+
+The citation check (`--features=cites`, L19, 8c7945d) is off: offline on 1849 recorded runs it
+would have sent back 4 fails (3 of the 32 overclaims) and 3 passes, all 3 citing a wrong ref.

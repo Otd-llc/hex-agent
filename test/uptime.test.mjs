@@ -180,6 +180,16 @@ test('modal-dedicated adapter: its host as base, the weights as model, proxy tok
   const net = hostedModel({ model: 'modal-dedicated:otd--muse.modal.run', apiKey: 'pt', fetchImpl: async () => { throw new Error('getaddrinfo ENOTFOUND otd--muse.modal.run'); }, env: {} });
   await assert.rejects(net.next({ instructions: 's', items: [], tools: [] }), (e) => !e.message.includes('otd--muse') && e.http.status === null);
   assert.ok(!(await net.probe()).error.includes('otd--muse'));
+  // Any letter case, and a host that straddles where the text is cut, leave nothing behind.
+  assert.ok(!/otd--muse/i.test(redactHost('at OTD--Muse.Modal.Run now', 'otd--muse.modal.run')));
+  const long = 'x'.repeat(190) + 'OTD--MUSE.modal.run' + 'y'.repeat(400);
+  const cut = hostedModel({ model: 'modal-dedicated:otd--muse.modal.run', apiKey: 'pt', fetchImpl: async () => ({ ok: false, status: 502, text: async () => long }), env: {} });
+  const pc = await cut.probe();
+  assert.ok(!/otd|--mus|muse\.m/i.test(pc.body), pc.body);
+  await assert.rejects(cut.next({ instructions: 's', items: [], tools: [] }), (e) => !/otd--|muse\.modal/i.test(e.message));
+  const tail = 'x'.repeat(495) + 'otd--muse.modal.run';
+  const cut2 = hostedModel({ model: 'modal-dedicated:otd--muse.modal.run', apiKey: 'pt', fetchImpl: async () => ({ ok: false, status: 502, text: async () => tail }), env: {} });
+  await assert.rejects(cut2.next({ instructions: 's', items: [], tools: [] }), (e) => !/otd-|otd\b/i.test(e.message.replace(/host#[0-9a-f]+/, '')));
 });
 
 test('timedPost: in-flight counts concurrent requests', async () => {

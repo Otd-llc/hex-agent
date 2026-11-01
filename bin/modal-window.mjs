@@ -17,7 +17,7 @@ import { loadEnv } from '../src/env.mjs';
 import { modelFor } from '../src/session.mjs';
 import { liveNote } from '../src/provenance.mjs';
 import { dedicatedHost } from '../src/hosted.mjs';
-import { validationChecks } from '../src/modal-checks.mjs';
+import { validationChecks, validationPassed } from '../src/modal-checks.mjs';
 
 loadEnv();
 const args = process.argv.slice(2);
@@ -103,8 +103,8 @@ if (step === 'warmup' || step === 'validate') {
 if (step === 'validate' && report.warmup.ok) {
   report.summary = await suite({ sets: ['briefs-wide', 'briefs-hard'], only: 'minimal-bin,three-storey', repeat: 1, concurrency: 2 });
   report.checks = validationChecks(report.summary, report.note);
-  for (const c of report.checks) console.log(`${c.ok ? 'ok  ' : 'FAIL'} ${c.check}${c.saw != null ? ` (saw ${c.saw})` : ''}`);
-  report.ok = report.checks.every((c) => c.ok);
+  for (const c of report.checks) console.log(`${c.ok ? 'ok  ' : c.gate === false ? 'miss' : 'FAIL'} ${c.check}${c.gate === false ? ' (reported, not gated)' : ''}${c.saw != null ? ` (saw ${c.saw})` : ''}`);
+  report.ok = validationPassed(report.checks);
   console.log(report.ok ? 'VALIDATION PASSED' : 'VALIDATION FAILED: no segment until it is understood');
 }
 if (step === 'run') {

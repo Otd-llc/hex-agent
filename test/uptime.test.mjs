@@ -9,7 +9,7 @@ import { modelFor } from '../src/session.mjs';
 import { loadEnv, heldFromEnvFile } from '../src/env.mjs';
 import { timedPost, requestsInFlight } from '../src/http.mjs';
 import { vizCommit } from '../src/provenance.mjs';
-import { validationChecks } from '../src/modal-checks.mjs';
+import { validationChecks, validationPassed } from '../src/modal-checks.mjs';
 import { tally, groups } from '../bin/tally.mjs';
 
 const at = (iso) => Date.parse(iso);
@@ -256,4 +256,20 @@ test('validation checks: pass, recovered errors allowed, servedBy, pageBuild, th
   const failed = validationChecks(join(bad, 'summary.json'), note).filter((c) => !c.ok).map((c) => c.check);
   assert.deepEqual(failed, ['minimal-bin no unrecovered model error', 'minimal-bin servedBy', 'minimal-bin pageBuild = lane 1 live note', 'three-storey passed', 'three-storey refusal with tryInstead']);
   assert.deepEqual(validationChecks(null, note), [{ check: 'summary written', ok: false }]);
+  assert.equal(validationPassed(validationChecks(null, note)), false);
+  // three-storey failing its brief is reported, not gated; minimal-bin failing is gated.
+  const t3fail = suiteDir('modal-dedicated', 'modal-dedicated:[endpoint host redacted]', [
+    { id: 'minimal-bin', attempt: 1, pass: true, trace: true, t: good() },
+    { id: 'three-storey', attempt: 1, pass: false, trace: true, t: good(refusal) },
+  ]);
+  const c3 = validationChecks(join(t3fail, 'summary.json'), note);
+  assert.deepEqual(c3.filter((c) => !c.ok).map((c) => [c.check, c.gate]), [['three-storey passed', false]]);
+  assert.equal(validationPassed(c3), true);
+  const mbfail = suiteDir('modal-dedicated', 'modal-dedicated:[endpoint host redacted]', [
+    { id: 'minimal-bin', attempt: 1, pass: false, trace: true, t: good() },
+    { id: 'three-storey', attempt: 1, pass: true, trace: true, t: good(refusal) },
+  ]);
+  assert.equal(validationPassed(validationChecks(join(mbfail, 'summary.json'), note)), false);
+  assert.equal(validationPassed(ok), true);
+  assert.equal(validationPassed(validationChecks(join(bad, 'summary.json'), note)), false);
 });

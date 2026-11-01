@@ -633,3 +633,11 @@ Regression check on the prop and plant briefs, Opus ×2: herb-planter 2/2, sewin
 seed-tray 2/2, irrigation-riser 2/2 (8/8, $0.99). sewing-vague still sees PROP_NO_REST,
 PROP_WOULD_SHIFT and one TIMED_OUT per run, and reports the props it could not stage.
 `runs/suite-2026-11-01T10-32-41-118Z`, `…10-35-15-545Z`.
+
+## Deploy 7 (viz 0a37708), live 2026-11-01 11:27 UTC, contract unchanged (fcf4301c)
+
+Page build `/assets/hex-CbcJS6nl.js`. Lane 1: a refused addProp tries turns of ±30° before 45/90 (L5).
+Smokes 32/32 and 10/10. Opus ×2: sewing-vague 2/2, small-parts-six 2/2, tool-caddy 2/2 ($1.09).
+Four PROP_NO_REST refusals on sewing-vague carried a `tryInstead`; two on tool-caddy (hexkey-set
+standing in a div3 compartment) carried none, added to L5's source.
+`runs/suite-2026-11-01T11-29-35-167Z`, `…11-31-23-050Z`.

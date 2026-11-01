@@ -641,3 +641,46 @@ Smokes 32/32 and 10/10. Opus ×2: sewing-vague 2/2, small-parts-six 2/2, tool-ca
 Four PROP_NO_REST refusals on sewing-vague carried a `tryInstead`; two on tool-caddy (hexkey-set
 standing in a div3 compartment) carried none, added to L5's source.
 `runs/suite-2026-11-01T11-29-35-167Z`, `…11-31-23-050Z`.
+
+## Claude spend-down, 2026-11-01 (development baselines, deploys 12 and 13)
+
+The owner's OK in lane 3's chat. Every run is provider anthropic and labelled
+development: Claude is never shown as Meta. All 36 briefs in one queue per suite,
+concurrency 3, purpose dev, effort medium. Grouped by `src/runkey.mjs` (provider |
+model | effort | contract | pageBuild | agent commit); runs refused or cut short by
+the budget are left out (`bin/tally.mjs`, `bin/compare.mjs`).
+
+| suite | contract / page | completed | passed |
+|---|---|---|---|
+| Opus 5.5 ×2 | fcf4301c / hex-ClVch4Dr (deploy 12) | 72 | 71 |
+| Opus ×2, acceptance on | fcf4301c / deploy 12 | 37 | 37 |
+| | fcf4301c contract on the deploy-13 page (lane 1 deployed mid-suite) | 35 | 34 |
+| Opus ×2, rolegraph on | 3ddd2666 / hex-NDs-RgyF (deploy 13) | 72 | 72 |
+| Sonnet 5.5 ×4 (two suites) | 3ddd2666 / deploy 13 | 134 (3 budget-cut) | 122 |
+| Haiku 5.5 ×5 | 3ddd2666 / deploy 13 | 180 | 170 |
+
+Fails: Opus irrigation-riser ×2 (one per suite). Sonnet: vented-enclosure,
+injection-load, and stud-feet / stud-feet-three overclaims (4 in all). Haiku:
+injection-load ×5, vented-enclosure ×2, plus one each of electronics-organizer,
+wall-tool-rack and three-storey. Turning acceptance or rolegraph on made no
+detectable difference for Opus at n=72 (71, 71, 72). Cost: Opus $28.22, Sonnet $6.87,
+Haiku $0.96; the last Sonnet suite stopped at the $99.50 guard, so 7 runs were refused.
+
+Deploy 13 (L21/L22/L24) in these traces:
+- L21: every `replace` on a base came back with `details.steps` (and `details.above`
+  when stacked). The agent sent those steps next, and they all went on. Set verified.
+- L22: ROUTE_NO_PATH now names `details.hop`, and past the first hop it carries a
+  `tryInstead` with the run as far as it goes (3 of 4). The agent took none of them.
+  It stays live: the prompt could say a shorter run is a fair start.
+- L24: no run hit it, so it was checked with a live probe that calls no model. A mount
+  spike under a storey is refused with `details.above` naming the base. It still
+  offers no other junction. Set verified.
+
+Critic (A56) on the round-3 premade stills: Opus 5.5 as judge, threeQuarter + opposite.
+It stopped at its $6 cap after 94 of 204 builds. Against the owner's round-2 picks:
+46% agreement and 33% recall. It flagged 47 of the 88 keeps, mostly workZone (28) and
+pose (20). Not usable as a gate. `runs/critic-2026-11-01T19-16-01-657Z.json`.
+
+Suites: `runs/suite-2026-11-01T18-53-33-084Z`, `…19-10-48-514Z`, `…19-29-35-893Z`,
+`…19-53-50-689Z`, `…20-13-46-380Z`, `…20-47-04-562Z`; log `runs/claude-spenddown.log`.
+Claude ledger $99.50 of $100.

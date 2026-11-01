@@ -272,7 +272,7 @@ export const TOOL_SPECS = [
       `Ops and their fields (? = optional): ${OP_TABLE}. ` +
       `Named values: ${Object.entries(VALUES).filter(([k]) => k !== 'variant').map(([k, v]) => `${k}: ${v.join('|')}`).join('; ')}. ` +
       'Cover magnets are setCoverMagnets on a fitted cover, not a cover type. ' +
-      'House rules as ops: capOpenFaces caps every open face with solid end caps (skip: faces to leave open), lockJoints bolts the ' +
+      'House rules as ops: capOpenFaces caps every open face with solid end caps (skip: faces to leave open, strings "q,r,level;face;bearing" as check_build lists them in OPEN_CAP_FACE, e.g. "1,0,0;*;150"), lockJoints bolts the ' +
       'joints so nothing slides apart; run both once the parts are settled, before dressing. A wall hook (hex-acc-hook accessory) is a ' +
       'hang point: addProp on its ref hangs a cable coil, a roll of gaffer tape or FPV goggles. Every applied op reports the print ' +
       'budget (grams, minutes, parts), so bom is not needed for it. A refusal of a malformed op carries details: read them.',

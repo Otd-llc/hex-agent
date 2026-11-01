@@ -227,3 +227,12 @@ test('E8: tightened brief checks read spike kind, drawer open, groups, cover typ
   assert.equal(strictPass(true, { requirements: [{ status: 'unmet' }] }, { negative: true }), true);
   assert.equal(strictPass(false, { requirements: [{ status: 'met' }] }), false);
 });
+
+test('E3 + deploy 14: a call carrying prop ops gets 80 s more each, capped; other calls keep 90 s', async () => {
+  const { callTimeoutMs, CALL_TIMEOUT_MS } = await import('../src/bridge.mjs');
+  assert.equal(callTimeoutMs('settle', []), CALL_TIMEOUT_MS);
+  assert.equal(callTimeoutMs('applyAll', [[{ op: 'place' }, { op: 'addBin' }]]), CALL_TIMEOUT_MS);
+  assert.equal(callTimeoutMs('applyAll', [[{ op: 'addProp' }, { op: 'place' }, { op: 'plant' }]]), CALL_TIMEOUT_MS + 2 * 80_000);
+  assert.equal(callTimeoutMs('apply', [{ op: 'moveProp' }]), CALL_TIMEOUT_MS + 80_000);
+  assert.equal(callTimeoutMs('applyAll', [Array.from({ length: 30 }, () => ({ op: 'addProp' }))]), 600_000, 'capped');
+});

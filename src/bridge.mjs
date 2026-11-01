@@ -56,6 +56,19 @@ async function bind(browser, { url, timeoutMs }) {
 
 // A page call that never answers (a settle that hangs) must not hold a run, and the GPU, forever.
 export const CALL_TIMEOUT_MS = Number(process.env.HEX_CALL_TIMEOUT_MS ?? 90_000);
+// A prop op can work for a long while and still be right (deploy 14): up to 20 s of BUSY waits,
+// 30 s of compute and 30 s to drain it, and a refused one dry-runs its candidates for up to 20 s.
+// So a call carrying prop ops gets that much more each, up to PROP_CALL_CAP_MS.
+export const PROP_OP_MS = Number(process.env.HEX_PROP_OP_MS ?? 80_000);
+export const PROP_CALL_CAP_MS = Number(process.env.HEX_PROP_CALL_CAP_MS ?? 600_000);
+const PROP_OPS = new Set(['addProp', 'moveProp', 'plant', 'removeProp']);
+
+export function callTimeoutMs(method, args) {
+  if (method !== 'apply' && method !== 'applyAll') return CALL_TIMEOUT_MS;
+  const ops = Array.isArray(args[0]) ? args[0] : [args[0]];
+  const props = ops.filter((o) => PROP_OPS.has(o?.op)).length;
+  return props ? Math.min(CALL_TIMEOUT_MS + props * PROP_OP_MS, Math.max(PROP_CALL_CAP_MS, CALL_TIMEOUT_MS)) : CALL_TIMEOUT_MS;
+}
 
 async function call(page, method, ...args) {
   if (!READ.has(method) && !WRITE.has(method)) throw new Error(`not a documented hexAPI method: ${method}`);
@@ -66,7 +79,7 @@ async function call(page, method, ...args) {
       return await api[m](...a);
     },
     [method, args],
-  ), CALL_TIMEOUT_MS, `hexAPI ${method}`);
+  ), callTimeoutMs(method, args), `hexAPI ${method}`);
 }
 
 export function withTimeout(promise, ms, what) {

@@ -267,7 +267,7 @@ export const TOOL_SPECS = [
       'from find_surfaces (surface or on, not both); several props can go in one apply (atomic false keeps the ones that rest); ' +
       'moveProp and removeProp take a prop ref from get_build. A filament spool hangs on a spool axle: on "axle:..." (an axle ref), no atMm. ' +
       'pose stand on a prop (a pencil in an empty mug: on the mug ref, not its floor surface) is kept leaning up to 30 degrees; the pencil-cup prop already holds its own pencils and takes no more. Soil: fillSoil a bin or pot part, then plant a plant id in it. ' +
-      'A refused prop may carry tryInstead (a socket id for the same op varied so it places): apply that socket as it is. ' +
+      'A refused prop may carry tryInstead (a socket id for the same op varied so it places: on the flat prop in the way, another pose, a turn, a shift, or unposed): apply that socket as it is. ' +
       'After dressing, call check_build and fix the prop warnings it lists. ' +
       `Ops and their fields (? = optional): ${OP_TABLE}. ` +
       `Named values: ${Object.entries(VALUES).filter(([k]) => k !== 'variant').map(([k, v]) => `${k}: ${v.join('|')}`).join('; ')}. ` +

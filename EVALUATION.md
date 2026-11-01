@@ -437,3 +437,36 @@ part reported unmet. Acceptance A/B rescored: off 23/24, on 23/24, a tie.
 `runs/suite-2026-10-31T23-34-54-038Z`, `…23-56-12-742Z`,
 `runs/suite-2026-11-01T00-10-13-895Z` (Muse); `…00-30-31-775Z`,
 `…00-38-16-340Z`, `…00-42-13-579Z` (Opus).
+
+## Contract 238e6282 (viz d95cb0e, Pages d672781b), live 2026-11-01 ~01:00 UTC
+
+Runs from here on are on `/assets/hex-CmLaAUwE.js` (238e6282) unless a row
+says otherwise. Everything in the sections above, except the Opus wide suite
+and part of the Opus hard suite, ran on d2fd3dad (`/assets/hex-Bf8ZqQfR.js`).
+
+What changed on the page: lockJoints and capOpenFaces return ok with nothing
+added when the rule already holds (no NO_CHANGE refusal); a prop refused
+because a flat prop is in the way gets `tryInstead` with `on:` that prop; a
+posed prop that cannot keep its pose gets `tryInstead` unposed; validate no
+longer warns PROP_INSIDE for a prop with another resting on it. The agent
+already passed `tryInstead` through as a socket; the prompt text now names
+the two new variants.
+
+Synced, `npm test` 129/129, on live smoke-tools 32/32 and smoke-helpers 10/10.
+
+| run | result | cost |
+|---|---|---|
+| minimal-bin, Muse ×5 (rerun after the fewest-parts prompt fix) | 5/5, 2 parts each | $0.10 |
+| minimal-bin, Opus ×2 | 2/2, 2 parts each | $0.16 |
+
+`runs/suite-2026-11-01T02-42-06-808Z`, `…02-42-38-037Z`.
+
+**The workbench-organizer cap clash is a page bug** (lane 1 confirmed and
+fixed it in 500dfa37, not live yet): a cell drawer fills its half cell's
+missing half like a cut cap, so an edge cap on the next cell's face toward
+the drawer was offered and then refused MESH_CLASH (4.4-5 mm), and
+capOpenFaces failed on it. Until that deploy, workbench-organizer can fail
+`noIssue OPEN_CAP_FACE` with an honest partial; those fails are the page's.
+Evidence sent to lane 1: `C:/zzz/_premades/lane3-cap-clash.json` (cfbb414b),
+`C:/zzz/_premades/lane3-pipe-clash.json` (8b0501e2: an offered
+side-connector-double runs into the drawer frame; a cap runs into the pipe).

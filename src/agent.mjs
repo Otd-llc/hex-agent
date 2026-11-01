@@ -70,7 +70,9 @@ Working method for this session: plan, then batch. First survey with get_build, 
 // Defaults (evals 2026-10-31, EVALUATION.md): abstention won on Haiku and Opus, so on; acceptance tests
 // tied on pass rate at 12-31% more calls, so off until a Muse check says otherwise.
 // The role-graph planner (A50) is off until an A/B against the interactive default says otherwise.
-export const DEFAULT_FEATURES = { acceptance: false, abstain: true, rolegraph: false };
+// Citation check (L19): offline on 1849 traces it would have sent back 4 fails (3 overclaims) and 3
+// passes, all 3 citing a wrong ref; off until a live A/B.
+export const DEFAULT_FEATURES = { acceptance: false, abstain: true, rolegraph: false, cites: false };
 
 // Parse --features: a list of names turns exactly those on; 'none' turns all off; absent keeps the defaults.
 export function parseFeatures(arg) {
@@ -86,7 +88,7 @@ const PUSHBACKS = 2;
 
 export async function runAgent({ hex, model, brief, budget = {}, ledger = null, purpose = 'dev', runId = null, strategy = 'interactive', features = {}, onEvent = () => {} }) {
   if (!(strategy in STRATEGIES)) throw new Error(`unknown strategy ${strategy}: ${Object.keys(STRATEGIES).join(', ')}`);
-  const { acceptance, abstain, rolegraph } = { ...DEFAULT_FEATURES, ...features };
+  const { acceptance, abstain, rolegraph, cites } = { ...DEFAULT_FEATURES, ...features };
   const instructions = INSTRUCTIONS + (acceptance ? ACCEPTANCE : '') + (abstain ? ABSTAIN : '') + (rolegraph ? ROLEGRAPH : '') + STRATEGIES[strategy];
   const specs = toolSpecsFor({ acceptance, abstain, rolegraph });
   const offered = new Set(specs.map((t) => t.name));
@@ -150,7 +152,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
         // The forced last call cannot be sent back: there is no turn after it.
         const unset = acceptance && !tools.requirements() && !forced && pushbacks < PUSHBACKS;
         const parsed = parseFinish(call.arguments, { declared: acceptance ? tools.requirements() : null });
-        const back = parsed.error || unset || forced || pushbacks >= PUSHBACKS ? null : await disagreements(parsed.finish);
+        const back = parsed.error || unset || forced || pushbacks >= PUSHBACKS ? null : (await disagreements(parsed.finish)) ?? (cites ? await staleCites(parsed.finish) : null);
         if (parsed.error) result = { error: parsed.error };
         else if (unset) {
           pushbacks++;
@@ -159,7 +161,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
         else if (back) {
           pushbacks++;
           emit({ type: 'finish_pushback', disagreements: back });
-          result = { error: 'Not finished: your own checks disagree with this report. Fix the build or change the status, then call finish again.', disagreements: back };
+          result = { error: 'Not finished: this report disagrees with the build. Fix the build, or change the status or the evidence, then call finish again.', disagreements: back };
         } else {
           finish = parsed.finish;
           result = { ok: true };
@@ -193,6 +195,19 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     }
     const out = ownChecks({ declared, roles: tools.roles(), finish: f, state, verdict: { bom: b, validation: v } }).filter((c) => c.metButFails);
     return out.length ? out.map(({ id, why }) => ({ id, why })) : null;
+  }
+
+  // L19: a requirement called met whose evidence names a part ref that is not on the build.
+  async function staleCites(f) {
+    let state;
+    try {
+      state = await hex.call('getState');
+    } catch (e) {
+      emit({ type: 'harness_note', message: `citation check skipped: ${String(e.message ?? e).slice(0, 200)}` });
+      return null;
+    }
+    const out = staleCitations(f, state);
+    return out.length ? out : null;
   }
 
   let turn = 0;
@@ -237,7 +252,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     events,
     counters: tools.counters,
     opsUsed: tools.opsUsed(),
-    features: { acceptance, abstain, rolegraph },
+    features: { acceptance, abstain, rolegraph, cites },
     requirements: tools.requirements(),
     roles: tools.roles(),
     pushbacks,
@@ -361,6 +376,30 @@ function claimsProperty(text) {
 }
 export function outOfScopeClaims(finish) {
   return (finish?.requirements ?? []).filter((r) => r.status === 'met' && (OUT_OF_SCOPE.test(r.requirement ?? '') || claimsProperty(r.evidence)));
+}
+
+// Part refs cited in evidence: a cell family with q,r,level then ; or ~, or a
+// slot family with level#cell#slot. Counts ("piece:2"), shorthand and lists
+// of bearings (cap:0,0,0;*;30,90,150) are not refs and are not checked.
+// The lookahead keeps a match whole: never a shorter piece of a longer token, never one followed by ",<digit>" (a list).
+const END = '(?![-\\w;#|~*]|[.,]\\w)';
+const CELL_REF = new RegExp(`\\b(?:piece|bin|cap|cover|snap):-?\\d+,-?\\d+,-?\\d+[;~][-\\w.;#|~*]*[\\w*]${END}`, 'g');
+const SLOT_REF = new RegExp(`\\b(?:drawer|notch|bay|accessory|connector):\\d+#-?\\d+,-?\\d+#[-\\w]+${END}`, 'g');
+export function citedRefs(text) {
+  const s = String(text ?? '');
+  return [...s.matchAll(CELL_REF), ...s.matchAll(SLOT_REF)].map((m) => m[0]);
+}
+
+// L19: met requirements whose evidence cites a ref the build does not have.
+// A ref written without its variant (piece:0,0,0 for piece:0,0,0;full) counts as present.
+export function staleCitations(finish, state) {
+  const have = [...(state?.nodes ?? []).map((n) => n.ref), ...(state?.staging?.props ?? []).map((p) => p.ref)];
+  const present = (ref) => have.includes(ref) || have.some((h) => h.startsWith(ref + ';') || h.startsWith(ref + '~'));
+  return (finish?.requirements ?? [])
+    .filter((r) => r.status === 'met')
+    .map((r) => ({ id: r.id ?? r.requirement, missing: [...new Set(citedRefs(r.evidence).filter((ref) => !present(ref)))] }))
+    .filter((r) => r.missing.length)
+    .map(({ id, missing }) => ({ id, why: `cites ${missing.join(', ')}, not on the build (see get_build)` }));
 }
 
 // Provider hiccups (rate limit, overload, 5xx, dropped connection, timeout) are

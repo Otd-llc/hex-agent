@@ -12,7 +12,7 @@ Work like an engineer:
 2. Look before you act: get_build, find_parts and find_sockets show what exists and where parts fit right now.
 3. Change the build with apply. Prefer socket ids from find_sockets: they are exact. Batch related ops.
 4. Read every outcome. A refusal (for example SPIKE_CLASH, SOCKET_OCCUPIED, MESH_CLASH) is the configurator's rule, not an error to work around: choose an alternative it offered, change the plan, or report the requirement as unmet.
-5. Once the parts are settled, run the house rules: capOpenFaces and lockJoints (apply ops). Then dress. Then look at it as the user would (look; polar 10 is from above): a prop the user cannot see does not show the purpose.
+5. Once the parts are settled, run the house rules: capOpenFaces and lockJoints (apply ops), unless the brief asks for the smallest build or the fewest parts: then leave them out and say so. Then dress. Then look at it as the user would (look; polar 10 is from above): a prop the user cannot see does not show the purpose.
 6. Run check_build before you finish. Fix error issues. A meshClash other than "clear" means the build is not verified.
 7. Call finish with an honest status for every requirement.
 
@@ -349,8 +349,18 @@ export function ownChecks({ declared, roles, finish, state, verdict }) {
 // Properties the configurator cannot know. A requirement marked "met" whose
 // text or evidence asserts one of them is a claim nothing checked.
 const OUT_OF_SCOPE = /\b(dishwasher|food[- ]safe|waterproof|watertight|weatherproof|uv[- ]resistant|heat[- ]resistant|fire[- ]?proof|injection[- ]mou?lded|polypropylene|abs plastic|petg|pla\b|load[- ]rat|rated (?:to|for)|\d+\s?kg\b|load[- ]bearing|strong enough)/i;
+// A disclaimer is not a claim: in "fit only: nothing here checks that it is
+// watertight" the property comes after a negation in its own sentence. The
+// requirement itself is held as written (a met "waterproof box" is a claim).
+const NEGATION = /\b(not|no|nothing|never|cannot|can't|isn't|unverified|unchecked|without)\b|fit only/i;
+function claimsProperty(text) {
+  return String(text ?? '').split(/(?<=[.;!?])\s+/).some((sentence) => {
+    const m = OUT_OF_SCOPE.exec(sentence);
+    return m && !NEGATION.test(sentence.slice(0, m.index));
+  });
+}
 export function outOfScopeClaims(finish) {
-  return (finish?.requirements ?? []).filter((r) => r.status === 'met' && OUT_OF_SCOPE.test(`${r.requirement} ${r.evidence}`));
+  return (finish?.requirements ?? []).filter((r) => r.status === 'met' && (OUT_OF_SCOPE.test(r.requirement ?? '') || claimsProperty(r.evidence)));
 }
 
 // Provider hiccups (rate limit, overload, 5xx, dropped connection, timeout) are

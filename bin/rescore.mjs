@@ -6,6 +6,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { checkBrief, overclaimed } from '../src/checks.mjs';
+import { outOfScopeClaims } from '../src/agent.mjs';
 
 const args = process.argv.slice(2);
 const summaryPath = args.find((a) => !a.startsWith('--'));
@@ -34,7 +35,9 @@ for (const row of summary.rows) {
     fresh.pass = fresh.results.every((r) => r.pass);
   }
   const t2 = { ...trace, briefChecks: fresh };
-  const after = row.configurator && fresh.pass && !overclaimed(t2) && !(trace.acceptance?.checks ?? []).some((x) => x.metButFails);
+  // The scope check as it is now, from the trace's own finish (the suite's pass needs it too).
+  const scope = trace.finish ? (outOfScopeClaims(trace.finish).length ? 'fail' : 'pass') : 'unverified';
+  const after = row.configurator && fresh.pass && !overclaimed(t2) && scope !== 'fail' && !(trace.acceptance?.checks ?? []).some((x) => x.metButFails);
   out.push({ id: row.id, attempt: row.attempt, before: row.pass, after, changed: before(row) !== after });
 }
 function before(row) { return row.pass; }

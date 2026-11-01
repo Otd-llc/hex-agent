@@ -73,3 +73,14 @@ test('outcome: an expected decline, and a decline where none was expected (A58)'
   assert.equal(outcomeOf({ requirements: [{ status: 'met' }, { status: 'unmet' }] }, 4), 'compromise');
   assert.equal(outcomeOf({ requirements: [{ status: 'met' }] }, 4), 'built');
 });
+
+test('claimsInScope: a disclaimer is not a claim, a claim still is', async () => {
+  const { outOfScopeClaims } = await import('../src/agent.mjs');
+  const met = (requirement, evidence) => ({ requirements: [{ requirement, status: 'met', evidence }] });
+  assert.equal(outOfScopeClaims(met('Fed by a riser', 'riser:0,0,0 comes up through the floor. Fit only: nothing here checks that it is watertight.')).length, 0);
+  assert.equal(outOfScopeClaims(met('Carry handle', 'The configurator checks fit only, not whether it is strong enough.')).length, 0);
+  assert.equal(outOfScopeClaims(met('Closed', 'Covers on every face (3D printed plastic, not weatherproof).')).length, 0);
+  assert.equal(outOfScopeClaims(met('Kitchen box', 'Dishwasher safe, no BPA.')).length, 1);
+  assert.equal(outOfScopeClaims(met('Waterproof enclosure', 'Covers on every face.')).length, 1);
+  assert.equal(outOfScopeClaims(met('Shelf', 'Holds 20 kg of books.')).length, 1);
+});

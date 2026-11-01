@@ -400,3 +400,40 @@ separates well enough to gate anything: the critic stays an advisory
 
 Spend through these: Claude $23.57 -> $27.69, Baseten $51.02 -> $58.45. No
 Meta, Fireworks or Modal calls.
+
+### The 36 briefs on the live release, and three check errors of ours (2026-10-31/11-01)
+
+Muse Spark Open (Baseten, low effort) ×5 and Opus 5.5 ×2 on the 36 briefs
+(core 12, hard 8, wide 16). Traces carry `pageBuild` from the wide suites
+on: `/assets/hex-Bf8ZqQfR.js` is d2fd3dad; `/assets/hex-CmLaAUwE.js` is the
+next deploy (lane 1's 238e6282 release), which went live during the Opus
+hard suite.
+
+| model | core | hard | wide | total | site |
+|---|---|---|---|---|---|
+| Muse ×5 | 58/60 | 36/40 | 76/80 | **170/180** | d2fd3dad |
+| Opus ×2 | 24/24 | 16/16 | 29/32 | 69/72 | core d2fd3dad; hard both; wide 238e6282 |
+
+Rescored (`bin/rescore.mjs`, rescore.json beside each summary) after three
+errors of ours, found reading the traces:
+- **claimsInScope read disclaimers as claims** (Opus irrigation-riser ×2
+  "Fit only: nothing here checks that it is watertight", tool-caddy "not
+  whether it is strong enough", and earlier Muse vented-enclosure "not
+  weatherproof"). Now a property after a negation in its own sentence is a
+  disclaimer; the requirement text and plain claims ("dishwasher safe, no
+  BPA") still fail. rescore.mjs also ignored this check entirely; it now
+  recomputes it.
+- **tool-caddy counted only cover handles**: a bolted grab handle
+  (hex-acc-handle) is a carry handle too. The check is now the BOM line.
+- **minimal-bin, 8 parts for "the smallest build"** (Muse 1/5, Opus 2/2):
+  the house-rule instruction added in the migration made the model cap every
+  face. It now leaves them out when the brief asks for the fewest parts.
+  These stay failed here; rerun after the prompt change.
+
+Left as failed after reading: same-corner-conflict ×2 (Muse overclaims, the
+F5 trap); workbench-organizer ×3 (one cap clashes with the drawer frame,
+reported partial, honest); and the rest ran out of turns with the missing
+part reported unmet. Acceptance A/B rescored: off 23/24, on 23/24, a tie.
+`runs/suite-2026-10-31T23-34-54-038Z`, `…23-56-12-742Z`,
+`runs/suite-2026-11-01T00-10-13-895Z` (Muse); `…00-30-31-775Z`,
+`…00-38-16-340Z`, `…00-42-13-579Z` (Opus).

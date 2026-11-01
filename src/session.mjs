@@ -39,6 +39,9 @@ const COST_SOURCES = {
   'modal-dedicated': 'token-equivalent at Muse Spark Open shared rates, info only: the Dedicated Endpoint bills GPU seconds while up (.spend/modal-dedicated.jsonl)',
 };
 
+// Per-token hosts with a fixed credit: Fireworks' $100 hackathon credit, stop at $5 left.
+export const HOSTED_LIMITS = { fireworks: { ceilingUsd: 100, floorUsd: 5 } };
+
 // A Dedicated Endpoint bills GPU seconds while it is up. Its switch is taken from the
 // command line only: a .env cannot turn it on (src/env.mjs holds the key back).
 export function dedicatedGate(modelId) {
@@ -97,9 +100,16 @@ export function modelFor({ modelId, purpose, effort, segment = process.env.MODAL
       return { model: m, ledger };
     }
     const name = host.toUpperCase();
-    const credit = Number(process.env[`${name}_CREDIT_USD`]);
-    if (!(credit > 0)) throw new Error(`set ${name}_CREDIT_USD (the ${host} credit in USD) before a ${host} run`);
-    const reserve = Number(process.env[`${name}_RESERVE_USD`] ?? 0);
+    // The hackathon credit and the floor kept unspent are fixed here; a setting may only tighten
+    // them, and one that is not a number refuses (as for Modal).
+    const limits = HOSTED_LIMITS[host];
+    const credit = Number(process.env[`${name}_CREDIT_USD`] ?? limits?.ceilingUsd);
+    if (!(Number.isFinite(credit) && credit > 0)) throw new Error(`set ${name}_CREDIT_USD (the ${host} credit in USD) before a ${host} run`);
+    const reserve = Number(process.env[`${name}_RESERVE_USD`] ?? limits?.floorUsd ?? 0);
+    if (!Number.isFinite(reserve)) throw new Error(`${name}_RESERVE_USD must be a number`);
+    if (limits && credit > limits.ceilingUsd) throw new Error(`${name}_CREDIT_USD ${credit} is above the ${host} credit ($${limits.ceilingUsd}): refused`);
+    if (limits && reserve < limits.floorUsd) throw new Error(`${name}_RESERVE_USD ${reserve} is below the floor ($${limits.floorUsd}): refused`);
+    if (reserve >= credit) throw new Error(`${name}_RESERVE_USD must be below ${name}_CREDIT_USD`);
     return {
       model: hostedModel({ model: modelId, effort: effort ?? DEFAULT_EFFORT[host] }),
       ledger: openLedger({ path: `.spend/${host}.jsonl`, creditUsd: credit, reserveUsd: reserve, caps: { dev: credit - reserve, eval: credit - reserve } }),

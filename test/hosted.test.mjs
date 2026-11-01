@@ -61,8 +61,17 @@ test('modelFor: each host has its own ledger and needs its credit set; the Meta 
   try {
     Object.assign(process.env, { FIREWORKS_API_KEY: 'k', MODAL_PROXY_TOKEN: 't' });
     delete process.env.FIREWORKS_CREDIT_USD;
+    delete process.env.FIREWORKS_RESERVE_USD;
     delete process.env.META_API_ALLOWED;
-    assert.throws(() => modelFor({ modelId: 'accounts/fireworks/models/muse-spark-open', purpose: 'dev' }), /FIREWORKS_CREDIT_USD/);
+    // Unset: the $100 credit and the $5 floor, fixed in code.
+    const d = modelFor({ modelId: 'accounts/fireworks/models/muse-spark-open', purpose: 'dev' });
+    assert.deepEqual([d.ledger.creditUsd, d.ledger.reserveUsd], [100, 5]);
+    // Settings may tighten, never loosen, and must be numbers.
+    for (const [k, v, re] of [['FIREWORKS_CREDIT_USD', '150', /above the fireworks credit/], ['FIREWORKS_CREDIT_USD', 'abc', /FIREWORKS_CREDIT_USD/], ['FIREWORKS_CREDIT_USD', '0', /FIREWORKS_CREDIT_USD/], ['FIREWORKS_RESERVE_USD', '2', /below the floor/], ['FIREWORKS_RESERVE_USD', 'x', /must be a number/]]) {
+      process.env[k] = v;
+      assert.throws(() => modelFor({ modelId: 'accounts/fireworks/models/muse-spark-open', purpose: 'dev' }), re, `${k}=${v}`);
+      delete process.env[k];
+    }
     process.env.FIREWORKS_CREDIT_USD = '25';
     const f = modelFor({ modelId: 'accounts/fireworks/models/muse-spark-open', purpose: 'dev' });
     assert.match(f.ledger.path.replace(/\\/g, '/'), /\/\.spend\/fireworks\.jsonl$/);

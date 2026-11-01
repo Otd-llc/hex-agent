@@ -501,3 +501,36 @@ Muse on d2fd3dad was 170/180; two briefs either way is run-to-run noise at
 
 `runs/suite-2026-11-01T02-44-38-094Z`, `…03-01-24-461Z`, `…03-13-19-636Z`
 (Muse); `…03-31-17-441Z`, `…03-37-39-524Z`, `…03-41-39-367Z` (Opus).
+
+## Contract 6d9d39d2 (viz ff59714, Pages 65de738e), live 2026-11-01 ~05:30 UTC
+
+Page build `/assets/hex-CjQpAkU8.js`. Lane 1's fixes for the cap and
+connector clashes beside a cell drawer, and for `capOpenFaces` skip (lessons
+ledger L10-L12). Synced; `npm test` 129/129; on live smoke-tools 32/32 and
+smoke-helpers 10/10.
+
+Targeted reruns (Muse ×5, Opus ×2 on workbench-organizer):
+
+| brief | Muse | Opus | was on 238e6282 |
+|---|---|---|---|
+| workbench-organizer | 4/5 | 2/2 | Muse 2/5, Opus 1/2 |
+| three-storey | 4/5 | - | Muse 2/5 |
+| spike-platform | 4/5 | - | Muse 4/5 |
+| drawer-beside-spike | 4/5 | - | Muse 4/5 |
+
+No MESH_CLASH in any run. Every workbench-organizer build with a cell drawer
+ran `capOpenFaces` ok and validated clean. The no-model probes on the old
+failing builds give FACE_NOT_FREE for the cap beside the drawer (and that face
+is no longer listed open), FLAT_TAKEN "a single one fits" for the double
+connector, FLAT_TAKEN for a cap on a connector seam, and INVALID_INPUT naming
+a bad skip entry.
+
+The fails left: workbench-organizer ×1 is a Muse overclaim (it claimed two
+storeys while the final build has two pieces, and called a notch frame the
+drawer); three-storey ×1 ran out of turns rebuilding (L14); spike-platform ×1
+hit TYPE_NOT_ALLOWED (L15); drawer-beside-spike ×1 sent `addDrawer` key
+`notch0` (INVALID_PART_ID), ran out of turns and reported unmet. The
+three-storey 2/5 → 4/5 jump is within Muse's run-to-run noise; L14 isn't
+deployed yet. Cost $1.73.
+`runs/suite-2026-11-01T04-23-54-781Z`, `…04-25-44-162Z`, `…04-27-01-116Z`,
+`…04-28-54-203Z`.

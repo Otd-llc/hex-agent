@@ -18,6 +18,15 @@ import { checkBrief } from './checks.mjs';
 // Fireworks and Modal send none until a smoke shows the host takes the parameter.
 export const DEFAULT_EFFORT = { baseten: 'low', anthropic: 'medium', meta: 'medium', fireworks: null, modal: null };
 
+// Where each provider's per-token prices come from (the trace says which priced the run).
+const COST_SOURCES = {
+  meta: 'https://dev.meta.ai/docs/pricing-rate-limits (Standard mode, 2026-10-27)',
+  anthropic: 'Anthropic first-party rates (claude-api skill, cached 2026-10-06)',
+  baseten: 'https://www.baseten.co/library/muse-spark-open/',
+  fireworks: 'https://fireworks.ai/models/fireworks/muse-spark-open (checked 2026-10-31)',
+  modal: 'https://modal.com/library/meta/muse-spark-open (Shared Endpoint, checked 2026-10-31)',
+};
+
 export function modelFor({ modelId, purpose, effort }) {
   // Each provider has its own credit, so its own ledger.
   if (modelId.startsWith('claude-')) {
@@ -137,7 +146,7 @@ export async function runSession({ brief, briefId = null, expect = null, start =
     stop: result.stop,
     elapsedMs: result.elapsedMs,
     usage: result.usage,
-    costSource: model.provider === 'meta' ? 'https://dev.meta.ai/docs/pricing-rate-limits (Standard mode, 2026-10-27)' : 'Anthropic first-party rates (claude-api skill, cached 2026-10-06)',
+    costSource: COST_SOURCES[model.provider] ?? COST_SOURCES.anthropic,
     opsUsed: result.opsUsed,
     counters: result.counters,
     finish: result.finish,

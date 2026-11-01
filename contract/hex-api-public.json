@@ -1,5 +1,5 @@
 {
-  "hash": "3ddd266689fe66352c69b21317c94aa111140cd57e8aeec4ad27534c99bcf86f",
+  "hash": "08e63fabae4dd1cac246e6eef9dfcc7547322d9d0149c6bb03dd497c5738f54c",
   "apiVersion": 1,
   "status": "experimental",
   "members": [
@@ -13,7 +13,7 @@
       "name": "getState",
       "ts": "getState(): HexState;",
       "mutates": false,
-      "says": "The build: every placed part as a node (and the raw state, which is opaque)."
+      "says": "The build: every placed part as a node (and the raw state, which is opaque). A cell drawer's detail.corners lists the junctions it fills (q,r|q,r|q,r, as a spike ref names them) and a spike's detail.corner the one it stands on; detail.levels the storeys each stands in. A drawer and a spike that share a corner and a level cannot both stand."
     },
     {
       "name": "listProps",
@@ -121,7 +121,7 @@
   "ops": [
     {
       "op": "place",
-      "says": "Place a base (full, half or quarter cell), optionally 2 or 3 stories tall.",
+      "says": "Place a base (full, half or quarter cell), optionally 2 or 3 stories tall. Placed above an empty cell it stands as the bottom of its own column, and the outcome warns NOTHING_BELOW.",
       "fields": [
         {
           "name": "at",
@@ -242,7 +242,7 @@
     },
     {
       "op": "setSpikeAccessory",
-      "says": "Put an accessory on a fitted spike, or take it off (null).",
+      "says": "Put an accessory on a fitted spike, or take it off (null). A platform on a spike that cannot carry one is refused TYPE_NOT_ALLOWED with details.steps (a mount spike on the same junction, then the platform).",
       "fields": [
         {
           "name": "level",
@@ -714,7 +714,7 @@
     },
     {
       "op": "setRunMode",
-      "says": "Change what a run is plumbed for (its routing mode).",
+      "says": "Change what a run is plumbed for (its routing mode). id is the run id, or its ref run:<id>; an unknown one is refused NODE_NOT_FOUND with details.runs, the ids there are.",
       "fields": [
         {
           "name": "id",
@@ -755,7 +755,7 @@
     },
     {
       "op": "replace",
-      "says": "Swap a bin, bolt-on bin, notch or bay part, or an accessory for another part at the same site, leaving what stands on or in it; nothing fits there, and the build is as it was. A base is not swapped: refused INVALID_INPUT with details.steps (remove it, then place the new variant) and details.above (what stands on it, to remove first).",
+      "says": "Swap a bin, bolt-on bin, notch or bay part, or an accessory for another part at the same site, leaving what stands on or in it; nothing fits there, and the build is as it was. A base (piece: ref, stem the new variant) is taken out and the new kind placed in one step, a tall base at its height; parts it no longer holds are swept. Refused LOAD_ABOVE, with details.above, when something stands on it, or with the refusal place itself gives when the new kind does not fit there.",
       "fields": [
         {
           "name": "ref",
@@ -841,7 +841,7 @@
     },
     {
       "op": "addProp",
-      "says": "Place a prop from listProps() on a part, a placed prop or the bench, resting as the props panel rests it (configurator only). Refused for where or how it rests (PROP_NO_REST, PROP_WOULD_SHIFT), details.tryInstead may hold the same op varied (on the flat prop in the way, a mat or a napkin; its other pose, a turn, a small shift; unposed, its natural rest, which may lean; a long prop stood on end in a pocket too narrow to lie in) that does place: send it as it is.",
+      "says": "Place a prop from listProps() on a part, a placed prop or the bench, resting as the props panel rests it (configurator only). Refused for where or how it rests (PROP_NO_REST, PROP_WOULD_SHIFT), details.tryInstead may hold the same op varied (on the flat prop in the way, a mat or a napkin; a smaller heap of the same kind; its other pose; posed and it would not stay, its rest where aimed or where it came to rest; a turn, a shift of up to 90 mm; unposed, its natural rest, which may lean; a long prop stood on end in a pocket too narrow to lie in; the centre of the target; a hang refused on a hook, another hook, the piece it is on or the bench), worked out as the op would be, that does place: send it as it is. A prop that does not hang on a wall hook is refused INVALID_INPUT with details.tryInstead on the piece the hook is on, or the bench.",
       "fields": [
         {
           "name": "id",
@@ -1044,7 +1044,7 @@
     },
     {
       "op": "capOpenFaces",
-      "says": "Cap every open face with solid end caps, the tallest that fits (two storeys, falling back to one), the house rule. With stagger (the default) neighbouring faces alternate where their seams fall, brickwork; stagger: false lays every run from its bottom. Plain solid caps already on the build are taken off and re-laid; other caps stay. Faces beside a notch, bay, bolt-on bin or accessory stay open. skip lists faces to leave open (q,r,level;face;bearing, or the cap:... ref validate() names an open face by); any other entry is refused INVALID_INPUT. Mesh clashes are not judged here: validate() does. On a build already capped it is ok with nothing added.",
+      "says": "Cap every open face with solid end caps, the tallest that fits (two storeys, falling back to one), the house rule. With stagger (the default) neighbouring faces alternate where their seams fall, brickwork; stagger: false lays every run from its bottom. Plain solid caps already on the build are taken off and re-laid; other caps stay. Faces beside a notch, bay, bolt-on bin or accessory stay open. skip lists faces to leave open (q,r,level;face;bearing, or the cap:... ref validate() names an open face by); any other entry is refused INVALID_INPUT. In the configurator, a face whose cap the collision gate refuses is left open and the rest are capped: the outcome warns CAPS_SKIPPED with those faces; past 8 such faces it is refused MESH_CLASH with details.skip, the faces found so far. On a build already capped it is ok with nothing added.",
       "fields": [
         {
           "name": "stagger",
@@ -1346,11 +1346,11 @@
     },
     {
       "code": "HAND_MISMATCH",
-      "says": "The notch takes the other hand here."
+      "says": "A notch or bay part is one hand (mf/fm, north/south half) and stands only at every other k: the message names the k this part takes. Send it at one of those k, or the other hand at this k. validAlternatives are the same part in either hand that fit near the cell."
     },
     {
       "code": "HOST_MISMATCH",
-      "says": "The other half of the cell holds a part this one cannot share with."
+      "says": "The other half of the cell holds a part this one cannot share with. On addDrawer, details.tryInstead is the drawer key this cell takes, and validAlternatives the drawers that fit near it."
     },
     {
       "code": "INTERRUPTED",
@@ -1362,7 +1362,7 @@
     },
     {
       "code": "INVALID_PART_ID",
-      "says": "The part name is not one the configurator places."
+      "says": "The part name is not one the configurator places. On addDrawer and addNotch, validAlternatives are the drawers or site parts that fit near the cell, and details.tryInstead the same drawer as a slide drawer (which comes in every half) when it fits."
     },
     {
       "code": "KIND_MISMATCH_BELOW",
@@ -1382,11 +1382,11 @@
     },
     {
       "code": "LOAD_ABOVE",
-      "says": "Something stands on this part; take that off first. For a base, details.above names the pieces on it."
+      "says": "Something stands on this part; take that off first. For a base, details.above names the pieces on it, and on remove details.steps is the removal order, top storey first, when it stands."
     },
     {
       "code": "MESH_CLASH",
-      "says": "The rules allow it but the geometry does not: the collision gate put the build back (browser only)."
+      "says": "The rules allow it but the geometry does not: the collision gate put the build back (browser only). details.a and details.b are the two parts by model; details.caps the edge caps among them, as capOpenFaces skip takes them; on a two-storey addCap, details.tryInstead is the one-storey cap."
     },
     {
       "code": "NEEDS_CONFIGURATOR",
@@ -1434,7 +1434,7 @@
     },
     {
       "code": "NO_CELL",
-      "says": "There is no cell here to fit the part to."
+      "says": "There is no cell here to fit the part to. For a notch or bay part, details.missing names the cells it bolts to that have no base; details.steps, when it stands, places them and then the part (a drawer: its half base, then the drawer)."
     },
     {
       "code": "NO_CELL_ACROSS",
@@ -1442,7 +1442,7 @@
     },
     {
       "code": "NO_CHANGE",
-      "says": "The op would change nothing."
+      "says": "The op would change nothing. The message says what is already there; details.toChange is the op that would change it, for a set op whose flag can flip, and details.already the refs at the cell for an add."
     },
     {
       "code": "NO_COLLAR_POSSIBLE",
@@ -1462,7 +1462,7 @@
     },
     {
       "code": "OVERLAPS_NEIGHBOUR",
-      "says": "The part would reach into a neighbouring space: the position across a flat, or the quarters a long or open drawer reaches."
+      "says": "The part would reach into a neighbouring space: the position across a flat, or the quarters a long or open drawer reaches. addDrawer: details.tryInstead is the slide drawer there, when it fits. setDrawerOpen: details.blocking names the base in the way, and details.steps removes it then opens the drawer. place: details.steps shuts the open drawer first, or details.tryInstead is a kind of base that fits."
     },
     {
       "code": "PART_WITHHELD",
@@ -1502,7 +1502,7 @@
     },
     {
       "code": "PROP_WOULD_SHIFT",
-      "says": "Posed 'stand' or 'lie', the prop would not stay: the drop that verifies it moves it more than 15 mm or turns it more than 10 degrees (it would fall into the bin, tip over); details.movedMm and details.turnedDeg say how far (browser only)."
+      "says": "Posed 'stand' or 'lie', the prop would not stay: the drop that verifies it moves it more than 15 mm or turns it more than 10 degrees (it would fall into the bin, tip over); details.movedMm and details.turnedDeg say how far, details.settledAtMm where it came to rest (browser only)."
     },
     {
       "code": "PROUD_PORT",
@@ -1614,7 +1614,7 @@
     },
     {
       "code": "SPIKE_CLASH",
-      "says": "A spike on the junction reaches into this position, or a spike and a drawer would share a corner of a cell. On addSpike, details.above (or details.below for a spike facing down) names the pieces in the storey it reaches."
+      "says": "A spike on the junction reaches into this position, or a spike and a drawer would share a corner of a cell. On addSpike, details.above (or details.below for a spike facing down) names the pieces in the storey it reaches; with no other junction open, details.steps is the base that makes the nearest new three-base corner, then the spike there. On addDrawer, details.steps takes the spike off first."
     },
     {
       "code": "STACK_ORDER",
@@ -1630,7 +1630,7 @@
     },
     {
       "code": "TIMED_OUT",
-      "says": "The op did not finish working out its answer in time and wrote nothing (browser only)."
+      "says": "The op did not finish working out its answer in time and wrote nothing; the answer comes once what it started has stopped, so the next op starts clean. details.tryInstead, when given, is the same op in a pose quicker to work out (lie for a long tool, else rest with no drop) (browser only)."
     },
     {
       "code": "TOO_FEW_CELLS",
@@ -1638,7 +1638,7 @@
     },
     {
       "code": "TRIANGLE_OPEN",
-      "says": "A handle needs all three recesses of its triangle under covers."
+      "says": "A handle needs all three recesses of its triangle under covers. details.steps covers the face, then fits the handle (chain: true)."
     },
     {
       "code": "TYPE_NOT_ALLOWED",
@@ -1750,7 +1750,7 @@
     },
     {
       "code": "OPEN_CAP_FACE",
-      "says": "info: faces that could take an edge cap. They are listed in the message only, for people; ask openSockets for the cap sites."
+      "says": "info: faces that could take an edge cap, less those capOpenFaces leaves open (beside a notch, bay, bolt-on bin or accessory). They are listed in the message only, for people; ask openSockets for the cap sites."
     },
     {
       "code": "STABILITY_TIP",
@@ -1759,6 +1759,14 @@
     {
       "code": "ANCHOR_SUGGESTED",
       "says": "warning: the build stands over 3 times as tall as its footprint is wide at its narrowest; anchor it to a wall. Geometry only: not structurally tested."
+    },
+    {
+      "code": "NOTHING_BELOW",
+      "says": "warning (place): the base stands above an empty cell, as the bottom of its own column, held up by nothing."
+    },
+    {
+      "code": "CAPS_SKIPPED",
+      "says": "warning (capOpenFaces, configurator only): faces left open where a cap would run into a part beside it, as q,r,level;face;bearing."
     },
     {
       "code": "MESH_CLASH_KEPT",

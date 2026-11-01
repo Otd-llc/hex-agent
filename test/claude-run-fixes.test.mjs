@@ -96,7 +96,7 @@ test('A5 + A6: the prompt keeps building past an instruction no tool does, and s
   assert.match(INSTRUCTIONS, /"Load this link, then add a bin" is a bin on the build as it is/);
   assert.match(INSTRUCTIONS, /It is the next op to send/);
   assert.match(INSTRUCTIONS, /lay the shorter run, then carry on from where it ends/);
-  assert.match(INSTRUCTIONS, /details\.steps: send them in order/);
+  assert.match(INSTRUCTIONS, /replace it in one op; if something stands on it, the refusal names it \(details\.above\) or gives details\.steps: send them in order/);
 });
 
 test('A7: a run already going is not cut short by the reserve for a new one; the start check still holds it', () => {

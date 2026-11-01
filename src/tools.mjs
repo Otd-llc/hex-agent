@@ -157,6 +157,7 @@ export const TOOL_SPECS = [
       'Every place one kind of part fits on the build now, each with an id (s1, s2, ...) you can pass to apply. ' +
       'An offered socket passes the placement rules; it is not yet proof the meshes clear. ' +
       'Offers are valid one at a time: applying one can make others stale, so ask again after a change. ' +
+      'An offer whose op names a junction or edge (a spike, a connector, a run) also gives at (a cell it touches) and posMm (where it sits, mm). ' +
       'A joint bolt is offered from both cells of a wall: the bolt heads sit on the side you place from, and placing one fills the wall. ' +
       'Drawers (family drawer) sit on the cut face of a half base. Notch drawers (family notch) stand in an empty spot beside two bases ' +
       'that touch each other; a bay needs three; bases in a straight line or a cell apart offer none. ' +
@@ -763,13 +764,18 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
     },
 
     async find_sockets(query, { all = false } = {}) {
-      // compact: the ops alone (each holds its cell, family and slot), about half the text (A59).
-      // A page before A59 answers full offers: take the op out of each.
-      const offers = (await hex.call('openSockets', { ...query, compact: true })).map((o) => ({ op: typeof o.op === 'string' ? o : o.op }));
+      // Full offers: an op with no cell of its own (a spike's junction, a connector's
+      // edge, a run) keeps the offer's cell and posMm, so it can be placed by where it is (L13).
+      // A page before A59 answers full offers too; a compact row is the op alone.
+      const offers = (await hex.call('openSockets', query)).map((o) => (typeof o.op === 'string' ? { op: o } : o));
       const out = {
         total: offers.length,
         // The op already names the cell and the face, bearing or slot: no need to repeat them (A59).
-        sockets: (all ? offers : offers.slice(0, LIMITS.socketsShown)).map((o) => ({ socket: remember(o.op), op: o.op })),
+        sockets: (all ? offers : offers.slice(0, LIMITS.socketsShown)).map((o) => ({
+          socket: remember(o.op),
+          op: o.op,
+          ...(o.op.at || !o.at ? {} : { at: o.at, ...(o.posMm ? { posMm: o.posMm } : {}) }),
+        })),
       };
       if (!offers.length) out.note = NO_OFFERS;
       return out;

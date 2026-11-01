@@ -252,7 +252,7 @@ export function planLookup(run) {
       const { family, variant, stem, level, face, type } = need;
       const query = Object.fromEntries(Object.entries({ family, variant, stem, level, face, type }).filter(([, v]) => v != null));
       const r = await call('find_sockets', query);
-      return r.sockets.map((s) => ({ key: JSON.stringify(s.op), cell: s.op.at ?? null, use: { socket: s.socket } }));
+      return r.sockets.map((s) => ({ key: JSON.stringify(s.op), cell: s.op.at ?? s.at ?? null, use: { socket: s.socket } }));
     },
     async surfaces({ ref, prop }) {
       const r = await call('find_surfaces', { ref, fits: prop });

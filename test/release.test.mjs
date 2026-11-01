@@ -36,14 +36,26 @@ test('the contract constraints are checked in code, in its own words', () => {
   checkOpShape({ op: 'lockJoints' });
 });
 
-test('find_sockets asks for compact offers and passes the new filters; part values come from compact listParts', async () => {
+test('find_sockets passes the new filters; part values come from compact listParts', async () => {
   const hex = fakeHex();
   const t = createTools(hex);
   const r = await t.run('find_sockets', { family: 'piece', near: 'bin:0,0,0', max: 5 });
   assert.equal(r.sockets[0].op.op, 'place');
-  assert.deepEqual(hex.calls.find(([m]) => m === 'openSockets')[1], { family: 'piece', near: 'bin:0,0,0', max: 5, compact: true });
+  assert.deepEqual(hex.calls.find(([m]) => m === 'openSockets')[1], { family: 'piece', near: 'bin:0,0,0', max: 5 });
   const s = await t.run('set_requirements', { requirements: [{ id: 'R1', requirement: 'x', test: { bom: 'nonesuch' } }] });
   assert.ok(hex.calls.some(([m, o]) => m === 'listParts' && o?.compact === true) || s.error, 'compact catalogue read');
+});
+
+test('find_sockets keeps the cell and posMm of an offer whose op has no cell (L13)', async () => {
+  const spike = { op: 'addSpike', level: 0, junction: [{ q: 0, r: 0 }, { q: 0, r: 1 }, { q: 1, r: 0 }] };
+  const place = { op: 'place', at: { q: 1, r: 0, level: 0 }, variant: 'full' };
+  const hex = { call: async (m) => (m === 'openSockets'
+    ? [{ family: 'spike', at: { q: 0, r: 0, level: 0 }, op: spike, posMm: { x: 47.8, y: 0, z: 82.9 } }, { family: 'piece', at: place.at, op: place, posMm: { x: 1, y: 0, z: 0 } }]
+    : { nodes: [] }) };
+  const r = await createTools(hex).run('find_sockets', { family: 'spike' });
+  assert.deepEqual(r.sockets[0].at, { q: 0, r: 0, level: 0 });
+  assert.deepEqual(r.sockets[0].posMm, { x: 47.8, y: 0, z: 82.9 });
+  assert.ok(!('at' in r.sockets[1]) && !('posMm' in r.sockets[1]), 'an op with its own cell is not repeated');
 });
 
 test('apply reports the running budget, and a refusal its details', async () => {

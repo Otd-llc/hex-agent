@@ -148,7 +148,7 @@ export async function runSession({ brief, briefId = null, expect = null, start =
     result = await runAgent({ hex, model, brief, ledger, purpose, runId, strategy, features, budget: { maxTurns, maxUsd: Math.min(maxUsd, headroom), ...(ledger.runMaxS ? { maxMs: ledger.runMaxS * 1000 } : {}) }, onEvent: events });
     verdict = await verify({ hex, openFresh: () => hex.fresh(), finish: result.finish });
     state = await hex.call('getState');
-    checks = expect ? checkBrief(expect, { state, verdict, finish: result.finish }) : null;
+    checks = expect ? checkBrief(expect, { state, verdict, finish: result.finish, events: result.events }) : null;
     if (overlay) {
       const c = verdict.checks;
       await pushLines(hex.page, [
@@ -206,7 +206,8 @@ export async function runSession({ brief, briefId = null, expect = null, start =
     // A64/A63: the agent's own acceptance tests and roles, run on the final build.
     ...(result.features.acceptance ? { acceptance: { requirements: result.requirements ?? [], pushbacks: result.pushbacks, checks: ownChecks({ declared: result.requirements ?? [], roles: result.roles, finish: result.finish, state, verdict }) } } : {}),
     // The final nodes (no opaque detail), so checks can be re-run on the trace later.
-    finalNodes: state.nodes.map((n) => ({ ref: n.ref, family: n.family, at: n.at, stem: n.stem })),
+    // detail.entry carries what the ref does not: a spike's variant, accessory and facing, a drawer open (E8).
+    finalNodes: state.nodes.map((n) => ({ ref: n.ref, family: n.family, at: n.at, stem: n.stem, ...(n.detail ? { detail: n.detail } : {}) })),
     finalStaging: state.staging ? { props: state.staging.props.map((p) => ({ ref: p.ref, id: p.id, posMm: p.posMm, yawDeg: p.yawDeg, pot: p.pot })), soil: state.staging.soil } : null,
     events: result.events,
   };

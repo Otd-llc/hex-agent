@@ -709,3 +709,43 @@ pose (20). Not usable as a gate. `runs/critic-2026-11-01T19-16-01-657Z.json`.
 Suites: `runs/suite-2026-11-01T18-53-33-084Z`, `…19-10-48-514Z`, `…19-29-35-893Z`,
 `…19-53-50-689Z`, `…20-13-46-380Z`, `…20-47-04-562Z`; log `runs/claude-spenddown.log`.
 Claude ledger $99.50 of $100.
+
+## Audit fixes E1-E16 and the stricter grader (2026-11-01, no model calls)
+
+Lane 1's five-lens audit (`C:/zzz/_premades/plans/2026-11-01-claude-run-fixes.md`, section E).
+E15 waits for an owner pick. The grader changes (E8, E9) were applied to every recorded suite
+with `bin/rescore.mjs`, which now matches each trace to its brief by hash and records
+graderCommit + briefsSha256 (E10).
+
+E8 tightens the brief checks to what the brief asks, not the family count:
+- spike-platform and drawer-beside-spike: a mount spike carrying a platform.
+- stud-feet (×1) and stud-feet-three (×3): stud spikes facing down.
+- two-clusters: two groups of two once the connector walls are taken out, with a connector
+  between them.
+- charging-station: a cable cover.
+- open-drawer: a drawer shown open.
+- three-storey: a bin on the top storey and a drawer on the bottom one.
+- bay-bins: three bases.
+- spool-rack: a spool per axle.
+- vented-enclosure: no open cap face.
+
+From now on finalNodes keeps each node's `detail.entry` (spike variant, accessory and facing,
+drawer open). Older traces are read from their apply events. **strict** is a pass where the
+model's own finish reports every requirement met; negative briefs are judged on pass alone.
+
+| arm | as run | rescored (E8 + E9) | strict |
+|---|---|---|---|
+| Muse ×5, Baseten, 76ea6455 (baseline) | 169/180 | 164/180 | 156/180 |
+| Opus ×2, 76ea6455 | 71/72 | 71/72 | 63/72 |
+| Opus ×2, deploy 12 | 71/72 | 72/72 | 63/72 |
+| Opus ×2, acceptance on | 71/72 | 72/72 | 57/72 |
+| Opus ×2, rolegraph on | 72/72 | 71/72 | 61/72 |
+| Sonnet ×4, deploy 13 | 122/144 (134 completed) | 120/144 | 92/144 |
+| Haiku ×5, deploy 13 | 170/180 | 163/180 | 98/180 |
+
+What the tighter checks caught. Muse two-clusters ×4: connectors on four of the five walls,
+so there are no pairs. Muse drawer-beside-spike ×1: no mount spike with a platform. Opus
+stud-feet-three ×1: two studs facing down out of six. Haiku open-drawer ×3: the drawer is never
+opened. Each one read in its trace. The Sonnet rows count budget-refused runs as fails here; in
+`bin/tally.mjs` they are left out. The vented-enclosure "louvre not under a cap" check is not
+written yet.

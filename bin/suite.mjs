@@ -8,7 +8,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { loadEnv } from '../src/env.mjs';
 import { modelFor, runSession } from '../src/session.mjs';
-import { overclaimed, outcomeOf } from '../src/checks.mjs';
+import { overclaimed, outcomeOf, strictPass } from '../src/checks.mjs';
 import { parseFeatures } from '../src/agent.mjs';
 import { publicModelId } from '../src/hosted.mjs';
 
@@ -98,6 +98,8 @@ async function runJob({ b, attempt }) {
       id: b.id,
       attempt,
       pass: configurator && trace.briefChecks.pass && !over && c.claimsInScope !== 'fail' && !metButFails.length,
+      // E8: a pass with no core miss the model reported itself (every requirement met), negative briefs aside.
+      strict: strictPass(configurator && trace.briefChecks.pass && !over && c.claimsInScope !== 'fail' && !metButFails.length, trace.finish, b),
       outcome,
       ...(trace.acceptance ? { declared: trace.acceptance.requirements.length, pushbacks: trace.acceptance.pushbacks, metButFails } : {}),
       claimsInScope: c.claimsInScope,

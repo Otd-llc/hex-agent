@@ -181,3 +181,49 @@ test('E14: call stats read call 1 vs call 5 latency and cached share, and tell "
   assert.equal(silent.call1.medianCached, null, 'not reported is not 0');
   assert.equal(silent.cachedReportedShare, 0);
 });
+
+test('E8: tightened brief checks read spike kind, drawer open, groups, cover type, storeys, props per part', async () => {
+  const { checkBrief, spikeKinds, strictPass } = await import('../src/checks.mjs');
+  const verdict = { bom: { lines: [] }, validation: { issues: [] } };
+  const run = (expect, nodes, events = [], props = []) => checkBrief([expect], { state: { nodes, staging: { props } }, verdict, finish: { requirements: [{ status: 'met' }] }, events }).results[0];
+  const P = (q, r, l = 0) => ({ ref: `piece:${q},${r},${l};full`, family: 'piece', at: { q, r, level: l } });
+  // Spike kind from the entry, then from events for an old trace.
+  const mount = { ref: 'spike:0#0,0|0,1|1,0', family: 'spike', at: { q: 0, r: 0, level: 0 }, detail: { entry: '0#0,0|0,1|1,0;mount;platform-sm' } };
+  const solid = { ref: 'spike:0#0,0|0,1|1,0', family: 'spike', at: { q: 0, r: 0, level: 0 }, detail: { entry: '0#0,0|0,1|1,0;solid;' } };
+  assert.equal(run({ spike: true, variant: 'mount', accessory: 'platform' }, [mount]).pass, true);
+  assert.equal(run({ spike: true, variant: 'mount', accessory: 'platform' }, [solid]).pass, false);
+  const studDown = { ref: 'spike:0#0,0|1,-1|1,0', family: 'spike', detail: { entry: '0#0,0|1,-1|1,0;stud;;down' } };
+  const studUp = { ref: 'spike:0#0,0|0,1|1,0', family: 'spike', detail: { entry: '0#0,0|0,1|1,0;stud;' } };
+  assert.equal(run({ spike: true, variant: 'stud', facing: 'down' }, [studUp]).pass, false, 'a stud with no facing points up');
+  assert.equal(run({ spike: true, variant: 'stud', facing: 'down' }, [studDown]).pass, true);
+  const old = { ref: 'spike:0#0,0|0,1|1,0', family: 'spike', at: { q: 0, r: 0, level: 0 } };
+  const J = [{ q: 1, r: 0 }, { q: 0, r: 0 }, { q: 0, r: 1 }];
+  const ev = [{ type: 'apply', ops: [{ op: 'addSpike', level: 0, junction: J, variant: 'stud', facing: 'down' }], outcomes: [{ ok: true }] }];
+  assert.deepEqual(spikeKinds([old], ev).map((k) => [k.variant, k.facing, k.from]), [['stud', 'down', 'events']]);
+  // Drawer open.
+  assert.equal(run({ drawerOpen: 1 }, [{ ref: 'drawer:0#-1,0#cut', family: 'drawer', at: { q: -1, r: 0, level: 0 }, detail: { entry: '0#-1,0#cut~s@open' } }]).pass, true);
+  assert.equal(run({ drawerOpen: 1 }, [{ ref: 'drawer:0#-1,0#cut', family: 'drawer', at: { q: -1, r: 0, level: 0 }, detail: { entry: '0#-1,0#cut~s' } }]).pass, false);
+  // Two bolted pairs touching, joined across only by side connectors (Opus's build): two groups of two.
+  const C = (a, b) => ({ ref: `connector:0#${a}|${b}`, family: 'connector' });
+  const rhombus = [P(0, 0), P(0, 1), P(1, 0), P(1, 1)];
+  const two = { clusters: 2, joinedBy: 'connector', size: 2 };
+  assert.equal(run(two, [...rhombus, C('0,0', '0,1'), C('0,1', '1,0'), C('1,0', '1,1')]).pass, true);
+  assert.equal(run(two, rhombus).pass, false, 'four touching bases with no connector are one group');
+  assert.equal(run(two, [...rhombus, C('0,0', '0,1')]).pass, false, 'one connector wall does not split them');
+  assert.equal(run(two, [P(0, 0), P(0, 1), P(1, 0), P(3, 0)]).pass, false, 'three and one are not two pairs');
+  // Cover type, storeys, props per part.
+  assert.equal(run({ coverType: 'cable' }, [{ family: 'cover', stem: 'cable' }]).pass, true);
+  assert.equal(run({ coverType: 'cable' }, [{ family: 'cover', stem: null }]).pass, false);
+  const tower = [P(0, 0, 0), P(0, 0, 1), P(0, 0, 2), { family: 'bin', at: { q: 0, r: 0, level: 2 } }, { family: 'drawer', at: { q: 0, r: 0, level: 0 } }];
+  assert.equal(run({ onTopStorey: 'bin' }, tower).pass, true);
+  assert.equal(run({ onBottomStorey: 'drawer' }, tower).pass, true);
+  assert.equal(run({ onTopStorey: 'bin' }, [P(0, 0, 0), P(0, 0, 1), { family: 'bin', at: { q: 0, r: 0, level: 0 } }]).pass, false);
+  const axles = [{ family: 'axle' }, { family: 'axle' }];
+  assert.equal(run({ perFamily: { prop: 'filament-spool', family: 'axle' } }, axles, [], [{ id: 'filament-spool' }]).pass, false);
+  assert.equal(run({ perFamily: { prop: 'filament-spool', family: 'axle' } }, axles, [], [{ id: 'filament-spool' }, { id: 'filament-spool' }]).pass, true);
+  // Strict: every requirement met, negative briefs aside.
+  assert.equal(strictPass(true, { requirements: [{ status: 'met' }, { status: 'partial' }] }), false);
+  assert.equal(strictPass(true, { requirements: [{ status: 'met' }] }), true);
+  assert.equal(strictPass(true, { requirements: [{ status: 'unmet' }] }, { negative: true }), true);
+  assert.equal(strictPass(false, { requirements: [{ status: 'met' }] }), false);
+});

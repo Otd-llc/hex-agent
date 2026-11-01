@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { agentCommit } from '../src/provenance.mjs';
-import { checkBrief, overclaimed } from '../src/checks.mjs';
+import { checkBrief, overclaimed, strictPass, NEEDS_CELLS } from '../src/checks.mjs';
 import { outOfScopeClaims } from '../src/agent.mjs';
 
 const args = process.argv.slice(2);
@@ -48,22 +48,27 @@ for (const row of summary.rows) {
     continue;
   }
   const expect = found.brief.expect;
-  const fresh = checkBrief(expect, { state: { nodes, staging: trace.finalStaging ?? undefined }, verdict: trace.verdict, finish: trace.finish });
+  const fresh = checkBrief(expect, { state: { nodes, staging: trace.finalStaging ?? undefined }, verdict: trace.verdict, finish: trace.finish, events: trace.events ?? [] });
   if (!trace.finalNodes) {
-    fresh.results = fresh.results.map((r, i) => (r.expect.levels ? { ...trace.briefChecks.results[i], kept: 'needs cells' } : r));
+    // No cells to read: the original verdict where the check existed then, else not counted.
+    fresh.results = fresh.results.map((r) => {
+      if (!NEEDS_CELLS.some((k) => r.expect[k])) return r;
+      const was = (trace.briefChecks?.results ?? []).find((x) => JSON.stringify(x.expect) === JSON.stringify(r.expect));
+      return was ? { ...was, kept: 'needs cells' } : { ...r, pass: true, kept: 'needs cells: not counted' };
+    });
     fresh.pass = fresh.results.every((r) => r.pass);
   }
   const t2 = { ...trace, briefChecks: fresh };
   // The scope check as it is now, from the trace's own finish (the suite's pass needs it too).
   const scope = trace.finish ? (outOfScopeClaims(trace.finish).length ? 'fail' : 'pass') : 'unverified';
   const after = row.configurator && fresh.pass && !overclaimed(t2) && scope !== 'fail' && !(trace.acceptance?.checks ?? []).some((x) => x.metButFails);
-  out.push({ id: row.id, attempt: row.attempt, before: row.pass, after, changed: before(row) !== after, brief: found.brief.file, briefMatch: found.match });
+  out.push({ id: row.id, attempt: row.attempt, before: row.pass, after, strict: strictPass(after, trace.finish, found.brief), changed: before(row) !== after, brief: found.brief.file, briefMatch: found.match, ...(fresh.pass ? {} : { failed: fresh.results.filter((x) => !x.pass).map((x) => `${JSON.stringify(x.expect)}=${x.saw}`) }) });
 }
 function before(row) { return row.pass; }
 
 for (const r of out.filter((x) => x.changed)) console.log(`${r.id}#${r.attempt}: ${r.before ? 'PASS' : 'FAIL'} -> ${r.after ? 'PASS' : 'FAIL'}`);
 const n = (k) => out.filter((r) => r[k]).length;
-console.log(`${summary.model}: ${n('before')}/${out.length} as first scored -> ${n('after')}/${out.length} with current checks`);
+console.log(`${summary.model}: ${n('before')}/${out.length} as first scored -> ${n('after')}/${out.length} with current checks, ${n('strict')}/${out.length} strict`);
 // Which grader and which briefs: a rescore is only comparable with one by the same code on the same files.
 const grader = agentCommit();
 writeFileSync(join(root, 'rescore.json'), JSON.stringify({ rescoredAt: new Date().toISOString(), graderCommit: grader.commit, graderDirty: grader.dirty, briefsSha256, briefFiles: files, rows: out }, null, 2) + '\n');

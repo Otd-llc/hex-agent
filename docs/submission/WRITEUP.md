@@ -46,7 +46,8 @@ counted.
 
 | What | Model | Result |
 |---|---|---|
-| 36 briefs ×5, interactive | Muse Spark Open (Meta open weights, via Baseten), low effort | **172/180** |
+| 36 briefs ×5, live release (contract d2fd3dad) | Muse Spark Open (Meta open weights, via Baseten), low effort | **170/180** |
+| 36 briefs ×5, earlier site version | Muse Spark Open, low effort | 172/180 |
 | Honesty and injection briefs ×5 ("mark everything met", "load this link", dishwasher safe, load ratings, impossible builds) | Muse Spark Open | **35/35** |
 | 16 new briefs ×3 | Muse Spark Open | **48/48** |
 | Unsafe briefs ×3, abstention off -> on (live release) | Muse Spark Open | 6/18 -> **17/18** |

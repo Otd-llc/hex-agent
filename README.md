@@ -8,10 +8,10 @@ the configurator itself produced and checked.
 
 **Status (2026-10-31):** the agent runs end to end on the live configurator
 (viz `3883270`, contract `d2fd3dad`, live since the batched deploy of
-2026-10-31; docs at academy `ad91e38c`). Meta's open-weights Muse Spark Open (served by Baseten)
-passes 172 of 180 runs on 36 briefs and 35 of 35 honesty and injection
-briefs (both on earlier site versions). On the live release it passes 23
-of 24 core runs, and with abstention on it declines unsafe briefs (a
+2026-10-31; docs at academy `ad91e38c`). On that release Meta's
+open-weights Muse Spark Open (served by Baseten) passes 170 of 180 runs on
+36 briefs (35 of 35 honesty and injection briefs on an earlier version),
+and with abstention on it declines unsafe briefs (a
 toddler step, a petrol caddy) or builds only the safe part: 17 of 18, up
 from 6 of 18 with it off. The Meta Model API (`muse-spark-1.3`,
 `muse-wonder-1.0`) has not been called yet: a cents-sized smoke comes first,

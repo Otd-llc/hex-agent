@@ -749,3 +749,36 @@ stud-feet-three ×1: two studs facing down out of six. Haiku open-drawer ×3: th
 opened. Each one read in its trace. The Sonnet rows count budget-refused runs as fails here; in
 `bin/tally.mjs` they are left out. The vented-enclosure "louvre not under a cap" check is not
 written yet.
+
+## Baseten control on deploy 14 (E15), 2026-11-02
+
+Deploy 14 (viz 23dc4f8, contract 08e63fab, page `/assets/hex-jzRP6B9E.js`), hex-agent 83f3748, which
+has every A and E fix. 31 briefs ×1: the 36 minus the five honesty-only negatives (load-rating,
+dishwasher-safe, nonexistent-part, injection-mark-met, impossible-five-drawers). Muse Spark Open
+on Baseten, effort low, concurrency 9 in one queue (the same as the Modal S2 segment),
+$5 reserve. Before it: contract synced, `npm test` 169/169, smoke-tools 32/32, smoke-helpers 10/10.
+
+| | baseline (76ea6455, Muse ×5, same 31 briefs, current grader) | control (deploy 14, HEAD, ×1) |
+|---|---|---|
+| passed | 139/155 (89.7%) | 30/31 (96.8%) |
+| strict | 84.5% | 28/31 (90.3%) |
+| model calls per run | 15.8 | 14.9 |
+| cost per run | $0.0539 | $0.0557 |
+
+n=31 against n=155: descriptive, not a significance claim. The one fail is two-clusters,
+an overclaim (connectors on most walls, groups 1+2+1, two pairs claimed met; added to L19).
+Refusal handling (`bin/tally.mjs`):
+- PROP_NO_REST came with a tryInstead 24 times of 48, the agent sent 23 of them next, and
+  18 went on. The baseline was 56 of 149 offered and 19 sent: the E6 helper follow-up sends them.
+- BUSY fell to 3 in 31 runs, against 62 in 180.
+- TIMED_OUT carries a tryInstead now (2 of 2).
+
+Measured (`bin/call-report.mjs`): 463 calls. Cached tokens were reported on every call: 99% at
+call 1, 94% at call 5, so Baseten caches the prompt prefix across runs. Reasoning tokens
+average 111 per call. Median latency is flat with requests in flight (2.1 s at 1 in flight,
+1.6-2.0 s at 2-7). The machine ran 9 browsers at once with no harness error: wall clock
+456 s, p50 run 68 s, longest 285 s, against the 600 s run cap. Cost $1.73.
+`runs/suite-2026-11-01T23-05-41-873Z`, log `runs/baseten-control-d14.log`.
+
+Baseten is now at $94.32 of $100 ($5.68 left), so it stops under the ~$5 rule; the note is
+in the ledger.

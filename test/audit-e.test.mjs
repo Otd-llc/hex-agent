@@ -131,3 +131,53 @@ test('E9: the disclaimer has to govern the property; a spool or reel\'s size is 
   assert.equal(met('ok', 'A 2 kg reel on the rack'), 0);
   assert.equal(met('ok', 'A 2 kg bag on the shelf'), 1, 'only spools and reels are sized things');
 });
+
+test('E13: an empty find_sockets says what the family needs; find_parts with nothing asked gives the families', async () => {
+  const t = createTools(fakeHex({}));
+  const d = await t.run('find_sockets', { family: 'drawer' });
+  assert.equal(d.total, 0);
+  assert.match(d.note, /cut face of a half base/);
+  const s = await t.run('find_sockets', { family: 'spike' });
+  assert.match(s.note, /three bases meet at a corner/);
+  const hex = { call: async () => [{ value: 'hex-bin-full', family: 'bin', name: 'Bin' }, { value: 'hex-port-louvre', family: 'port', name: 'Port louvre' }, { value: 'hex-bin-half', family: 'bin', name: 'Half bin' }] };
+  const f = await createTools(hex).run('find_parts', {});
+  assert.deepEqual(f.families.map((x) => [x.family, x.parts]), [['bin', 2], ['port', 1]]);
+  assert.match(f.note, /family or a few words/);
+});
+
+test('E11: a text turn that reads as a report is told to put it in finish', async () => {
+  const src = (await import('node:fs')).readFileSync(new URL('../src/agent.mjs', import.meta.url), 'utf8');
+  assert.match(src, /That report is text, and only a finish call counts: put it in finish now/);
+  const { toolChoice } = await import('../src/http.mjs');
+  assert.equal(toolChoice({}), 'auto');
+  assert.equal(toolChoice({ MUSE_TOOL_CHOICE: 'required' }), 'required');
+  assert.equal(toolChoice({ MUSE_TOOL_CHOICE: 'any' }), 'auto');
+});
+
+test('E16: long refusal details keep steps / above / below / hop whole; only the rest is clipped', async () => {
+  const steps = Array.from({ length: 12 }, (_, i) => ({ op: 'remove', ref: `piece:${i},0,0;full` }));
+  const op = { op: 'replace', ref: 'piece:0,0,0;full', stem: 'half-n' };
+  const hex = fakeHex({ applyAll: (ops) => ({ rolledBack: true, outcomes: ops.map((o) => ({ ...no(o, 'INVALID_INPUT'), details: { steps, above: ['piece:0,0,1;full'], note: 'x'.repeat(600) } })) }) });
+  hex.call = ((orig) => async (m, ...a) => (m === 'getState' ? { state: {}, nodes: [{ ref: 'piece:0,0,0;full', family: 'piece', at: { q: 0, r: 0, level: 0 } }], staging: { props: [] } } : orig(m, ...a)))(hex.call);
+  const r = await createTools(hex).run('apply', { ops: [op] });
+  const d = r.outcomes[0].details;
+  assert.deepEqual(d.steps, steps);
+  assert.deepEqual(d.above, ['piece:0,0,1;full']);
+  assert.ok(d.clipped && d.clipped.length <= 400 && !('note' in d));
+});
+
+test('E14: call stats read call 1 vs call 5 latency and cached share, and tell "not reported" from 0', async () => {
+  const { callReport } = await import('../src/callstats.mjs');
+  const call = (ms, cached, reported, inFlight) => ({ type: 'model', servedBy: 'meta-models/Muse-Spark-Open-816B-A42B-NVFP4', usage: { inputTokens: 1000, cachedInputTokens: cached, cachedReported: reported, reasoningTokens: 40 }, http: { ms, inFlight } });
+  const run = { t: { events: [call(9000, 0, true, 1), call(2000, 0, true, 1), call(2000, 0, true, 2), call(2000, 0, true, 2), call(1500, 900, true, 3)] } };
+  const r = callReport([run]);
+  assert.equal(r.call1.medianMs, 9000);
+  assert.equal(r.call1.medianCached, 0);
+  assert.equal(r.call5.medianMs, 1500);
+  assert.equal(r.call5.medianCached, 0.9);
+  assert.equal(r.reasoningTokens.mean, 40);
+  assert.deepEqual(Object.keys(r.msByInFlight), ['1', '2', '3']);
+  const silent = callReport([{ t: { events: [{ type: 'model', usage: { inputTokens: 1000, cachedInputTokens: 0, cachedReported: false }, http: { ms: 5 } }] } }]);
+  assert.equal(silent.call1.medianCached, null, 'not reported is not 0');
+  assert.equal(silent.cachedReportedShare, 0);
+});

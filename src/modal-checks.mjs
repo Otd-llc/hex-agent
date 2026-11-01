@@ -26,7 +26,11 @@ export function validationChecks(summaryPath, note) {
     out.push({ check: `${id} passed`, ok: !!r.pass, gate: id === 'minimal-bin' });
     // A retried error the next call recovered from is the cold start, not a failure.
     out.push({ check: `${id} no unrecovered model error`, ok: !errs.some((e) => !e.retrying), saw: errs.length ? `${errs.length} errors, ${errs.filter((e) => e.retrying).length} retried` : 'none' });
-    out.push({ check: `${id} servedBy`, ok: models.length > 0 && models.every((m) => m.servedBy), saw: [...new Set(models.map((m) => m.servedBy))].join(',') || 'none', expected: DEDICATED_WEIGHTS });
+    // The host's own answer must name the weights the endpoint was made with (any case), not just exist.
+    const served = [...new Set(models.map((m) => m.servedBy))];
+    const want = String(process.env.MODAL_DEDICATED_MODEL || DEDICATED_WEIGHTS).toLowerCase();
+    const names = (x) => !!x && (String(x).toLowerCase() === want || String(x).toLowerCase().endsWith(want.split('/').pop()));
+    out.push({ check: `${id} servedBy`, ok: models.length > 0 && models.every((m) => names(m.servedBy)), saw: served.join(',') || 'none', expected: want });
     out.push({ check: `${id} pageBuild = lane 1 live note`, ok: !!note && t.pageBuild === note.pageBuild, saw: t.pageBuild, expected: note?.pageBuild ?? null, vizCommit: note?.viz ?? null });
     if (id === 'three-storey') {
       const withTry = t.events.filter((e) => e.type === 'apply').flatMap((e) => e.outcomes).filter((o) => !o.ok && (o.details?.tryInstead ?? o.tryInstead));

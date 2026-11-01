@@ -10,7 +10,7 @@
 // endpoint is made). A Modal Dedicated Endpoint bills GPU time, not tokens:
 // this adapter refuses to price one, and making one needs the owner's OK.
 import { parseChat, toChat } from './baseten.mjs';
-import { timedPost, requestParams } from './http.mjs';
+import { timedPost, requestParams, toolChoice } from './http.mjs';
 import { createHash } from 'node:crypto';
 
 // USD per 1M tokens, Standard/shared, checked 2026-10-31:
@@ -130,7 +130,7 @@ export function hostedModel({ model, apiKey, effort = null, timeoutMs = 120_000,
         model: wire,
         messages: [{ role: 'system', content: instructions }, ...toChat(items)],
         tools: tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } })),
-        tool_choice: 'auto',
+        tool_choice: toolChoice(env),
         // Sent only when asked for: neither host documents it for this model yet.
         ...(effort ? { reasoning_effort: effort } : {}),
         max_completion_tokens: 16000,

@@ -89,7 +89,8 @@ export function modelFor({ modelId, purpose, effort, segment = process.env.MODAL
       // The Modal plan credit: the ledger holds its ceiling and the reserve floor, and refuses
       // a setting that would loosen them (or is not a number).
       const ledger = openUptimeLedger({ creditUsd: process.env.MODAL_CREDIT_USD ?? CREDIT_CEILING_USD, reserveUsd: process.env.MODAL_RESERVE_USD ?? RESERVE_FLOOR_USD });
-      const m = hostedModel({ model: modelId, effort: effort ?? DEFAULT_EFFORT['modal-dedicated'] });
+      // E14: Baseten's slowest Muse call was 11 s; 30 s (MODAL_CALL_TIMEOUT_MS) keeps one hung call from eating the reserve.
+      const m = hostedModel({ model: modelId, effort: effort ?? DEFAULT_EFFORT['modal-dedicated'], timeoutMs: Number(process.env.MODAL_CALL_TIMEOUT_MS ?? 30_000) });
       // The token goes only to the host pinned when the up window was recorded, and only for
       // the validation or a segment approved with this exact spec after it passed.
       ledger.authorize({ host: dedicatedHost(modelId), segment, spec: spec ?? {} });

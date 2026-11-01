@@ -40,7 +40,7 @@ try {
   } else if (cmd === 'approve') {
     const a = ledger.approve({
       segment: flag('segment'),
-      spec: { sets: String(flag('sets') ?? '').split(',').filter(Boolean), only: flag('only'), repeat: flag('repeat'), concurrency: flag('concurrency'), maxMinutes: flag('max-minutes'), effort: 'low' },
+      spec: { sets: String(flag('sets') ?? '').split(',').filter(Boolean), only: flag('only'), repeat: flag('repeat'), concurrency: flag('concurrency'), maxMinutes: flag('max-minutes'), effort: flag('effort') ?? 'low' },
       approvedBy: flag('approved-by'),
     });
     console.log(JSON.stringify(a));

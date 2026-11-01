@@ -29,3 +29,7 @@ export const requestParams = (body) => ({
   maxCompletionTokens: body.max_completion_tokens ?? body.max_tokens ?? null,
   toolChoice: body.tool_choice ?? null,
 });
+
+// The tool_choice a Muse request sends: 'auto' unless MUSE_TOOL_CHOICE names 'required' (E11:
+// Muse writes its report as text in about one run in six; a host must be shown to take it first).
+export const toolChoice = (env = process.env) => (env.MUSE_TOOL_CHOICE === 'required' ? 'required' : 'auto');

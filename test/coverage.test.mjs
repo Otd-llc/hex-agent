@@ -150,7 +150,7 @@ test('find_parts says released only when a part is not (A59)', async () => {
     { value: 'a', op: 'addBin', field: 'stem', family: 'bin', name: 'A', use: 'x', box: null, released: true },
     { value: 'b', op: 'addBin', field: 'stem', family: 'bin', name: 'B', use: 'x', box: null, released: false },
   ] };
-  const r = await createTools(hex).run('find_parts', {});
+  const r = await createTools(hex).run('find_parts', { family: 'bin' });
   assert.equal('released' in r.parts[0], false);
   assert.equal(r.parts[1].released, false);
 });

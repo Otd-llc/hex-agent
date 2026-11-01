@@ -59,7 +59,10 @@ Plan as a role graph, and place the parts with plan_build, not apply. After look
 const WRAP_TURNS = 4;
 const WRAP_UP = (n) =>
   `${n} turns left. Start nothing new. If one apply would complete a requirement (an offer you already have), send it now; then run check_build, then call finish with an honest status for every requirement. An offer you did not apply is not on the build: anything you could not do is "unmet", with the reason.`;
-const OUT_OF_TURNS = 'You are out of turns. Call finish now: say for each requirement whether the build meets it, and report anything not done as unmet with the reason.';
+// A text turn that reads as the final report: requirement statuses, or a summary of the build.
+const REPORT_LIKE = /\b(?:met|unmet|partial)\b|\brequirements?\b|\bsummary\b|\bfinish(?:ed)?\b/i;
+const TEXT_REPORT = 'That report is text, and only a finish call counts: put it in finish now (a status and evidence for every requirement), or carry on with tools if the build is not done.';
+const OUT_OF_TURNS ='You are out of turns. Call finish now: say for each requirement whether the build meets it, and report anything not done as unmet with the reason.';
 
 // Strategy ablation: same tools and checks, different working method.
 export const STRATEGIES = {
@@ -143,7 +146,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
       ledger.add({ runId, purpose, provider: model.provider, model: model.model, ...res.usage, costUsd: costUsd(model.model, res.usage) });
     }
     // servedBy is what the host says it ran (null when it says nothing); http and params are the request's own record.
-    emit({ type: 'model', turn, responseId: res.id, servedBy: res.servedBy ?? null, text: res.text || undefined, calls: res.calls.map((c) => ({ name: c.name, arguments: c.arguments })), usage: res.usage, ...(res.http ? { http: res.http } : {}), ...(res.params ? { params: res.params } : {}) });
+    emit({ type: 'model', turn, responseId: res.id, servedBy: res.servedBy ?? null, text: res.text || undefined, calls: res.calls.map((c) => ({ name: c.name, arguments: c.arguments })), usage: res.usage, ...(res.http ? { http: res.http } : {}), ...(res.params ? { params: res.params } : {}), ...(res.rawUsage ? { rawUsage: res.rawUsage } : {}) });
     items.push(...res.output);
     return res;
   }
@@ -229,7 +232,11 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     const res = await callModel(turn, specs);
     if (!res) { stop = 'model error'; break; }
     if (res.calls.length === 0) {
-      items.push({ role: 'user', content: 'Continue with tools, or call finish.' });
+      // E11: a report written as text is not a finish. Say so in so many words (Muse does this in
+      // about one run in six), and let the next turn call only finish when the text reads as one.
+      const report = REPORT_LIKE.test(res.text ?? '');
+      emit({ type: 'text_turn', reportLike: report });
+      items.push({ role: 'user', content: report ? TEXT_REPORT : 'Continue with tools, or call finish.' });
       continue;
     }
     await runCalls(res);

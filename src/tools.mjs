@@ -26,6 +26,22 @@ const OP_TABLE = Object.entries(OP_FIELDS)
 const NO_OFFERS =
   'No place on the build takes this part right now. Change the build so it can (for example add the cells it needs ' +
   'beside or below it), then ask again. Guessing raw ops for a part with no offers rarely works.';
+// E13: what each family needs before it is offered, said when find_sockets finds none.
+export const NEEDS = {
+  drawer: 'A drawer sits on the cut face of a half base: place a half base (variant half-n, half-s, half-e or half-w) first.',
+  notch: 'A notch drawer stands in an empty cell beside two bases that touch each other: leave that cell empty, with two touching bases beside it.',
+  bay: 'A bay stands in an empty cell with three bases around it.',
+  spike: 'A spike stands where three bases meet at a corner: place three bases around one junction first.',
+  connector: 'A side connector joins two bases that stand side by side on the same storey.',
+  jointBolt: 'A joint bolt fastens the wall between two touching bases.',
+  bin: 'A bin drops into a cell of a base with no lid, bin or stacked base in it.',
+  cover: 'A cover goes on an open top or side face of a base.',
+  cap: 'A cap closes an open edge face; capOpenFaces caps them all.',
+  handle: 'A handle mounts on a top cover: add a cover first.',
+  run: 'A pipe run needs bases in a line on one storey with open cells to pass through.',
+  riser: 'A riser stands in a cell of a base whose bin has a PVC bore, or an empty cell.',
+  piece: 'A base goes beside a base on the same storey, or on top of one of the same kind.',
+};
 const STREAK_LIMIT = 6;
 
 // The value lists the public contract publishes (its `values` table): the only
@@ -125,10 +141,15 @@ function detailsOf(o) {
   const { tryInstead, ...rest } = o.details ?? {};
   return Object.keys(rest).length ? clipDetails(rest) : null;
 }
+// Fields the agent sends back as they are (E16): never cut, or the ops they hold break.
+const WHOLE_DETAILS = ['steps', 'above', 'below', 'hop'];
 function clipDetails(d) {
   const text = JSON.stringify(d);
   if (text.length <= 400) return d;
-  return { clipped: text.slice(0, 400) };
+  const keep = Object.fromEntries(WHOLE_DETAILS.filter((k) => k in d).map((k) => [k, d[k]]));
+  const rest = Object.fromEntries(Object.entries(d).filter(([k]) => !(k in keep)));
+  const restText = JSON.stringify(rest);
+  return { ...keep, ...(Object.keys(rest).length ? (restText.length <= 400 ? rest : { clipped: restText.slice(0, 400) }) : {}) };
 }
 
 const obj = (properties, required = []) => ({ type: 'object', properties, required, additionalProperties: false });
@@ -782,6 +803,17 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
 
     async find_parts({ family, text } = {}) {
       const all = await hex.call('listParts');
+      // E13: no text and no family: the families and how many parts each has, not the first 40
+      // parts in catalog order (the louvre is part 394).
+      if (!family && !String(text ?? '').trim()) {
+        const by = {};
+        for (const p of all) (by[p.family] ??= []).push(p);
+        return {
+          total: all.length,
+          families: Object.entries(by).map(([f, ps]) => ({ family: f, parts: ps.length, e: ps.slice(0, 3).map((p) => p.value) })),
+          note: 'Ask again with a family or a few words (text) to see the parts themselves.',
+        };
+      }
       // Any word may match; parts matching more of the words come first. (Requiring
       // every word made "louvre vent grate" find nothing, though hex-port-louvre exists.)
       const words = (text ?? '').toLowerCase().split(/[\s,]+/).filter(Boolean);
@@ -818,7 +850,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
           ...(o.op.at || !o.at ? {} : { at: o.at, ...(o.posMm ? { posMm: o.posMm } : {}) }),
         })),
       };
-      if (!offers.length) out.note = NO_OFFERS;
+      if (!offers.length) out.note = query?.family && NEEDS[query.family] ? `${NEEDS[query.family]} ${NO_OFFERS}` : NO_OFFERS;
       return out;
     },
 

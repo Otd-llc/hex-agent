@@ -3,7 +3,7 @@
 // adapters. Traces say provider "baseten" and model "meta-models/muse-spark-open":
 // a Meta model, but not the Model API's muse-spark-1.3, and reported as such.
 
-import { timedPost, requestParams } from './http.mjs';
+import { timedPost, requestParams, toolChoice } from './http.mjs';
 
 export const BASETEN_BASE = 'https://inference.baseten.co/v1';
 // "[HACKATHON] Muse Spark Open" (Muse-Spark-Open-816B-A42B-NVFP4) is the id
@@ -28,7 +28,8 @@ export function basetenModel({ model = BASETEN_MODEL, apiKey = process.env.BASET
         model,
         messages: [{ role: 'system', content: instructions }, ...toChat(items)],
         tools: tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } })),
-        tool_choice: 'auto',
+        // 'required' only once a smoke shows the host takes it (MUSE_TOOL_CHOICE); 'auto' otherwise.
+        tool_choice: toolChoice(),
         reasoning_effort: effort,
         max_completion_tokens: 16000,
       };
@@ -59,7 +60,12 @@ export function parseChat(json) {
       inputTokens: u.prompt_tokens ?? 0,
       outputTokens: u.completion_tokens ?? 0,
       cachedInputTokens: u.prompt_tokens_details?.cached_tokens ?? 0,
+      // null when the host does not say, so "0 cached" and "not reported" stay apart (E14).
+      reasoningTokens: u.completion_tokens_details?.reasoning_tokens ?? null,
+      cachedReported: u.prompt_tokens_details?.cached_tokens != null,
     },
+    // The usage object exactly as the host sent it.
+    rawUsage: json.usage ?? null,
   };
 }
 

@@ -52,6 +52,11 @@ export function modelFor({ modelId, purpose, effort }) {
     // Fireworks or Modal: Muse Spark Open per token, each on its own credit and ledger.
     // No default credit: a run without the balance set does not start.
     const name = host.toUpperCase();
+    // Modal plan credits do not cover Shared Endpoints, so a Modal run bills the owner's card
+    // (owner, 2026-11-01: spend no own money). Off until the owner picks a credit-covered path.
+    if (host === 'modal' && process.env.MODAL_ALLOWED !== '1') {
+      throw new Error('Modal runs are off: Shared Endpoints bill the card, not the plan credit (set MODAL_ALLOWED=1 only with the owner\'s OK)');
+    }
     const credit = Number(process.env[`${name}_CREDIT_USD`]);
     if (!(credit > 0)) throw new Error(`set ${name}_CREDIT_USD (the ${host} credit in USD) before a ${host} run`);
     const reserve = Number(process.env[`${name}_RESERVE_USD`] ?? 0);

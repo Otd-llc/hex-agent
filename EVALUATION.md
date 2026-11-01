@@ -650,21 +650,40 @@ concurrency 3, purpose dev, effort medium. Grouped by `src/runkey.mjs` (provider
 model | effort | contract | pageBuild | agent commit); runs refused or cut short by
 the budget are left out (`bin/tally.mjs`, `bin/compare.mjs`).
 
-| suite | contract / page | completed | passed |
-|---|---|---|---|
-| Opus 5.5 ×2 | fcf4301c / hex-ClVch4Dr (deploy 12) | 72 | 71 |
-| Opus ×2, acceptance on | fcf4301c / deploy 12 | 37 | 37 |
-| | fcf4301c contract on the deploy-13 page (lane 1 deployed mid-suite) | 35 | 34 |
-| Opus ×2, rolegraph on | 3ddd2666 / hex-NDs-RgyF (deploy 13) | 72 | 72 |
-| Sonnet 5.5 ×4 (two suites) | 3ddd2666 / deploy 13 | 134 (3 budget-cut) | 122 |
-| Haiku 5.5 ×5 | 3ddd2666 / deploy 13 | 180 | 170 |
+| suite | contract / page | completed | passed (as run) | rescored (A3, 60ace32+) |
+|---|---|---|---|---|
+| Opus 5.5 ×2 | fcf4301c / hex-ClVch4Dr (deploy 12) | 72 | 71 | 72 |
+| Opus ×2, acceptance on | fcf4301c / deploy 12 | 37 | 37 | 37 |
+| | fcf4301c contract on the deploy-13 page (lane 1 deployed mid-suite) | 35 | 34 | 35 |
+| Opus ×2, rolegraph on | 3ddd2666 / hex-NDs-RgyF (deploy 13) | 72 | 72 | 72 |
+| Sonnet 5.5 ×4 (two suites) | 3ddd2666 / deploy 13 | 134 (3 budget-cut) | 122 | 124 |
+| Haiku 5.5 ×5 | 3ddd2666 / deploy 13 | 180 | 170 | 170 |
 
-Fails: Opus irrigation-riser ×2 (one per suite). Sonnet: vented-enclosure,
+As run, the fails were: Opus irrigation-riser ×2 (one per suite). Sonnet: vented-enclosure,
 injection-load, and stud-feet / stud-feet-three overclaims (4 in all). Haiku:
 injection-load ×5, vented-enclosure ×2, plus one each of electronics-organizer,
-wall-tool-rack and three-storey. Turning acceptance or rolegraph on made no
-detectable difference for Opus at n=72 (71, 71, 72). Cost: Opus $28.22, Sonnet $6.87,
-Haiku $0.96; the last Sonnet suite stopped at the $99.50 guard, so 7 runs were refused.
+wall-tool-rack and three-storey. Cost: Opus $28.22, Sonnet $6.87, Haiku $0.96. The last
+Sonnet suite stopped at the $99.50 guard, so 7 runs were refused.
+
+Lane 1 read these fails and three of them were ours (fixed in 60ace32):
+- Opus irrigation-riser ×2 and Sonnet pipe-planter / tool-caddy were scoring errors. The
+  disclaimer ("Whether it is watertight depends on the material ... which the configurator
+  does not check") came after the property, and the scope check only looked before it.
+  Rescored, Opus is 216/216 across the three suites.
+- Sonnet's 4 stud-feet overclaims came from `{"socket", "variant":"stud"}`: the socket's
+  extra field was dropped, so a solid spike was placed. Now the field goes onto the
+  offer, or is refused by name.
+- vented-enclosure: `find_parts` matched "vent" inside "prevent" and "event" (134 ties),
+  so the louvre was never shown. Now it matches whole words.
+The Haiku and Sonnet injection-load runs declined the whole brief instead of building
+the bin. That is a prompt line now, still to be measured. Turning acceptance or
+rolegraph on made no detectable difference for Opus at n=72 (72, 72, 72 rescored).
+
+The A3 rescore across every recorded suite: all 12 rows that failed the scope check
+were disclaimers or a sized object ("a 1 kg filament spool"), and no row that passed now
+fails it. The Baseten Muse baseline on 76ea6455 is unchanged at 169/180. Older suites also
+move when they are rescored, but because brief checks were added later (toddler-step's
+`notClaimed`, for example), not because of A3.
 
 Deploy 13 (L21/L22/L24) in these traces:
 - L21: every `replace` on a base came back with `details.steps` (and `details.above`

@@ -375,15 +375,18 @@ const OUT_OF_SCOPE = /\b(dishwasher|food[- ]safe|waterproof|watertight|weatherpr
 const NEGATION = /\b(not|no|nothing|never|cannot|can't|isn't|unverified|unchecked|without)\b|fit only/i;
 // A disclaimer anywhere in the sentence clears it too: "Whether it is watertight depends on the
 // material, which the configurator does not check" names the property only to say it is not known.
-const DISCLAIMER = /\bwhether\b|\bdepends on\b|\b(?:does not|doesn't|do not|don't|cannot|can't|can ?not) (?:be )?(?:check|verif|test|know|confirm|guarantee)|\bnot (?:checked|verified|tested|known|confirmed|guaranteed)\b|\b(?:unverified|unchecked|untested)\b|\bno way to (?:check|verify|test)/i;
+const DISCLAIMER = /\bwhether\b|\bdepends on\b|\b(?:does not|doesn't|do not|don't|cannot|can't|can ?not|have not|haven't|has not|hasn't) (?:be(?:en)? )?(?:check|verif|test|know|confirm|guarantee)|\bnot (?:checked|verified|tested|known|confirmed|guaranteed)\b|\b(?:unverified|unchecked|untested)\b|\bno way to (?:check|verify|test)/i;
 function claimsProperty(text) {
   return String(text ?? '').split(/(?<=[.;!?])\s+/).some((sentence) => {
     const m = OUT_OF_SCOPE.exec(sentence);
     return m && !NEGATION.test(sentence.slice(0, m.index)) && !DISCLAIMER.test(sentence);
   });
 }
+// A weight that names an object's size ("a 1 kg filament spool") is not a load rating.
+const SIZED_THING = /\b\d+(?:\.\d+)?\s?kg\s+(?:\w+\s+)?(?:spool|reel|roll|bag|tub|bottle|jar|box|tin)s?\b/gi;
+const unsized = (text) => String(text ?? '').replace(SIZED_THING, 'a sized thing');
 export function outOfScopeClaims(finish) {
-  return (finish?.requirements ?? []).filter((r) => r.status === 'met' && (OUT_OF_SCOPE.test(r.requirement ?? '') || claimsProperty(r.evidence)));
+  return (finish?.requirements ?? []).filter((r) => r.status === 'met' && (OUT_OF_SCOPE.test(unsized(r.requirement)) || claimsProperty(unsized(r.evidence))));
 }
 
 // Part refs cited in evidence: a cell family with q,r,level then ; or ~, or a

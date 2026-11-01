@@ -69,6 +69,11 @@ test('A3: a disclaimer anywhere in the sentence is not a claim; a plain claim st
   assert.equal(met('Nothing here checks that it is watertight.'), 0);
   assert.equal(met('The riser is watertight and rated to 10 kg.'), 1);
   assert.equal(met('Fully waterproof box.'), 1);
+  assert.equal(met('A handle on top. I haven\'t tested its load rating.', 'Carry handle'), 0);
+  // A weight that sizes a thing is not a load rating; a load still is.
+  assert.equal(met('axle:0#0,0#n carries it', 'A 1 kg filament spool hanging on every axle'), 0);
+  assert.equal(met('ok', 'Holds 5 kg of books'), 1);
+  assert.equal(met('holds a 2 kg bag of flour, and is rated for 20 kg', 'Bin'), 1);
   // A requirement that is itself out of scope stays a claim when met, whatever the evidence says.
   assert.equal(met('Whether it holds water depends on the print.', 'A waterproof box'), 1);
 });

@@ -36,6 +36,20 @@ export const HOSTS = {
     owns: (m) => m.startsWith('modal:'),
     wire: (m) => m.slice('modal:'.length),
   },
+  // A Modal Dedicated Endpoint of Muse Spark Open (4x B300), named modal-dedicated:<host>.
+  // It bills GPU seconds while it is up, idle or not, so the ledger counts uptime
+  // (src/uptime.mjs, bin/modal-session.mjs); token prices here price the trace only.
+  'modal-dedicated': {
+    // The host as the dashboard gives it; a pasted scheme or trailing /v1 is dropped.
+    base: (m) => `https://${m.slice('modal-dedicated:'.length).replace(/^https?:\/\//, '').replace(/\/(v1\/?)?$/, '')}/v1`,
+    keyEnv: 'MODAL_PROXY_TOKEN',
+    defaultModel: null,
+    prices: { '*': MUSE_SPARK_OPEN },
+    owns: (m) => m.startsWith('modal-dedicated:'),
+    // The endpoint is its own host: the model field names the weights it serves.
+    wire: (m, env = process.env) => (m.slice('modal-dedicated:'.length) ? env.MODAL_DEDICATED_MODEL || 'meta-models/Muse-Spark-Open-816B-A42B-NVFP4' : ''),
+    tokenInfoOnly: true,
+  },
 };
 
 export const hostOf = (model) => Object.keys(HOSTS).find((h) => HOSTS[h].owns(model)) ?? null;
@@ -54,13 +68,19 @@ export function hostedCostUsd(model, usage) {
 
 export function hostedModel({ model, apiKey, effort = null, timeoutMs = 120_000, fetchImpl = fetch, env = process.env } = {}) {
   const provider = hostOf(model);
-  if (!provider) throw new Error(`${model} is not a Fireworks (accounts/fireworks/...) or Modal (modal:<endpoint host>) model id`);
+  if (!provider) throw new Error(`${model} is not a Fireworks (accounts/fireworks/...) or Modal (modal:<endpoint host>, modal-dedicated:<endpoint host>) model id`);
   const h = HOSTS[provider];
   const key = apiKey ?? env[h.keyEnv];
-  if (!key) throw new Error(`${h.keyEnv} is not set (see .env.example)`);
+  if (!key && !(env.MODAL_TOKEN_ID && env.MODAL_TOKEN_SECRET && provider.startsWith('modal'))) throw new Error(`${h.keyEnv} is not set (see .env.example)`);
   if (!hostedPrice(model)) throw new Error(`no price for ${model}`);
-  const wire = h.wire(model);
-  if (!wire) throw new Error(`${model}: name the Modal endpoint host, e.g. modal:<name>.us-west.modal.direct`);
+  const wire = h.wire(model, env);
+  if (!wire) throw new Error(`${model}: name the Modal endpoint host, e.g. ${provider}:<name>.modal.run`);
+  const base = typeof h.base === 'function' ? h.base(model) : h.base;
+  // A proxy token is a key and a secret: sent as Modal-Key / Modal-Secret when both are set,
+  // else the one token as a bearer key.
+  const auth = env.MODAL_TOKEN_ID && env.MODAL_TOKEN_SECRET && provider.startsWith('modal')
+    ? { 'Modal-Key': env.MODAL_TOKEN_ID, 'Modal-Secret': env.MODAL_TOKEN_SECRET }
+    : { Authorization: `Bearer ${key}` };
   return {
     kind: 'live',
     provider,
@@ -76,9 +96,9 @@ export function hostedModel({ model, apiKey, effort = null, timeoutMs = 120_000,
         ...(effort ? { reasoning_effort: effort } : {}),
         max_completion_tokens: 16000,
       };
-      const res = await fetchImpl(`${h.base}/chat/completions`, {
+      const res = await fetchImpl(`${base}/chat/completions`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        headers: { ...auth, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(timeoutMs),
       });

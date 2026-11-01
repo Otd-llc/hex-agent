@@ -10,6 +10,7 @@ import { claudeModel } from './claude.mjs';
 import { basetenModel } from './baseten.mjs';
 import { hostedModel, hostOf } from './hosted.mjs';
 import { openLedger } from './ledger.mjs';
+import { openUptimeLedger } from './uptime.mjs';
 import { runAgent, verify, ownChecks } from './agent.mjs';
 import { checkBrief } from './checks.mjs';
 
@@ -25,6 +26,7 @@ const COST_SOURCES = {
   baseten: 'https://www.baseten.co/library/muse-spark-open/',
   fireworks: 'https://fireworks.ai/models/fireworks/muse-spark-open (checked 2026-10-31)',
   modal: 'https://modal.com/library/meta/muse-spark-open (Shared Endpoint, checked 2026-10-31)',
+  'modal-dedicated': 'token-equivalent at Muse Spark Open shared rates, info only: the Dedicated Endpoint bills GPU seconds while up (.spend/modal-dedicated.jsonl)',
 };
 
 export function modelFor({ modelId, purpose, effort }) {
@@ -51,7 +53,13 @@ export function modelFor({ modelId, purpose, effort }) {
   if (host) {
     // Fireworks or Modal: Muse Spark Open per token, each on its own credit and ledger.
     // No default credit: a run without the balance set does not start.
-    const name = host.toUpperCase();
+    // Modal-dedicated shares the Modal plan credit (MODAL_CREDIT_USD / MODAL_RESERVE_USD).
+    const name = host.startsWith('modal') ? 'MODAL' : host.toUpperCase();
+    // A Dedicated Endpoint bills GPU seconds while it is up: off until the owner says, and
+    // only inside an up window recorded with bin/modal-session.mjs.
+    if (host === 'modal-dedicated' && process.env.MODAL_ALLOWED !== '1') {
+      throw new Error('Modal Dedicated runs are off: the endpoint bills GPU time while up (set MODAL_ALLOWED=1 only with the owner\'s OK)');
+    }
     // Modal plan credits do not cover Shared Endpoints, so a Modal run bills the owner's card
     // (owner, 2026-11-01: spend no own money). Off until the owner picks a credit-covered path.
     if (host === 'modal' && process.env.MODAL_ALLOWED !== '1') {
@@ -60,6 +68,12 @@ export function modelFor({ modelId, purpose, effort }) {
     const credit = Number(process.env[`${name}_CREDIT_USD`]);
     if (!(credit > 0)) throw new Error(`set ${name}_CREDIT_USD (the ${host} credit in USD) before a ${host} run`);
     const reserve = Number(process.env[`${name}_RESERVE_USD`] ?? 0);
+    if (host === 'modal-dedicated') {
+      return {
+        model: hostedModel({ model: modelId, effort: effort ?? DEFAULT_EFFORT.modal }),
+        ledger: openUptimeLedger({ creditUsd: credit, reserveUsd: reserve }),
+      };
+    }
     return {
       model: hostedModel({ model: modelId, effort: effort ?? DEFAULT_EFFORT[host] }),
       ledger: openLedger({ path: `.spend/${host}.jsonl`, creditUsd: credit, reserveUsd: reserve, caps: { dev: credit - reserve, eval: credit - reserve } }),

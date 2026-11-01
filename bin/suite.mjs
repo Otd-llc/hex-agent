@@ -10,6 +10,7 @@ import { loadEnv } from '../src/env.mjs';
 import { modelFor, runSession } from '../src/session.mjs';
 import { overclaimed, outcomeOf } from '../src/checks.mjs';
 import { parseFeatures } from '../src/agent.mjs';
+import { publicModelId } from '../src/hosted.mjs';
 
 loadEnv();
 const args = process.argv.slice(2);
@@ -34,13 +35,18 @@ const startOf = (b) => {
   const j = JSON.parse(readFileSync(b.start, 'utf8'));
   return j.state ?? j;
 };
-const briefs = JSON.parse(readFileSync(flag('briefs', 'evals/briefs.json'), 'utf8')).filter((b) => !only || only.includes(b.id));
+// --briefs takes one file or several (comma-separated): one queue over all of them.
+const briefFiles = String(flag('briefs', 'evals/briefs.json')).split(',');
+const briefs = briefFiles.flatMap((f) => JSON.parse(readFileSync(f, 'utf8')).map((b) => ({ ...b, set: f })))
+  .filter((b) => !only || only.includes(b.id));
+// --max-minutes: no run starts after this long (runs already going finish).
+const maxMinutes = flag('max-minutes', null) == null ? null : Number(flag('max-minutes'));
 
 const { model, ledger } = modelFor({ modelId, purpose, effort: flag('effort', undefined) });
 const suiteId = `suite-${new Date().toISOString().replace(/[:.]/g, '-')}`;
 const root = `runs/${suiteId}`;
 mkdirSync(root, { recursive: true });
-console.log(`${suiteId}: ${briefs.length} briefs x ${repeat}, ${model.provider}/${model.model}, ${purpose}, strategy ${strategy}, features ${featureList.join('+') || 'none'}, effort ${model.effort}`);
+console.log(`${suiteId}: ${briefs.length} briefs x ${repeat}, ${model.provider}/${publicModelId(model.model)}, ${purpose}, strategy ${strategy}, features ${featureList.join('+') || 'none'}, effort ${model.effort}`);
 
 const rows = [];
 const concurrency = Math.max(1, Number(flag('concurrency', 1)));
@@ -94,19 +100,50 @@ async function runJob({ b, attempt }) {
       ...(reloads ? { reloads } : {}),
     };
   } catch (e) {
-    row = { id: b.id, attempt, pass: false, error: String(e.message ?? e).slice(0, 300) };
+    const error = String(e.message ?? e).slice(0, 300);
+    // Refused for budget before it began: not a result, and scores leave it out.
+    row = { id: b.id, attempt, pass: false, error, ...(/^no \w+ budget left/.test(error) ? { budget: 'refused' } : {}) };
   }
+  // Stopped part-way by the budget: kept, but not scored as the model's result.
+  if (row.stop && /credit budget/.test(row.stop)) row.budget = 'stopped';
+  row.set = b.set;
   rows.push(row);
   console.log(`${row.pass ? 'PASS' : 'FAIL'} ${row.id}#${row.attempt} ${row.error ?? `parts=${row.parts} refusals=${JSON.stringify(row.refusals)} calls=${row.calls} ${row.seconds}s $${row.costUsd}${row.overclaimed ? ' OVERCLAIMED' : ''}${row.forcedFinish ? ' FORCED-FINISH' : ''}${row.claimed?.some((c) => c !== 'met') ? ` claims=${row.claimed.join('/')}` : ''}${row.outcome && row.outcome !== 'built' ? ` ${row.outcome}` : ''}${row.metButFails?.length ? ` MET-BUT-FAILS=${row.metButFails.length}` : ''}${row.pushbacks ? ` pushbacks=${row.pushbacks}` : ''} ${row.briefChecks.filter((x) => x.startsWith('FAIL')).join(' ')}`}`);
   rows.sort((x, y) => jobs.findIndex((j) => j.b.id === x.id && j.attempt === x.attempt) - jobs.findIndex((j) => j.b.id === y.id && j.attempt === y.attempt));
-  writeFileSync(`${root}/summary.json`, JSON.stringify({ suiteId, provider: model.provider, model: model.model, origin: process.env.HEX_URL || 'live', purpose, strategy, features, effort: model.effort, concurrency, rows }, null, 2) + '\n');
+  writeSummary();
+}
+
+function writeSummary() {
+  writeFileSync(`${root}/summary.json`, JSON.stringify({ suiteId, provider: model.provider, model: publicModelId(model.model), origin: process.env.HEX_URL || 'live', purpose, strategy, features, effort: model.effort, concurrency, briefSets: briefFiles, ...(maxMinutes != null ? { maxMinutes } : {}), planned: jobs.length, ...(stopping ? { stopped: stopping, notStarted: jobs.length - rows.length } : {}), rows }, null, 2) + '\n');
 }
 
 // N workers pull from one queue; each run has its own browser.
 let next = 0;
+let stopping = null;
+const deadline = maxMinutes == null ? Infinity : started + maxMinutes * 60_000;
+// SIGINT / SIGTERM: start nothing new, write what finished, and exit (Playwright closes its browsers).
+for (const sig of ['SIGINT', 'SIGTERM']) {
+  process.on(sig, () => {
+    if (stopping) process.exit(130);
+    stopping = sig;
+    console.log(`\n${sig}: no new runs; writing the summary of the ${rows.length} that finished`);
+    writeSummary();
+    process.exit(130);
+  });
+}
 await Promise.all(Array.from({ length: Math.min(concurrency, jobs.length) }, async () => {
-  while (next < jobs.length) await runJob(jobs[next++]);
+  while (next < jobs.length && !stopping) {
+    if (Date.now() > deadline) {
+      stopping = 'max-minutes';
+      break;
+    }
+    await runJob(jobs[next++]);
+  }
 }));
+if (stopping) {
+  console.log(`${jobs.length - next} runs not started (${stopping})`);
+  writeSummary();
+}
 const passed = rows.filter((r) => r.pass).length;
 const cost = rows.reduce((s, r) => s + (r.costUsd ?? 0), 0);
 console.log(`\n${passed}/${rows.length} passed, $${cost.toFixed(4)}, ${Math.round((Date.now() - started) / 1000)} s wall clock at concurrency ${concurrency}, summary ${root}/summary.json`);

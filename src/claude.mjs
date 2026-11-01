@@ -31,13 +31,22 @@ export function claudeModel({ model = 'claude-opus-5-5', effort = 'medium', clie
         output_config: { effort },
         cache_control: { type: 'ephemeral' },
       };
-      const res = FALLBACK.has(model)
-        ? await client.beta.messages.create({ ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
-        : await client.messages.create(params);
+      // The same per-call record the HTTP adapters keep (the SDK hides the status of a success: 200).
+      const http = { startedAt: new Date().toISOString() };
+      const t0 = Date.now();
+      let res;
+      try {
+        res = FALLBACK.has(model)
+          ? await client.beta.messages.create({ ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
+          : await client.messages.create(params);
+      } catch (e) {
+        throw Object.assign(e, { http: { ...http, endedAt: new Date().toISOString(), ms: Date.now() - t0, status: e.status ?? null } });
+      }
+      Object.assign(http, { endedAt: new Date().toISOString(), ms: Date.now() - t0, status: 200 });
       if (res.stop_reason === 'refusal') {
         throw new Error(`Claude declined (${res.stop_details?.category ?? 'no category'}): ${res.stop_details?.explanation ?? ''}`);
       }
-      return parseMessage(res);
+      return { ...parseMessage(res), http, params: { reasoningEffort: effort, temperature: null, topP: null, maxCompletionTokens: params.max_tokens, toolChoice: null } };
     },
   };
 }

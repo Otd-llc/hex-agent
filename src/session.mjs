@@ -8,7 +8,9 @@ import { installOverlay, pushLines, linesFor } from './overlay.mjs';
 import { metaModel } from './model.mjs';
 import { claudeModel } from './claude.mjs';
 import { basetenModel } from './baseten.mjs';
-import { hostedModel, hostOf } from './hosted.mjs';
+import { hostedModel, hostOf, dedicatedHost, publicModelId } from './hosted.mjs';
+import { heldFromEnvFile } from './env.mjs';
+import { agentCommit, vizCommit } from './provenance.mjs';
 import { openLedger } from './ledger.mjs';
 import { openUptimeLedger } from './uptime.mjs';
 import { runAgent, verify, ownChecks } from './agent.mjs';
@@ -17,7 +19,15 @@ import { checkBrief } from './checks.mjs';
 // Reasoning effort when none is asked for. Muse Spark Open measured best at low
 // (ablation 2026-10-27, EVALUATION.md); the others stay at medium until measured.
 // Fireworks and Modal send none until a smoke shows the host takes the parameter.
-export const DEFAULT_EFFORT = { baseten: 'low', anthropic: 'medium', meta: 'medium', fireworks: null, modal: null };
+// Modal Dedicated serves the same NVFP4 weights as Baseten, so it runs at Baseten's low.
+export const DEFAULT_EFFORT = { baseten: 'low', anthropic: 'medium', meta: 'medium', fireworks: null, modal: null, 'modal-dedicated': 'low' };
+
+// Muse Spark Open's weights on each host that serves it, as the host is configured
+// (Baseten's [HACKATHON] model, the Modal endpoint the owner made): the same NVFP4 build.
+const WEIGHTS = {
+  baseten: { name: 'Muse-Spark-Open-816B-A42B-NVFP4', precision: 'NVFP4' },
+  'modal-dedicated': { name: 'Muse-Spark-Open-816B-A42B-NVFP4', precision: 'NVFP4' },
+};
 
 // Where each provider's per-token prices come from (the trace says which priced the run).
 const COST_SOURCES = {
@@ -28,6 +38,14 @@ const COST_SOURCES = {
   modal: 'https://modal.com/library/meta/muse-spark-open (Shared Endpoint, checked 2026-10-31)',
   'modal-dedicated': 'token-equivalent at Muse Spark Open shared rates, info only: the Dedicated Endpoint bills GPU seconds while up (.spend/modal-dedicated.jsonl)',
 };
+
+// A Dedicated Endpoint bills GPU seconds while it is up. Its switch is taken from the
+// command line only: a .env cannot turn it on (src/env.mjs holds the key back).
+export function dedicatedGate(modelId) {
+  if (heldFromEnvFile.has('MODAL_DEDICATED_ALLOWED')) throw new Error('MODAL_DEDICATED_ALLOWED is in .env: remove it; it is set on the command line only, with the owner\'s OK');
+  if (process.env.MODAL_DEDICATED_ALLOWED !== '1') throw new Error(`${modelId}: Modal Dedicated runs are off (set MODAL_DEDICATED_ALLOWED=1 on the command line only with the owner's OK)`);
+  dedicatedHost(modelId);
+}
 
 export function modelFor({ modelId, purpose, effort }) {
   // Each provider has its own credit, so its own ledger.
@@ -53,25 +71,25 @@ export function modelFor({ modelId, purpose, effort }) {
   if (host) {
     // Fireworks or Modal: Muse Spark Open per token, each on its own credit and ledger.
     // No default credit: a run without the balance set does not start.
-    // Modal-dedicated shares the Modal plan credit (MODAL_CREDIT_USD / MODAL_RESERVE_USD).
-    const name = host.startsWith('modal') ? 'MODAL' : host.toUpperCase();
-    // A Dedicated Endpoint bills GPU seconds while it is up: off until the owner says, and
-    // only inside an up window recorded with bin/modal-session.mjs.
-    if (host === 'modal-dedicated' && process.env.MODAL_ALLOWED !== '1') {
-      throw new Error('Modal Dedicated runs are off: the endpoint bills GPU time while up (set MODAL_ALLOWED=1 only with the owner\'s OK)');
-    }
-    // Modal plan credits do not cover Shared Endpoints, so a Modal run bills the owner's card
-    // (owner, 2026-11-01: spend no own money). Off until the owner picks a credit-covered path.
-    if (host === 'modal' && process.env.MODAL_ALLOWED !== '1') {
-      throw new Error('Modal runs are off: Shared Endpoints bill the card, not the plan credit (set MODAL_ALLOWED=1 only with the owner\'s OK)');
-    }
+    // Modal Shared Endpoints bill the owner's card, never the plan credit (owner, 2026-11-01:
+    // spend no own money): refused outright, whatever is set.
+    if (host === 'modal') throw new Error('Modal Shared Endpoints bill the card, not the credit: refused (a Dedicated Endpoint is modal-dedicated:<host>.modal.run)');
+    // Modal-dedicated takes the Modal plan credit (MODAL_CREDIT_USD / MODAL_RESERVE_USD).
+    const name = host === 'modal-dedicated' ? 'MODAL' : host.toUpperCase();
+    if (host === 'modal-dedicated') dedicatedGate(modelId);
     const credit = Number(process.env[`${name}_CREDIT_USD`]);
     if (!(credit > 0)) throw new Error(`set ${name}_CREDIT_USD (the ${host} credit in USD) before a ${host} run`);
     const reserve = Number(process.env[`${name}_RESERVE_USD`] ?? 0);
     if (host === 'modal-dedicated') {
+      const ledger = openUptimeLedger({ creditUsd: credit, reserveUsd: reserve });
+      // The token goes only to the host pinned when the up window was recorded.
+      const up = ledger.open();
+      const want = dedicatedHost(modelId);
+      if (!up) throw new Error('no Modal up window is open: record it with node bin/modal-session.mjs start');
+      if (up.host !== want) throw new Error(`the open up window is pinned to ${up.host}, not ${want}: refused`);
       return {
-        model: hostedModel({ model: modelId, effort: effort ?? DEFAULT_EFFORT.modal }),
-        ledger: openUptimeLedger({ creditUsd: credit, reserveUsd: reserve }),
+        model: hostedModel({ model: modelId, effort: effort ?? DEFAULT_EFFORT['modal-dedicated'] }),
+        ledger,
       };
     }
     return {
@@ -82,7 +100,7 @@ export function modelFor({ modelId, purpose, effort }) {
   // The Meta Model API credit is kept for the demo and judging (owner, 2026-10-31): nothing
   // reaches it unless META_API_ALLOWED=1, so a mistyped id never spends it.
   if (process.env.META_API_ALLOWED !== '1') {
-    throw new Error(`${modelId}: the Meta Model API is off (set META_API_ALLOWED=1 only with the owner's OK). Muse Spark Open runs: meta-models/... (Baseten), accounts/fireworks/models/muse-spark-open, modal:<endpoint host>`);
+    throw new Error(`${modelId}: the Meta Model API is off (set META_API_ALLOWED=1 only with the owner's OK). Muse Spark Open runs: meta-models/... (Baseten), accounts/fireworks/models/muse-spark-open, modal-dedicated:<endpoint host>.modal.run`);
   }
   return { model: metaModel({ model: modelId, reasoningEffort: effort ?? DEFAULT_EFFORT.meta }), ledger: openLedger() };
 }
@@ -113,7 +131,7 @@ export async function runSession({ brief, briefId = null, expect = null, start =
     };
     if (overlay) {
       await dismissCookies(hex.page);
-      await installOverlay(hex.page, { brief, provider: model.provider, model: model.model });
+      await installOverlay(hex.page, { brief, provider: model.provider, model: publicModelId(model.model) });
       events = (e) => {
         saveStill(e);
         onEvent(e);
@@ -140,7 +158,7 @@ export async function runSession({ brief, briefId = null, expect = null, start =
     await hex.close();
   }
   if (harnessError) {
-    writeFileSync(`${dir}/trace.json`, JSON.stringify({ runId, briefId, purpose, provider: model.provider, model: model.model, brief, harnessError, partial: result ?? null }, null, 2) + '\n');
+    writeFileSync(`${dir}/trace.json`, JSON.stringify({ runId, briefId, purpose, provider: model.provider, model: publicModelId(model.model), brief, harnessError, partial: result ?? null }, null, 2) + '\n');
     throw new Error(`harness error (trace kept at ${dir}/trace.json): ${harnessError.split('\n')[0]}`);
   }
 
@@ -153,9 +171,15 @@ export async function runSession({ brief, briefId = null, expect = null, start =
     effort: model.effort,
     inference: model.kind,
     provider: model.provider,
-    model: model.model,
+    // A Dedicated Endpoint's host is kept out of traces (they may be published): only its hash.
+    model: publicModelId(model.model),
+    ...(model.provider === 'modal-dedicated' ? { endpointHostSha256: createHash('sha256').update(dedicatedHost(model.model)).digest('hex').slice(0, 16) } : {}),
+    // The weights as configured on the host (not something the host reports).
+    ...(WEIGHTS[model.provider] ? { weights: { ...WEIGHTS[model.provider], basis: 'as configured' } } : {}),
+    agent: { ...agentCommit(), promptSha256: result.promptSha256 },
     hexApiVersion: hex.version,
     pageBuild: hex.build ?? null,
+    vizCommit: vizCommit(hex.build ?? null),
     origin: hexUrl(),
     // The contract the agent's op table came from; a run is only comparable with runs on the same one.
     contractHash: CONTRACT.hash,

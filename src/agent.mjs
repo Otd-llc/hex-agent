@@ -4,6 +4,7 @@
 import { createTools, toolSpecsFor } from './tools.mjs';
 import { checkBrief } from './checks.mjs';
 import { costUsd } from './model.mjs';
+import { createHash } from 'node:crypto';
 
 export const INSTRUCTIONS = `You design physical builds in Hex Cluster, a modular hexagonal hardware system, by operating its live configurator.
 
@@ -127,7 +128,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
       } catch (e) {
         const message = String(e.message ?? e).slice(0, 300);
         const retry = transient(e) && attempt < RETRY_DELAYS_MS.length && Date.now() - started < maxMs;
-        emit({ type: 'model_error', message, status: e.status ?? null, retrying: retry });
+        emit({ type: 'model_error', message, status: e.status ?? null, retrying: retry, ...(e.http ? { http: e.http } : {}) });
         if (!retry) return null;
         await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
       }
@@ -140,7 +141,8 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     if (ledger && model.kind === 'live') {
       ledger.add({ runId, purpose, provider: model.provider, model: model.model, ...res.usage, costUsd: costUsd(model.model, res.usage) });
     }
-    emit({ type: 'model', turn, responseId: res.id, servedBy: res.servedBy ?? model.model, text: res.text || undefined, calls: res.calls.map((c) => ({ name: c.name, arguments: c.arguments })), usage: res.usage });
+    // servedBy is what the host says it ran (null when it says nothing); http and params are the request's own record.
+    emit({ type: 'model', turn, responseId: res.id, servedBy: res.servedBy ?? null, text: res.text || undefined, calls: res.calls.map((c) => ({ name: c.name, arguments: c.arguments })), usage: res.usage, ...(res.http ? { http: res.http } : {}), ...(res.params ? { params: res.params } : {}) });
     items.push(...res.output);
     return res;
   }
@@ -253,6 +255,8 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     counters: tools.counters,
     opsUsed: tools.opsUsed(),
     features: { acceptance, abstain, rolegraph, cites },
+    // The system prompt this run sent, by hash: runs are comparable only on the same one.
+    promptSha256: createHash('sha256').update(instructions).digest('hex'),
     requirements: tools.requirements(),
     roles: tools.roles(),
     pushbacks,

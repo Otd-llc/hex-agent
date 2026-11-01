@@ -3,6 +3,8 @@
 // adapters. Traces say provider "baseten" and model "meta-models/muse-spark-open":
 // a Meta model, but not the Model API's muse-spark-1.3, and reported as such.
 
+import { timedPost, requestParams } from './http.mjs';
+
 export const BASETEN_BASE = 'https://inference.baseten.co/v1';
 // "[HACKATHON] Muse Spark Open" (Muse-Spark-Open-816B-A42B-NVFP4) is the id
 // this account can call; the general meta-models/muse-spark-open returns 403
@@ -30,16 +32,14 @@ export function basetenModel({ model = BASETEN_MODEL, apiKey = process.env.BASET
         reasoning_effort: effort,
         max_completion_tokens: 16000,
       };
-      const res = await fetchImpl(`${BASETEN_BASE}/chat/completions`, {
-        method: 'POST',
+      const { res, raw, http } = await timedPost(fetchImpl, `${BASETEN_BASE}/chat/completions`, {
         // Baseten's OpenAI-compatible endpoint takes the key as a bearer token (its example uses the OpenAI client).
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(timeoutMs),
+        body,
+        timeoutMs,
       });
-      const raw = await res.text();
-      if (!res.ok) throw Object.assign(new Error(`Baseten ${res.status}: ${raw.slice(0, 500)}`), { status: res.status });
-      return parseChat(JSON.parse(raw));
+      if (!res.ok) throw Object.assign(new Error(`Baseten ${res.status}: ${raw.slice(0, 500)}`), { status: res.status, http });
+      return { ...parseChat(JSON.parse(raw)), http, params: requestParams(body) };
     },
   };
 }

@@ -68,6 +68,9 @@ test('modelFor: each host has its own ledger and needs its credit set; the Meta 
     assert.match(f.ledger.path.replace(/\\/g, '/'), /\/\.spend\/fireworks\.jsonl$/);
     assert.equal(f.ledger.creditUsd, 25);
     process.env.MODAL_CREDIT_USD = '30';
+    delete process.env.MODAL_ALLOWED;
+    assert.throws(() => modelFor({ modelId: 'modal:m.us-west.modal.direct', purpose: 'eval' }), /Modal runs are off/);
+    process.env.MODAL_ALLOWED = '1';
     assert.match(modelFor({ modelId: 'modal:m.us-west.modal.direct', purpose: 'eval' }).ledger.path.replace(/\\/g, '/'), /\/\.spend\/modal\.jsonl$/);
     assert.throws(() => modelFor({ modelId: 'muse-spark-1.3', purpose: 'dev' }), /Meta Model API is off/);
     assert.throws(() => modelFor({ modelId: 'modl:typo', purpose: 'dev' }), /Meta Model API is off/);

@@ -623,3 +623,13 @@ the story above or below" with no ref and no alternative (new **L24**, lane 1).
 Cost Muse $2.29, Opus $0.81.
 `runs/suite-2026-11-01T06-33-17-124Z`, `…06-44-11-780Z`, `…06-50-31-869Z`, `…06-52-52-839Z`,
 `…06-54-25-714Z`.
+
+## Deploy 6 (viz 043622b), live 2026-11-01 10:30 UTC, contract unchanged (fcf4301c)
+
+Page build `/assets/hex-CL1Qe11b.js`. Lane 1: a dropped or leaned prop that would cut into a part is
+refused (or lifted clear on a graze), and plants under a planted storey validate in soil (L2, L7,
+L17; lane 1 verifies those on its premades). No sync needed; smoke-tools 32/32, smoke-helpers 10/10.
+Regression check on the prop and plant briefs, Opus ×2: herb-planter 2/2, sewing-vague 2/2,
+seed-tray 2/2, irrigation-riser 2/2 (8/8, $0.99). sewing-vague still sees PROP_NO_REST,
+PROP_WOULD_SHIFT and one TIMED_OUT per run, and reports the props it could not stage.
+`runs/suite-2026-11-01T10-32-41-118Z`, `…10-35-15-545Z`.

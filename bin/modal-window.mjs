@@ -84,18 +84,28 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
   });
 }
 
+// The window's own watchdog: a suite that outlives its spec's minutes (or 3 h) by 20 min is killed
+// with every browser under it, so a hang cannot keep the endpoint billing unattended.
+const WATCHDOG_MS = ((spec?.maxMinutes ?? 180) + 20) * 60_000;
+
 // One suite as a child process, at the spec's effort, exactly the spec; resolves to its summary path.
 function suite(s) {
   return new Promise((done) => {
     const a = ['bin/suite.mjs', `--model=${modelId}`, '--purpose=eval', `--effort=${s.effort}`, `--briefs=${s.sets.map((x) => `evals/${x}.json`).join(',')}`,
       `--repeat=${s.repeat}`, `--concurrency=${s.concurrency}`, ...(s.only ? [`--only=${s.only.join(',')}`] : []), ...(s.maxMinutes ? [`--max-minutes=${s.maxMinutes}`] : [])];
     child = spawn(process.execPath, a, { stdio: ['ignore', 'pipe', 'inherit'], env: { ...process.env, MODAL_SEGMENT: segment, SUITE_PARENT_PID: String(process.pid) } });
+    const dog = setTimeout(() => {
+      report.watchdog = true;
+      console.error(`watchdog: the suite ran past ${Math.round(WATCHDOG_MS / 60_000)} min; killing it and its browsers`);
+      killTree('SIGTERM');
+    }, WATCHDOG_MS);
     let out = '';
     child.stdout.on('data', (d) => {
       out += d;
       process.stdout.write(d);
     });
     child.on('close', (code) => {
+      clearTimeout(dog);
       child = null;
       report.suiteExit = code;
       done(out.match(/summary (\S+summary\.json)/)?.[1] ?? null);
@@ -105,7 +115,9 @@ function suite(s) {
 
 const t0 = Date.now();
 let ok = true;
-if (step === 'warmup' || step === 'validate') {
+// Every step warms up first: after a gap longer than the idle timeout the endpoint is cold again,
+// and a cold start must not be scored as the model failing.
+{
   report.warmup = await warmup(() => model.probe(), {
     maxMinutes: Number(flag('warmup-minutes', 30)), fastMs: Number(flag('fast-ms', 20000)), everyMs: 15000, headroom: () => ledger.headroom(),
     log: (p, n) => console.log(`warmup ${n}: ${p.status ?? p.error} in ${p.ms} ms${p.servedBy ? ` (${p.servedBy})` : ''}`),
@@ -121,7 +133,7 @@ if (step === 'validate' && ok) {
   console.log(ok ? 'VALIDATION PASSED' : 'VALIDATION FAILED: no segment until it is understood');
 }
 if (step === 'validate') ledger.recordValidation({ passed: ok, summary: report.summary ?? null });
-if (step === 'run') {
+if (step === 'run' && ok) {
   report.summary = await suite(spec);
   ok = report.summary != null && report.suiteExit === 0;
 }

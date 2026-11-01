@@ -390,4 +390,8 @@ test('validation checks: gated on minimal-bin pass, recovered errors, servedBy, 
   assert.equal(validationPassed(t3), true, 'three-storey failing its brief is reported, not gated');
   assert.equal(validationPassed(validationChecks(D([{ id: 'minimal-bin', attempt: 1, pass: false, trace: true, t: good() }, { id: 'three-storey', attempt: 1, pass: true, trace: true, t: good(refusal) }]), note)), false);
   assert.equal(validationPassed(validationChecks(null, note)), false);
+  // No tryInstead on three-storey is reported, not gated (Muse sees one in ~7 of 25 runs).
+  const noTry = validationChecks(D([{ id: 'minimal-bin', attempt: 1, pass: true, trace: true, t: good() }, { id: 'three-storey', attempt: 1, pass: true, trace: true, t: good() }]), note);
+  assert.deepEqual(noTry.filter((c) => !c.ok).map((c) => [c.check, c.gate]), [['three-storey refusal with tryInstead', false]]);
+  assert.equal(validationPassed(noTry), true);
 });

@@ -34,4 +34,4 @@ console.log(`|---|${groups.map(() => '---').join('|')}|`);
 for (const [id, m] of table) console.log(`| ${id} | ${groups.map((x) => cell(m.get(x))).join(' | ')} |`);
 const tot = groups.map((x) => [...table.values()].reduce((a, m) => { const v = m.get(x) ?? [0, 0]; return [a[0] + v[0], a[1] + v[1]]; }, [0, 0]));
 console.log(`| **total** | ${tot.map(cell).join(' | ')} |`);
-if (cut) console.log(`\n${cut} runs left out: refused or cut short by the budget`);
+if (cut) console.log(`\n${cut} runs left out: refused or cut short by the budget, or the model host not answering`);

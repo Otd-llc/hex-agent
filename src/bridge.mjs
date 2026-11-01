@@ -54,16 +54,27 @@ async function bind(browser, { url, timeoutMs }) {
   };
 }
 
+// A page call that never answers (a settle that hangs) must not hold a run, and the GPU, forever.
+export const CALL_TIMEOUT_MS = Number(process.env.HEX_CALL_TIMEOUT_MS ?? 90_000);
+
 async function call(page, method, ...args) {
   if (!READ.has(method) && !WRITE.has(method)) throw new Error(`not a documented hexAPI method: ${method}`);
-  return page.evaluate(
+  return withTimeout(page.evaluate(
     async ([m, a]) => {
       const api = window.hexAPI;
       if (!api) throw new Error('hexAPI not loaded');
       return await api[m](...a);
     },
     [method, args],
-  );
+  ), CALL_TIMEOUT_MS, `hexAPI ${method}`);
+}
+
+export function withTimeout(promise, ms, what) {
+  let timer;
+  const late = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(Object.assign(new Error(`${what} did not answer in ${Math.round(ms / 1000)} s`), { code: 'CALL_TIMEOUT' })), ms);
+  });
+  return Promise.race([promise, late]).finally(() => clearTimeout(timer));
 }
 
 export const isWrite = (method) => WRITE.has(method);

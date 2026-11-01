@@ -94,7 +94,11 @@ const PROP_FIX = {
 };
 const PROP_CODES = new Set(Object.keys(PROP_FIX));
 
-export const LIMITS = { opsPerCall: 30, opsTotal: 250, socketsShown: 40, partsShown: 40, nodesShown: 200, propsShown: 40, surfacesShown: 40 };
+export const LIMITS = { opsPerCall: 30, opsTotal: 250, socketsShown: 40, partsShown: 40, nodesShown: 200, propsShown: 40, surfacesShown: 40, offersAfterApply: 12 };
+// Refusals that only say the state already holds: an atomic batch undone for these alone is re-run without them.
+const HOLDS_ALREADY = new Set(['ALREADY_FITTED', 'NO_CHANGE']);
+// The kinds offered back after an apply that added a base (caps are left to capOpenFaces).
+const OFFER_FAMILIES_AFTER_APPLY = ['piece', 'bin', 'drawer', 'notch', 'spike', 'cover', 'connector', 'jointBolt'];
 
 // How well a part matches the search words: a word must start a word in the part's text
 // ("vent" finds vents and vented, never prevent or event), and a hit in the value or name
@@ -180,7 +184,7 @@ export const TOOL_SPECS = [
     description:
       'Every place one kind of part fits on the build now, each with an id (s1, s2, ...) you can pass to apply. ' +
       'An offered socket passes the placement rules; it is not yet proof the meshes clear. ' +
-      'Offers are valid one at a time: applying one can make others stale, so ask again after a change. ' +
+      'Offers are valid one at a time: applying one can make others stale, so ask again after a change (an apply that adds a base already answers with offersNear). Ask for several families in one turn as separate calls. ' +
       'An offer whose op names a junction or edge (a spike, a connector, a run) also gives at (a cell it touches) and posMm (where it sits, mm). ' +
       'A joint bolt is offered from both cells of a wall: the bolt heads sit on the side you place from, and placing one fills the wall. ' +
       'Drawers (family drawer) sit on the cut face of a half base. Notch drawers (family notch) stand in an empty spot beside two bases ' +
@@ -862,12 +866,13 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       onEvent({ type: 'apply', ops: batch, outcomes: r.outcomes, rolledBack: r.rolledBack, atomic });
 
       // An atomic batch undone only because some ops were ALREADY_FITTED (e.g.
-      // both ends of one joint bolt) wanted a state that already holds: apply
-      // it again without them, and say which were dropped.
+      // both ends of one joint bolt) or NO_CHANGE (a house rule already kept)
+      // wanted a state that already holds: apply it again without them, and
+      // say which were dropped.
       const dropped = [];
       for (let pass = 0; pass < 3 && atomic && r.rolledBack; pass++) {
         const refused = r.outcomes.filter((o) => !o.ok);
-        if (!refused.length || !refused.every((o) => o.code === 'ALREADY_FITTED')) break;
+        if (!refused.length || !refused.every((o) => HOLDS_ALREADY.has(o.code))) break;
         const drop = new Set(refused.map((o) => JSON.stringify(o.op)));
         dropped.push(...refused.map((o) => o.op));
         batch = batch.filter((op) => !drop.has(JSON.stringify(op)));
@@ -894,7 +899,33 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       if (propWarned.length) out.fix = Object.fromEntries(propWarned.map((c) => [c, PROP_FIX[c]]));
       if (dropped.length) {
         out.droppedAlreadyFitted = dropped;
-        out.note = 'These ops were refused ALREADY_FITTED (that state already holds), so the batch was applied again without them.';
+        out.note = 'These ops were refused ALREADY_FITTED or NO_CHANGE (that state already holds), so the batch was applied again without them.';
+      }
+      // E5: the offers at the bases this call added, so the next step needs no find_sockets.
+      if (!r.rolledBack) {
+        const added = r.outcomes.filter((o) => o.ok).flatMap((o) => o.added ?? []).filter((ref) => /^piece:/.test(ref));
+        if (added.length) {
+          const near = added.at(-1);
+          try {
+            // openSockets takes one family at a time: a couple of each kind a new base is followed by.
+            const offers = [];
+            for (const family of OFFER_FAMILIES_AFTER_APPLY.filter((f) => FAMILIES.includes(f))) {
+              if (offers.length >= LIMITS.offersAfterApply) break;
+              const got = await hex.call('openSockets', { family, near, max: 2 });
+              offers.push(...(Array.isArray(got) ? got : []).map((o) => (typeof o.op === 'string' ? { op: o } : o)));
+            }
+            offers.splice(LIMITS.offersAfterApply);
+            if (offers.length) {
+              out.offersNear = {
+                near,
+                note: 'Open offers at the base just added (valid until the next change): apply one by its socket, no find_sockets needed.',
+                sockets: offers.map((o) => ({ socket: remember(o.op), op: o.op, ...(o.op.at || !o.at ? {} : { at: o.at }) })),
+              };
+            }
+          } catch {
+            // An older page without near: the agent asks find_sockets as before.
+          }
+        }
       }
       return out;
     },

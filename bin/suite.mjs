@@ -64,6 +64,9 @@ mkdirSync(root, { recursive: true });
 console.log(`${suiteId}: ${briefs.length} briefs x ${repeat}, ${model.provider}/${publicModelId(model.model)}, ${purpose}, strategy ${strategy}, features ${featureList.join('+') || 'none'}, effort ${model.effort}`);
 
 const rows = [];
+// Consecutive runs that ended on a model error before the queue stops (--infra-stop).
+const INFRA_STOP = Math.max(1, Number(flag('infra-stop', 3)));
+let infraStreak = 0;
 const jobs = briefs.flatMap((b) => Array.from({ length: repeat }, (_, k) => ({ b, attempt: k + 1 })));
 const started = Date.now();
 
@@ -121,6 +124,15 @@ async function runJob({ b, attempt }) {
   // Stopped part-way by the budget: kept, but not scored as the model's result.
   if (row.stop && /^(cost budget|\w+ credit budget)$/.test(row.stop)) row.budget = 'stopped';
   row.set = b.set;
+  // The model host failing (cold, down, refusing) is not the model's result: the row is marked
+  // infra and left out like a budget cut, and after INFRA_STOP in a row the queue stops.
+  if (row.stop === 'model error') {
+    row.infra = 'model error';
+    if (++infraStreak >= INFRA_STOP && !stopping) {
+      stopping = 'infra';
+      console.log(`${INFRA_STOP} runs in a row ended on a model error: the host is not answering, no new runs`);
+    }
+  } else if (!row.error) infraStreak = 0;
   rows.push(row);
   console.log(`${row.pass ? 'PASS' : 'FAIL'} ${row.id}#${row.attempt} ${row.error ?? `parts=${row.parts} refusals=${JSON.stringify(row.refusals)} calls=${row.calls} ${row.seconds}s $${row.costUsd}${row.overclaimed ? ' OVERCLAIMED' : ''}${row.forcedFinish ? ' FORCED-FINISH' : ''}${row.claimed?.some((c) => c !== 'met') ? ` claims=${row.claimed.join('/')}` : ''}${row.outcome && row.outcome !== 'built' ? ` ${row.outcome}` : ''}${row.metButFails?.length ? ` MET-BUT-FAILS=${row.metButFails.length}` : ''}${row.pushbacks ? ` pushbacks=${row.pushbacks}` : ''} ${row.briefChecks.filter((x) => x.startsWith('FAIL')).join(' ')}`}`);
   rows.sort((x, y) => jobs.findIndex((j) => j.b.id === x.id && j.attempt === x.attempt) - jobs.findIndex((j) => j.b.id === y.id && j.attempt === y.attempt));
@@ -135,6 +147,17 @@ function writeSummary() {
 let next = 0;
 let stopping = null;
 const deadline = maxMinutes == null ? Infinity : started + maxMinutes * 60_000;
+// --max-minutes stops new runs; the watchdog ends the suite if the runs going then have not
+// finished within a run's own time cap more (a hung page or a stuck call).
+if (maxMinutes != null) {
+  const graceMs = Number(flag('watchdog-grace-minutes', 15)) * 60_000;
+  setTimeout(() => {
+    stopping = 'watchdog';
+    console.log(`\nwatchdog: ${maxMinutes} min + grace passed with runs still going; writing the summary and ending`);
+    writeSummary();
+    process.exit(124);
+  }, maxMinutes * 60_000 + graceMs).unref();
+}
 // SIGINT / SIGTERM: start nothing new, write what finished, and exit (Playwright closes its browsers).
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {

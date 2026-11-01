@@ -79,7 +79,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   if (asJson) console.log(JSON.stringify(result, null, 2));
   else {
     for (const [key, r] of Object.entries(result)) {
-      console.log(`\n## ${KEY_FIELDS.join(' | ')} = ${key}\n${r.attempted} attempted, ${r.completed} completed, ${r.passed} passed${r.budgetExcluded ? `, ${r.budgetExcluded} left out (budget)` : ''}, ${r.overclaimed} overclaimed`);
+      console.log(`\n## ${KEY_FIELDS.join(' | ')} = ${key}\n${r.attempted} attempted, ${r.completed} completed, ${r.passed} passed${r.budgetExcluded ? `, ${r.budgetExcluded} left out (budget or host)` : ''}, ${r.overclaimed} overclaimed`);
       console.log('code | refused | with tryInstead | sent next | next ok');
       for (const [code, c] of Object.entries(r.codes).sort((a, b) => b[1].refused - a[1].refused)) {
         console.log(`${code} | ${c.refused} | ${c.withTry} | ${c.sentNext} | ${c.nextOk}`);

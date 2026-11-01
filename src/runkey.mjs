@@ -20,6 +20,8 @@ export function runKey(trace, summary = {}) {
 
 // A row the budget refused before it began, or stopped part-way (cost or credit).
 export const budgetCut = (row, trace = null) => !!row.budget || /^(cost budget|\w+ credit budget)$/.test(String(row.stop ?? trace?.stop ?? ''));
+// A row the model host cut short (no answer after the retries): not the model's result either.
+export const infraCut = (row, trace = null) => !!row.infra || String(row.stop ?? trace?.stop ?? '') === 'model error';
 
 // Every row of the given suite dirs with its trace (null when none was written), its key,
 // and its pass as rescored (rescore.json) when there is one.
@@ -35,7 +37,7 @@ export function loadRuns(dirs) {
       // A trace that is not what its summary says is refused, not counted under it.
       if (t && (t.provider !== s.provider || (t.model && s.model && t.model !== s.model))) throw new Error(`${p}: trace is ${t.provider}/${t.model}, summary says ${s.provider}/${s.model}`);
       const pass = after?.has(`${row.id}#${row.attempt}`) ? after.get(`${row.id}#${row.attempt}`) : row.pass;
-      out.push({ dir, row: { ...row, pass }, t, ...runKey(t, s), cut: budgetCut(row, t) });
+      out.push({ dir, row: { ...row, pass }, t, ...runKey(t, s), cut: budgetCut(row, t) || infraCut(row, t), infra: infraCut(row, t) });
     }
   }
   return out;

@@ -60,7 +60,7 @@ a toddler to stand on is declined: printed plastic shouldn't carry a child."
 (The declined run places nothing: show its finish as a caption card over the empty bench.)
 
 **2:20-2:40. The numbers.** Screen: a still table with each provider named.
-Voice: "On 36 briefs, five runs each, Muse Spark Open passed 172 of 180, and
+Voice: "On 36 briefs, five runs each, Muse Spark Open passed 170 of 180 on the live configurator, and
 35 of 35 on briefs built to make it overclaim or follow injected
 instructions." Add the Meta Model API demo numbers here once measured, and
 say which model each number comes from.

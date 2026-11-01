@@ -104,6 +104,7 @@ export function openUptimeLedger({
     open,
     spent,
     tailS,
+    runMaxS,
     // A model call: its token cost is info, the window already counts the time.
     add(entry) {
       const { costUsd, ...rest } = entry;
@@ -177,10 +178,12 @@ export function openUptimeLedger({
     },
     // Dollars left for new work: none without an open window; else the cap less what the
     // windows cost so far and the tail the open one bills once the last run starts.
-    headroom() {
+    // inRun: asked between turns of a run already going, whose length the start check already
+    // reserved: only the idle tail and the delete are held back, so a started run is not cut short.
+    headroom(purpose, { inRun = false } = {}) {
       const w = open();
       if (!w) return 0;
-      return cap - spent() - tailS * w.usdPerS;
+      return cap - spent() - (inRun ? IDLE_S + DELETE_LAG_S : tailS) * w.usdPerS;
     },
     summary() {
       const w = open();

@@ -12,6 +12,10 @@ import { runPlan, rebind, planLookup, ZONE_KINDS } from './plan.mjs';
 // before anything reaches the page.
 const OP_FIELDS = CONTRACT.opFields;
 const BUILD_OPS = new Set(Object.keys(OP_FIELDS));
+// The fields a {socket} item may send to vary its offer (where the op takes them): the kind, not the place.
+const SOCKET_OVERRIDES = ['variant', 'type', 'stem', 'style', 'facing'];
+// The ops the page can dry-run (props and plants); the rest are applied for real or not at all.
+const DRY_RUN_OPS = new Set(['addProp', 'moveProp', 'plant']);
 // Compact, for the apply tool's description: "place(at, variant, storeys?); ..."
 const OP_TABLE = Object.entries(OP_FIELDS)
   .map(([op, [req, opt]]) => `${op}(${[...req, ...opt.map((o) => `${o}?`)].join(', ')})`)
@@ -91,6 +95,26 @@ const PROP_FIX = {
 const PROP_CODES = new Set(Object.keys(PROP_FIX));
 
 export const LIMITS = { opsPerCall: 30, opsTotal: 250, socketsShown: 40, partsShown: 40, nodesShown: 200, propsShown: 40, surfacesShown: 40 };
+
+// How well a part matches the search words: a word must start a word in the part's text
+// ("vent" finds vents and vented, never prevent or event), and a hit in the value or name
+// counts most, then the family, then the use; a whole-word hit in the value or name adds one.
+export function partScore(p, words) {
+  let total = 0;
+  for (const word of words) {
+    // A light stem, so "vented", "venting" and "ventilation" find "vents", "bins" finds "bin"
+    // (never below three letters).
+    const w = word.replace(/(ilation|ation|ing|ed|es|s)$/, (m, _, i) => (i >= 3 ? '' : m));
+    const esc = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const start = new RegExp(`(^|[^a-z0-9])${esc}`, 'i');
+    const whole = new RegExp(`(^|[^a-z0-9])${esc}([^a-z0-9]|$)`, 'i');
+    const head = `${p.value ?? ''} ${p.name ?? ''}`;
+    let s = start.test(head) ? 3 : start.test(p.family ?? '') ? 2 : start.test(p.use ?? '') ? 1 : 0;
+    if (s === 3 && whole.test(head)) s++;
+    total += s;
+  }
+  return total;
+}
 const mm = (v) => Math.round(v);
 // A refusal's details, kept to a few hundred characters: the field or limit and the numbers.
 function detailsOf(o) {
@@ -262,13 +286,14 @@ export const TOOL_SPECS = [
     name: 'apply',
     description:
       'Change the build. Each item is either {"socket":"s12"} (an offer from find_sockets) or a full op object. ' +
+      'A socket may also carry variant, type, stem, style or facing (where its op takes it) to vary the offer, e.g. {"socket":"s12","variant":"stud"}; any other field is refused. ' +
       'Atomic by default: if any op is refused, the whole batch is taken back. Refusals carry a code, a message and ' +
       'nearby alternatives (also given socket ids). Never invent a ref: take refs from get_build or an outcome. ' +
       'Props: addProp with an id from find_props, on a part ref or "bench" (atMm moves it off the centre), or on a surface token ' +
       'from find_surfaces (surface or on, not both); several props can go in one apply (atomic false keeps the ones that rest); ' +
       'moveProp and removeProp take a prop ref from get_build. A filament spool hangs on a spool axle: on "axle:..." (an axle ref), no atMm. ' +
       'pose stand on a prop (a pencil in an empty mug: on the mug ref, not its floor surface) is kept leaning up to 30 degrees; the pencil-cup prop already holds its own pencils and takes no more. Soil: fillSoil a bin or pot part, then plant a plant id in it. ' +
-      'A refused prop may carry tryInstead (a socket id for the same op varied so it places: on the flat prop in the way, another pose, a turn, a shift, or unposed): apply that socket as it is. ' +
+      'A refused op may carry tryInstead (a socket id for the same op varied so it goes on: for a prop the flat prop in the way, another pose, a turn, a shift, or unposed; for a base the kind below; for a run the run as far as it goes): it is the next op to send, as it is, even when it does less than asked. ' +
       'After dressing, call check_build and fix the prop warnings it lists. ' +
       `Ops and their fields (? = optional): ${OP_TABLE}. ` +
       `Named values: ${Object.entries(VALUES).filter(([k]) => k !== 'variant').map(([k, v]) => `${k}: ${v.join('|')}`).join('; ')}. ` +
@@ -286,7 +311,7 @@ export const TOOL_SPECS = [
           items: { type: 'object', description: '{"socket":"sN"} or a hexAPI op such as {"op":"place","at":{"q":1,"r":0,"level":0},"variant":"full"}' },
         },
         atomic: { type: 'boolean', description: 'Default true. False keeps the ops that succeed and reports the rest.' },
-        dryRun: { type: 'boolean', description: 'Try ONE op and report what would happen, changing nothing.' },
+        dryRun: { type: 'boolean', description: 'Try ONE addProp, moveProp or plant op and report what would happen, changing nothing. Other ops cannot be dry-run: apply them (a refusal changes nothing).' },
       },
       ['ops'],
     ),
@@ -512,7 +537,19 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
     if (item && typeof item.socket === 'string') {
       const op = sockets.get(item.socket);
       if (!op) throw new Error(`unknown socket id ${item.socket}: call find_sockets again`);
-      return { ...op };
+      // Fields sent beside a socket change the offer, never get dropped: a variant, type or stem
+      // the op takes is put on it (a socket for a spike sent with variant "stud" places a stud);
+      // anything else is refused by name.
+      const extra = Object.keys(item).filter((k) => k !== 'socket');
+      const out = { ...op };
+      for (const k of extra) {
+        if (!SOCKET_OVERRIDES.includes(k) || !(k in (CONTRACT.fieldTypes[op.op] ?? {}))) {
+          throw new Error(`INVALID_INPUT: ${k} cannot go with a socket for ${op.op} (a socket takes ${SOCKET_OVERRIDES.filter((f) => f in (CONTRACT.fieldTypes[op.op] ?? {})).join(', ') || 'no other field'}): send the full op instead`);
+        }
+        out[k] = item[k];
+      }
+      if (extra.length) checkOpShape(out);
+      return out;
     }
     if (!item || typeof item.op !== 'string') throw new Error('each item needs "socket" or "op"');
     if (!BUILD_OPS.has(item.op)) throw new Error(`op ${item.op} is not allowed here`);
@@ -744,7 +781,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       // Any word may match; parts matching more of the words come first. (Requiring
       // every word made "louvre vent grate" find nothing, though hex-port-louvre exists.)
       const words = (text ?? '').toLowerCase().split(/[\s,]+/).filter(Boolean);
-      const score = (p) => words.filter((w) => `${p.value} ${p.name} ${p.use ?? ''}`.toLowerCase().includes(w)).length;
+      const score = (p) => partScore(p, words);
       const hits = all
         .filter((p) => !family || p.family === family)
         .map((p) => ({ p, s: words.length ? score(p) : 1 }))
@@ -786,7 +823,12 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       if (dryRun) {
         // One op, nothing changes, nothing counts against the budget.
         if (ops.length !== 1) throw new Error('a dry run tries one op at a time');
-        const o = await hex.call('apply', await resolve(takeRole(ops[0])[0], await liveRefs()), { dryRun: true });
+        const op = await resolve(takeRole(ops[0])[0], await liveRefs());
+        // The page dry-runs only these; anything else is answered here, without a call.
+        if (!DRY_RUN_OPS.has(op.op)) {
+          return { dryRun: true, notDryRun: true, note: `dryRun works only for ${[...DRY_RUN_OPS].join(', ')}. Apply ${op.op} for real: a refusal changes nothing, and undo takes back what went on.` };
+        }
+        const o = await hex.call('apply', op, { dryRun: true });
         return { dryRun: true, outcomes: [summarizeOutcome(o)] };
       }
       if (acceptance && !requirements) throw new Error('Call set_requirements first: the brief as acceptance tests, before the first change.');

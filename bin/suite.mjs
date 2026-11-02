@@ -11,6 +11,7 @@ import { modelFor, runSession } from '../src/session.mjs';
 import { overclaimed, outcomeOf, strictPass } from '../src/checks.mjs';
 import { parseFeatures } from '../src/agent.mjs';
 import { publicModelId } from '../src/hosted.mjs';
+import { baselineOf, tripped } from '../src/tripwires.mjs';
 
 loadEnv();
 const args = process.argv.slice(2);
@@ -62,6 +63,16 @@ const suiteId = `suite-${new Date().toISOString().replace(/[:.]/g, '-')}`;
 const root = `runs/${suiteId}`;
 mkdirSync(root, { recursive: true });
 console.log(`${suiteId}: ${briefs.length} briefs x ${repeat}, ${model.provider}/${publicModelId(model.model)}, ${purpose}, strategy ${strategy}, features ${featureList.join('+') || 'none'}, effort ${model.effort}`);
+
+// --checkpoint=<summary.json,...>: the last checkpoint's suites; the tripwires (src/tripwires.mjs)
+// stop new runs when this batch breaks from them. A Fireworks batch always has one (the plan).
+const checkpointFiles = typeof flag('checkpoint', null) === 'string' ? flag('checkpoint').split(',') : [];
+if (model.provider === 'fireworks' && !checkpointFiles.length) {
+  console.error('a Fireworks batch needs --checkpoint=<summary.json of the last checkpoint>[,...] (docs/plans/2026-11-02-fireworks-plan.md)');
+  process.exit(2);
+}
+const checkpoint = checkpointFiles.length ? baselineOf(checkpointFiles.map((f) => JSON.parse(readFileSync(f, 'utf8')))) : null;
+let tripwire = null;
 
 const rows = [];
 // Consecutive runs that ended on a model error before the queue stops (--infra-stop).
@@ -136,13 +147,17 @@ async function runJob({ b, attempt }) {
     }
   } else if (!row.error) infraStreak = 0;
   rows.push(row);
+  if (checkpoint && !tripwire && !stopping && (tripwire = tripped(rows, checkpoint))) {
+    stopping = 'tripwire';
+    console.log(`TRIPWIRE ${tripwire}: no new runs; this batch goes to a checkpoint`);
+  }
   console.log(`${row.pass ? 'PASS' : 'FAIL'} ${row.id}#${row.attempt} ${row.error ?? `parts=${row.parts} refusals=${JSON.stringify(row.refusals)} calls=${row.calls} ${row.seconds}s $${row.costUsd}${row.overclaimed ? ' OVERCLAIMED' : ''}${row.forcedFinish ? ' FORCED-FINISH' : ''}${row.claimed?.some((c) => c !== 'met') ? ` claims=${row.claimed.join('/')}` : ''}${row.outcome && row.outcome !== 'built' ? ` ${row.outcome}` : ''}${row.metButFails?.length ? ` MET-BUT-FAILS=${row.metButFails.length}` : ''}${row.pushbacks ? ` pushbacks=${row.pushbacks}` : ''} ${row.briefChecks.filter((x) => x.startsWith('FAIL')).join(' ')}`}`);
   rows.sort((x, y) => jobs.findIndex((j) => j.b.id === x.id && j.attempt === x.attempt) - jobs.findIndex((j) => j.b.id === y.id && j.attempt === y.attempt));
   writeSummary();
 }
 
 function writeSummary() {
-  writeFileSync(`${root}/summary.json`, JSON.stringify({ suiteId, provider: model.provider, model: publicModelId(model.model), origin: process.env.HEX_URL || 'live', purpose, strategy, features, effort: model.effort, concurrency, briefSets: briefFiles, ...(maxMinutes != null ? { maxMinutes } : {}), planned: jobs.length, ...(stopping ? { stopped: stopping, notStarted: jobs.length - rows.length } : {}), rows }, null, 2) + '\n');
+  writeFileSync(`${root}/summary.json`, JSON.stringify({ suiteId, provider: model.provider, model: publicModelId(model.model), origin: process.env.HEX_URL || 'live', purpose, strategy, features, effort: model.effort, concurrency, briefSets: briefFiles, ...(maxMinutes != null ? { maxMinutes } : {}), planned: jobs.length, ...(checkpoint ? { checkpoint: checkpointFiles } : {}), ...(tripwire ? { tripwire } : {}), ...(stopping ? { stopped: stopping, notStarted: jobs.length - rows.length } : {}), rows }, null, 2) + '\n');
 }
 
 // N workers pull from one queue; each run has its own browser.

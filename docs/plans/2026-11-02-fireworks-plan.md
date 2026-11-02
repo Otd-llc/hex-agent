@@ -62,10 +62,17 @@ At each checkpoint:
 
 ## Tripwires (in code: pause the batch, force a checkpoint)
 
+Built in `src/tripwires.mjs`, wired into `bin/suite.mjs --checkpoint=<summary.json,...>`; a Fireworks
+suite refuses to start without one. The checkpoint suites must be the same briefs at the same effort
+as the batch (replayed on the Modal data: same-config batches stay quiet, S1-c9 trips on harness,
+high-vs-low trips on cost, other briefs trip on refusal codes). The first F0/F1 checkpoint is the
+Modal low arms (S2, S3a).
+
 - Harness errors > 5% of the batch's finished runs (browser/page, not the model).
-- A brief that passed at the last checkpoint drops > 20 points (regression).
+- A brief drops > 20 points from the last checkpoint and that few passes is under 5% likely by
+  chance (binomial against the smoothed checkpoint rate, Bonferroni over the briefs).
 - Cost per run drifts > 30% from the last checkpoint (loops or growing prompts).
-- A refusal code or failure class never seen in any earlier trace.
+- A refusal code no checkpoint run saw, in 3+ runs of the batch.
 - The existing guards still apply: $100 ceiling, $5 floor, memory per browser (0.85 GB),
   concurrency 6 on this PC.
 

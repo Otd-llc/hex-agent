@@ -77,9 +77,9 @@ Working method for this session: plan, then batch. First survey with get_build, 
 // The role-graph planner (A50) is off until an A/B against the interactive default says otherwise.
 // Citation check (L19): offline on 1849 traces it would have sent back 4 fails (3 overclaims) and 3
 // passes, all 3 citing a wrong ref; off until a live A/B.
-// ewDrawers, rollbackRead and topology are the Modal-review fixes 1-3 (default on): a batch turns one
+// ewDrawers, rollbackRead, topology and verify are the Modal-review fixes 1-4 (default on): a batch turns one
 // off (--features=-topology) for its before arm on the same commit, so each gain keeps a known cause.
-export const DEFAULT_FEATURES = { acceptance: false, abstain: true, rolegraph: false, cites: false, ewDrawers: true, rollbackRead: true, topology: true };
+export const DEFAULT_FEATURES = { acceptance: false, abstain: true, rolegraph: false, cites: false, ewDrawers: true, rollbackRead: true, topology: true, verify: true };
 
 // Parse --features: a list of names turns exactly those on; 'none' turns all off; absent keeps the defaults;
 // -name / +name (every entry signed) turn one default off or on.
@@ -98,18 +98,20 @@ export function parseFeatures(arg) {
   // so an older command line (--features=abstain) does not quietly run the pre-fix agent.
   return Object.fromEntries(Object.keys(DEFAULT_FEATURES).map((f) => [f, FIXES.includes(f) ? (on.includes(f) || DEFAULT_FEATURES[f]) : on.includes(f)]));
 }
-const FIXES = ['ewDrawers', 'rollbackRead', 'topology'];
+const FIXES = ['ewDrawers', 'rollbackRead', 'topology', 'verify'];
 
 // Pushbacks on a finish whose own tests disagree with it, before it is taken as it is.
 const PUSHBACKS = 2;
 
 export async function runAgent({ hex, model, brief, budget = {}, ledger = null, purpose = 'dev', runId = null, strategy = 'interactive', features = {}, onEvent = () => {} }) {
   if (!(strategy in STRATEGIES)) throw new Error(`unknown strategy ${strategy}: ${Object.keys(STRATEGIES).join(', ')}`);
-  const { acceptance, abstain, rolegraph, cites, ewDrawers, rollbackRead, topology } = { ...DEFAULT_FEATURES, ...features };
+  const { acceptance, abstain, rolegraph, cites, ewDrawers, rollbackRead, topology, verify } = { ...DEFAULT_FEATURES, ...features };
   const instructions = INSTRUCTIONS + (acceptance ? ACCEPTANCE : '') + (abstain ? ABSTAIN : '') + (rolegraph ? ROLEGRAPH : '') + STRATEGIES[strategy];
   const specs = toolSpecsFor({ acceptance, abstain, rolegraph, topology });
   const offered = new Set(specs.map((t) => t.name));
   let pushbacks = 0;
+  // Fix 4: the build-side check of an all-met finish sends it back once at most.
+  let verified = false;
   const maxTurns = budget.maxTurns ?? 30;
   const maxMs = budget.maxMs ?? 10 * 60_000;
   const maxUsd = budget.maxUsd ?? 2.0;
@@ -170,7 +172,12 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
         // The forced last call cannot be sent back: there is no turn after it.
         const unset = acceptance && !tools.requirements() && !forced && pushbacks < PUSHBACKS;
         const parsed = parseFinish(call.arguments, { declared: acceptance ? tools.requirements() : null });
-        const back = parsed.error || unset || forced || pushbacks >= PUSHBACKS ? null : (await disagreements(parsed.finish)) ?? (cites ? await staleCites(parsed.finish) : null);
+        const open = !(parsed.error || unset || forced || pushbacks >= PUSHBACKS);
+        let back = open ? (await disagreements(parsed.finish)) ?? (cites ? await staleCites(parsed.finish) : null) : null;
+        if (open && !back && verify && !verified) {
+          back = await verifyFinish(parsed.finish);
+          if (back) verified = true;
+        }
         if (parsed.error) result = { error: parsed.error };
         else if (unset) {
           pushbacks++;
@@ -213,6 +220,22 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     }
     const out = ownChecks({ declared, roles: tools.roles(), finish: f, state, verdict: { bom: b, validation: v } }).filter((c) => c.metButFails);
     return out.length ? out.map(({ id, why }) => ({ id, why })) : null;
+  }
+
+  // Fix 4 (Modal review): an all-met finish over a build that plainly is not so goes back once.
+  // 8 of the 35 real overclaims in the Modal window: rules broken or meshes clashing, a floating base
+  // still standing, evidence citing parts that are gone, an open cap face under a 'closed' requirement.
+  async function verifyFinish(f) {
+    const reqs = f?.requirements ?? [];
+    if (!reqs.length || !reqs.every((r) => r.status === 'met')) return null;
+    let state, v;
+    try {
+      [state, v] = [await hex.call('getState'), await hex.call('validate')];
+    } catch (e) {
+      emit({ type: 'harness_note', message: `finish verify skipped: ${String(e.message ?? e).slice(0, 200)}` });
+      return null;
+    }
+    return verifyIssues(f, state, v, tools.floating());
   }
 
   // L19: a requirement called met whose evidence names a part ref that is not on the build.
@@ -432,7 +455,7 @@ const CELL_REF = new RegExp(`\\b(?:piece|bin|cap|cover|snap):-?\\d+,-?\\d+,-?\\d
 const SLOT_REF = new RegExp(`\\b(?:drawer|notch|bay|accessory|connector):\\d+#-?\\d+,-?\\d+#[-\\w]+${END}`, 'g');
 export function citedRefs(text) {
   const s = String(text ?? '');
-  return [...s.matchAll(CELL_REF), ...s.matchAll(SLOT_REF)].map((m) => m[0]);
+  return [...s.matchAll(CELL_REF), ...s.matchAll(SLOT_REF)].map((m) => m[0]).filter((ref) => !ref.includes('*'));
 }
 
 // L19: met requirements whose evidence cites a ref the build does not have.
@@ -445,6 +468,30 @@ export function staleCitations(finish, state) {
     .map((r) => ({ id: r.id ?? r.requirement, missing: [...new Set(citedRefs(r.evidence).filter((ref) => !present(ref)))] }))
     .filter((r) => r.missing.length)
     .map(({ id, missing }) => ({ id, why: `cites ${missing.join(', ')}, not on the build (see get_build)` }));
+}
+
+// Fix 4: what plainly disagrees with an all-met finish, from validate(), the build and the floating
+// bases the run placed. Null when nothing does.
+const CLOSED = /\b(closed|enclosed|capped|sealed|lidded|covered on all|all edges capped)\b/i;
+export function verifyIssues(finish, state, v, floating = []) {
+  const reqs = finish?.requirements ?? [];
+  if (!reqs.length || !reqs.every((r) => r.status === 'met')) return null;
+  const out = [];
+  for (const i of v?.issues ?? []) if (i.severity === 'error') out.push({ id: 'rules', why: `${i.code}: ${i.message}` });
+  if (v?.meshClash && v.meshClash !== 'clear') out.push({ id: 'mesh', why: `meshes clash: ${typeof v.meshClash === 'string' ? v.meshClash : JSON.stringify(v.meshClash)}` });
+  const have = new Set((state?.nodes ?? []).map((n) => n.ref));
+  // Still floating: on the build, above the ground, and still no base in the cell below it (a base
+  // placed under it later holds it up).
+  const below = new Set((state?.nodes ?? []).filter((n) => n.family === 'piece' && n.at).map((n) => `${n.at.q},${n.at.r},${n.at.level ?? 0}`));
+  const still = floating.filter((ref) => {
+    const m = /^piece:(-?\d+),(-?\d+),(\d+)/.exec(ref);
+    return have.has(ref) && m && Number(m[3]) > 0 && !below.has(`${m[1]},${m[2]},${Number(m[3]) - 1}`);
+  });
+  if (still.length) out.push({ id: 'floating', why: `${still.join(', ')} went on with NOTHING_BELOW and is still there: it floats` });
+  out.push(...staleCitations(finish, state));
+  const openCap = (v?.issues ?? []).some((i) => i.code === 'OPEN_CAP_FACE');
+  for (const r of finish.requirements) if (openCap && CLOSED.test(r.requirement)) out.push({ id: r.id ?? r.requirement, why: 'called met, but validate reports OPEN_CAP_FACE: an edge or face is still open' });
+  return out.length ? out : null;
 }
 
 // Provider hiccups (rate limit, overload, 5xx, dropped connection, timeout) are

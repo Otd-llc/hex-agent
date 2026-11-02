@@ -393,3 +393,23 @@ test('fixes 1-3 switched off give back the pre-fix agent (the before arm on the 
   const fs = (o) => toolSpecsFor(o).find((t) => t.name === 'find_sockets').description;
   assert.ok(fs({}).includes('one body') && !fs({ topology: false }).includes('one body'));
 });
+
+test('fix 4: an all-met finish is checked against the build: rules, mesh, floating bases, stale cites, open caps', async () => {
+  const { verifyIssues, citedRefs } = await import('../src/agent.mjs');
+  const met = (requirement, evidence = '') => ({ requirement, status: 'met', evidence });
+  const piece = (q, r, level) => ({ ref: `piece:${q},${r},${level};full`, family: 'piece', at: { q, r, level } });
+  const clear = { issues: [], meshClash: 'clear' };
+  const state = { nodes: [piece(0, 0, 0), piece(0, 0, 1), piece(1, 0, 1)] };
+  assert.equal(verifyIssues({ requirements: [met('a tower', 'piece:0,0,1;full')] }, state, clear, []), null, 'nothing wrong');
+  assert.equal(verifyIssues({ requirements: [met('x'), { requirement: 'y', status: 'partial' }] }, state, { issues: [{ severity: 'error', code: 'UNSUPPORTED', message: 'm' }] }, []), null, 'not all met: not checked');
+  const ids = (r) => (r ?? []).map((x) => x.id);
+  assert.deepEqual(ids(verifyIssues({ requirements: [met('x')] }, state, { issues: [{ severity: 'error', code: 'UNSUPPORTED', message: 'floats' }], meshClash: 'clear' }, [])), ['rules']);
+  assert.deepEqual(ids(verifyIssues({ requirements: [met('x')] }, state, { issues: [], meshClash: 'bin:0,0,0 x cap:1' }, [])), ['mesh']);
+  assert.deepEqual(ids(verifyIssues({ requirements: [met('x')] }, state, clear, ['piece:1,0,1;full'])), ['floating'], 'nothing below 1,0');
+  assert.equal(verifyIssues({ requirements: [met('x')] }, state, clear, ['piece:0,0,1;full']), null, 'a base was put under it later');
+  assert.equal(verifyIssues({ requirements: [met('x', 'piece:5,5,0;full holds it')] }, state, clear, [])[0].why.startsWith('cites piece:5,5,0'), true);
+  assert.deepEqual(citedRefs('caps on cap:0,0,0;*;30 and cap:0,0,0;*;*'), [], 'wildcards are sets, not refs');
+  const capped = verifyIssues({ requirements: [met('All edges capped')] }, state, { issues: [{ severity: 'info', code: 'OPEN_CAP_FACE', message: 'open' }], meshClash: 'clear' }, []);
+  assert.match(capped[0].why, /OPEN_CAP_FACE/);
+  assert.equal(verifyIssues({ requirements: [met('Bins on top')] }, state, { issues: [{ severity: 'info', code: 'OPEN_CAP_FACE', message: 'open' }], meshClash: 'clear' }, []), null, 'open caps matter only to a closed requirement');
+});

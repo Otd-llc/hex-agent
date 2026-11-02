@@ -509,6 +509,8 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes
   let partNames = null;
   let opsTotal = 0;
   let refusalStreak = 0;
+  // Fix 4: bases placed with a NOTHING_BELOW warning, checked again at finish.
+  const floating = new Set();
   const counters = { applied: 0, refused: 0, refusalCodes: {} };
   // A64: the brief as acceptance tests. A63: the requirement each placed
   // object serves, by ref, so a change that drops a purpose says so.
@@ -983,6 +985,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes
       const propWarned = warned.filter((c) => PROP_CODES.has(c));
       if (propWarned.length) out.fix = Object.fromEntries(propWarned.map((c) => [c, PROP_FIX[c]]));
       // A base placed over an empty cell floats: fix it now, before parts go on it (fix 2).
+      if (!r.rolledBack) for (const o of r.outcomes) if (o.ok && o.warnings.some((w) => w.code === 'NOTHING_BELOW')) for (const ref of o.added ?? []) floating.add(ref);
       if (FIX.rollbackRead && warned.includes('NOTHING_BELOW')) out.fix = { ...(out.fix ?? {}), NOTHING_BELOW: NOTHING_BELOW_FIX };
       if (dropped.length) {
         out.droppedAlreadyFitted = dropped;
@@ -1234,5 +1237,5 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes
     }
   }
 
-  return { run, counters, opsUsed: () => opsTotal, requirements: () => requirements, roles: () => Object.fromEntries(roles) };
+  return { run, counters, floating: () => [...floating], opsUsed: () => opsTotal, requirements: () => requirements, roles: () => Object.fromEntries(roles) };
 }

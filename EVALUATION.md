@@ -821,3 +821,41 @@ UTC: three 503s, then a 30 s hang at 07:16. Fireworks' status page showed Muse S
 Known issue for F2: the cost tripwire fires on the first 10 runs of every Modal suite, the
 checkpoint suites included (a prefix compared with the 36-brief mean), and F2's target-brief
 subsets differ in cost from that mean. Fix it before F2.
+
+## Meta Model API, first runs (2026-11-02)
+
+Muse Spark 1.3 through the Meta Model API (`muse-spark-1.3`, Standard mode), the first calls to
+Meta's hosted model; every earlier Muse result is Muse Spark Open on Baseten, Modal or Fireworks.
+Live site deploy 15b (viz d726540, contract da0834cc, page `/assets/hex-CvOVnJJh.js`). Purpose dev,
+on the owner's OK (the Meta credit funds development, about $50 kept for the demo recordings).
+
+Two fixes first, no model calls: the `.env` loader let the template's empty `MODEL_API_KEY=` line
+block a filled line below it (2fb9d95), and the Meta adapter now records per-call timing, the
+served model and reasoning tokens like the other adapters (56ef72c).
+
+| | smoke | 36 briefs ×1 |
+|---|---|---|
+| suite | `runs/suite-2026-11-02T11-26-34-715Z` | `runs/suite-2026-11-02T11-31-12-330Z` |
+| effort | medium (the Meta default) | low |
+| agent | 2fb9d95 | 56ef72c |
+| passed | 1/1 | 35/36, 95% CI 85.8 to 99.5 (Wilson over runs), strict 35/36 |
+| overclaimed | 0 | 1 |
+| cost | $0.043 | $1.88 ($0.052 per run, 12.6 calls per run) |
+
+The 36 ran three at a time in 1,499 s. All 453 calls were served by `muse-spark-1.3`, none
+failed; 96 to 99% of each prompt was cached; reasoning tokens averaged 144 per call. Median call
+latency was 6.0 s, but the 95th percentile was 32 s and the slowest 47 s (`bin/call-report.mjs`).
+
+Traces read:
+- gap-drawer (the one fail) is a real overclaim: it placed a notch tray (`notch1`) in the spot and
+  called it the drawer, the error Opus made on the same brief.
+- two-clusters passed for the right reason: four bases in a row, each pair bolted, one connector
+  on the only wall where the pairs touch. On Modal this brief failed 18 times.
+- same-corner-conflict passed as an honest compromise: the shared corner reported partial, with
+  the configurator's SPIKE_CLASH as the reason.
+- pipe-planter passed: one run from the first base through the other three (accepted), so the
+  pipe reaches every cell; the follow-up setRunMode irrigation was refused, so "feeds every
+  cell" rests on the route, not on an irrigation mode.
+
+Descriptive: one run per brief, a different host, model, site release and agent commit from every
+other batch, so no comparison is attributed to any of them. Ledger: Meta $1.92 of $150.

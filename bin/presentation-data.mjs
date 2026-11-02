@@ -125,6 +125,8 @@ const points = [
   { key: 'p7', label: '11-02 S3a', host: 'Modal', effort: 'low', repeat: 5, site: 'deploy 14, 08e63fab', suites: S('11-02T01-43-22-121Z'), source: 'docs/plans/2026-11-02-modal-review.md section 1' },
   { key: 'p8', label: '11-02 SB', host: 'Modal', effort: 'low', repeat: 5, site: 'deploy 14, 08e63fab', suites: S('11-02T02-54-22-767Z'), source: 'docs/plans/2026-11-02-modal-review.md section 1' },
   { key: 'p9', label: '11-02 F1', host: 'Fireworks', effort: 'low', repeat: 1, site: 'deploy 15, 87827f4d (viz 32e5bdd)', suites: S('11-02T05-57-28-000Z'), source: 'EVALUATION.md "Fireworks F0 and F1"', note: '5 of 36 runs lost to host hangs, left out of the rate' },
+  // Muse Spark 1.3 through the Meta Model API: Meta's hosted model, not the open weights above.
+  { key: 'p10', label: '11-02 M1', host: 'Meta Model API', model: 'muse-spark-1.3', effort: 'low', repeat: 1, site: 'deploy 15b, da0834cc (viz d726540)', suites: S('11-02T11-31-12-330Z'), source: 'EVALUATION.md "Meta Model API, first runs"' },
 ].map((p) => ({ ...p, ...score(p.suites) }));
 
 // What landed between points. who: configurator = One Thousand Drones' configurator (credited to it,
@@ -186,6 +188,7 @@ const hosts = {
   'Baseten (deploy 14 control only)': calls(S('11-01T23-05-41-873Z')),
   Modal: { ...calls(hostSuites('modal-dedicated')), latencyFrom: 'eval + smoke suites' },
   Fireworks: { ...calls(hostSuites('fireworks')), latencyFrom: 'eval + smoke suites' },
+  'Meta Model API': { ...calls(hostSuites('meta')), latencyFrom: 'eval suites (the smoke predates timing)' },
 };
 
 const data = { generatedAt: new Date().toISOString(), method: 'newest rescore per suite (one grader); host- and budget-cut runs left out of rates; the interval to report is passClustered / overclaimClustered (95%, clustered by brief) when a brief ran more than once, else Wilson over runs (intervalMethod names which); passCI and overclaimCI are Wilson over runs for every point and are too narrow when briefs repeat; tokenCostPerRun is a token-equivalent mean, unrounded to 6 dp', points, changes, effort, effortPaired, gpuSource, hosts };

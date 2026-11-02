@@ -28,8 +28,12 @@
   error-severity issues do. Known false passes follow from that and from
   missing checks: a base over an empty cell passes with a warning, and the
   pipe-planter check does not confirm the pipe reaches every cell.
-- **Development-set rates.** Every Muse rate was measured on briefs used to
-  find and fix failures; the held-out briefs have not been run. No build
+- **Development-set rates.** Every Muse rate except the held-out one was
+  measured on briefs used to find and fix failures. The 18 held-out briefs
+  ran once, pre-committed, on the frozen agent (14 of 18), then four more
+  times after that result was seen; two held-out themes were written with
+  fixes 1 and 3 in view, and one held-out check misses a handle that is
+  present (both counts reported, the check never edited). No build
   was printed or assembled in this evaluation. See
   [docs/submission/paper/paper.md](docs/submission/paper/paper.md).
 
@@ -49,10 +53,13 @@
   `HEX_CONTRACT` to the deployed build's own `hex-api-public.json`.
 
 ## Of this build
-- **The Meta Model API has not been called yet.** Every Muse result so far
-  is Muse Spark Open, Meta's open weights served by Baseten, a Modal
-  Dedicated endpoint or Fireworks. A cents-sized smoke on the Model API
-  comes first, then the demo runs.
+- **Two Muse models, never pooled.** Muse Spark Open (Meta's open weights,
+  served by Baseten, a Modal Dedicated endpoint or Fireworks) and Muse Spark
+  1.3 (Meta's hosted model, Meta Model API) are reported separately; Muse
+  Wonder 1.0 has one development run per brief and its own row.
+- **The checks do not see what a viewer sees.** In 4 of 15 demo runs the
+  agent put the tall row nearest the default camera, hiding the low row,
+  and three of those reported the front row as met; every check passed.
 - Claude runs are development baselines. They are labeled `anthropic` in
   every trace and never reported as Muse results.
 - **Not measured yet:** the role-graph planner (`--features=rolegraph`,

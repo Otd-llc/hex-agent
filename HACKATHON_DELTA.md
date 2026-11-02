@@ -74,7 +74,7 @@ Agent and tool layer
 - Live panel in the configurator tab: `src/overlay.mjs` (`b7ba18e`).
 
 Model adapters
-- Meta Model API (`muse-spark-1.3`, `muse-wonder-1.0`), off unless `META_API_ALLOWED=1`; not called yet: `src/model.mjs` (`fb78560`, gate in `a005b34`).
+- Meta Model API (`muse-spark-1.3`, `muse-wonder-1.0`), off unless `META_API_ALLOWED=1`; used for the frozen-agent evaluation, held-out and demo runs: `src/model.mjs` (`fb78560`, gate in `a005b34`).
 - Baseten, Muse Spark Open: `src/baseten.mjs` (`54db8c7`).
 - Fireworks and a Modal Shared Endpoint, Muse Spark Open: `src/hosted.mjs` (`a005b34`); Fireworks streaming with a stall abort: `98f5810`.
 - Modal Dedicated Endpoint: adapter, uptime ledger, session and window scripts: `src/uptime.mjs`, `bin/modal-session.mjs`, `bin/modal-window.mjs` (`b7b7150`); host handling `c092048`; window safety `c30a58e`, `070ccb1`, `ba70973`.
@@ -93,7 +93,7 @@ Checks, grader and evaluation tooling
 - Offline vision critic and still sheets (A56): `src/critic.mjs`, `bin/critic.mjs` (`f052c86`), `bin/sheets.mjs` (`13276aa`).
 - Smoke checks after a deploy: `bin/smoke-tools.mjs`, `bin/sync-contract.mjs` (`9c6a079`).
 - Labelled replay of recorded runs, for filming: `bin/replay.mjs` (`b576d86`).
-- Briefs written for the event: `evals/*.json`; the held-out set was added at `76e977d` and has not been run.
+- Briefs written for the event: `evals/*.json`; the held-out set was added at `76e977d` and ran on the frozen agent (`eval-final`) only; the demo set at `4b2a769`.
 - Unit tests: `test/*.test.mjs` (from `fb78560`); reference builds and the design rubric: `sandbox/`, `DESIGN_RUBRIC.md` (from `f1361b0`); probes and acceptance scripts: `scripts/` (from `fb78560`).
 - These documents, the paper and its data (`docs/submission/`, `docs/data/`).
 

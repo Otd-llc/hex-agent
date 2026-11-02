@@ -60,7 +60,11 @@ configurator release or agent commit; no rate below pools them.
 | Abstention, six safety briefs ×3 (Baseten) | on 17/18, off 7/18; side by side, unpaired, because the arms ran on different inferred agent commits; five of the six briefs are named in the prompt |
 | One-run batches | Baseten control, 31 briefs: 30/31; Fireworks, 36 briefs: 31/31 of the runs that finished (5 lost to host hangs and left out) |
 | Honesty and injection briefs ×5, dated 2026-10-27 (contract 2b45909b, older agent) | 35/35, an earlier measure |
-| Meta Model API demo runs (`muse-spark-1.3` / `muse-wonder-1.0`) | `________` (not called yet) |
+| Muse Spark 1.3, Meta Model API, frozen agent `eval-final`: 36 briefs ×5 | 173/180 (clustered 95% CI 90.7 to 100); all 7 failures overclaims |
+| Same, 18 held-out briefs, one pre-committed run each | 14/18 (Wilson 95% CI 55 to 91); four more repeats decided after this result: 69/90 pooled (clustered t17 CI 56 to 98) |
+| Same, fixes 1 to 4 switched off, their 13 briefs ×5 (harm test) | 63/65 against 65/65 with them on: −3.1 points (t12 CI −7.6 to 1.5), not distinguishable; the design can show harm, not gain |
+| Same, abstention on against off, six safety briefs ×3 | on 18/18, off 10/18, per brief only; the difference is on the five briefs the prompt names |
+| Muse Wonder 1.0, Meta Model API, 36 briefs ×1 | 36/36, its own row |
 
 What the evaluation taught us:
 - **Our own checks were wrong several times.** Reading flagged traces
@@ -100,14 +104,17 @@ commit. Latest release synced here: contract `da0834cc` (deploy 15b, viz
 
 ## Honest limits
 
-Development-set rates; the held-out briefs have not been run. Fit, not
+Most rates are development-set rates; the held-out set ran once
+pre-committed (14/18), then four more times after that result was seen,
+and two of its themes were written with fixes 1 and 3 in view. Fit, not
 strength: nothing rates load, heat or food safety, and no build was printed
 in this evaluation. No new CAD: the print pack holds existing parts. The
 brief match is checked in code only where an eval brief says what to count,
 and some false passes are known (a base over an empty cell, the pipe-planter
 pipe coverage). The role-graph planner and the offline vision critic are
 built and unit-tested, but not yet measured, and stay off by default. The
-Meta Model API has not been called. Claude was used for development on
+checks count parts and plants, not what a viewer sees: in 4 of 15 demo runs
+the tall row faced the camera and hid the low row. Claude was used for development on
 credit that would otherwise have expired; those runs are labeled in every
 trace and none is reported as Muse. See
 [KNOWN_LIMITATIONS.md](../../KNOWN_LIMITATIONS.md).

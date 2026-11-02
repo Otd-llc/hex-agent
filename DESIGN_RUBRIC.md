@@ -1,7 +1,8 @@
 # Design rubric
 
-What makes a Hex Cluster build good. The agent reads this when it plans and
-when it reviews its own result; each owner review round adds to it.
+What makes a Hex Cluster build good, written for people and for future agent
+work: the frozen agent's instructions do not include it (src/agent.mjs), so
+demo briefs carry the design they need. Each owner review round adds to it.
 
 Three kinds of rule live here and are kept apart on purpose:
 

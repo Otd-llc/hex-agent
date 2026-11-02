@@ -11,14 +11,14 @@ the configurator itself produced and checked.
 Meta's open-weights Muse Spark Open, served by Baseten, a Modal Dedicated
 endpoint and Fireworks, passed 89.4 to 93.9% of runs per batch in seven
 effort-low batches of 36 briefs run five times each. These are
-development-set rates: the briefs were used to find and fix failures, and
-the held-out briefs have not been run. On six safety briefs run three times
-each, the abstention-on arm passed 17 of 18 and the off arm 7 of 18; the arms
-ran on different inferred agent commits, so they are reported side by side
-with no paired difference. The Meta Model API (`muse-spark-1.3`,
-`muse-wonder-1.0`) has not been called yet: a cents-sized smoke comes first,
-then the demo runs. Claude runs here are development baselines, labeled as
-such. Results, intervals and limits:
+development-set rates: the briefs were used to find and fix failures.
+On the frozen agent (tag `eval-final`), Meta's hosted Muse Spark 1.3
+through the Meta Model API passed 173 of 180 runs on the same 36 briefs x5
+and 14 of 18 held-out briefs on their single pre-committed run (Wilson 95%
+interval 55 to 91%); four more held-out repeats, decided after that result,
+brought it to 69 of 90. Muse Wonder 1.0 passed 36 of 36 development briefs,
+one run each. Claude runs here are development baselines, labeled as such.
+Results, intervals and limits:
 [docs/submission/paper/paper.md](docs/submission/paper/paper.md); run log:
 [EVALUATION.md](EVALUATION.md).
 

@@ -1,0 +1,160 @@
+<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hex-agent results</title>
+<meta name="description" content="hex-agent: Meta's Muse Spark Open designs hardware in One Thousand Drones' live Hex Cluster configurator. Evaluation write-up, Meta Global AI Developer Hackathon.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lora:ital,wght@0,400;0,600;1,400&family=Saira+Condensed:wght@800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="paper.css"></head><body class="v-plate"><button class="toggle" type="button" aria-pressed="false" onclick="var r=document.documentElement;var l=r.dataset.theme==='light';r.dataset.theme=l?'dark':'light';this.setAttribute('aria-pressed',String(!l))">Theme</button><main><section class="front plate"><figure style="margin:0"><div class="view ticks"><span></span><img class="on-dark" src="assets/plate-tool-caddy-dark.png" alt="The configurator's still of the agent's tool caddy: three hexagonal bases, an open divided bin, a covered bin with a carry handle, and a screwdriver in a bin."><img class="on-light" src="assets/plate-tool-caddy-light.png" alt="The configurator's still of the agent's tool caddy: three hexagonal bases, an open divided bin, a covered bin with a carry handle, and a screwdriver in a bin."><img class="on-print" src="assets/plate-tool-caddy-print.png" alt=""></div><figcaption><b>Plate</b>One run from Fireworks F1 (Table 1, last row): Muse Spark Open, effort low, agent 1e98dbf, contract 87827f4d, 16 model calls. Image: the configurator's own still() of the build reloaded from the run's share link. Checks and claims: the run's trace, runs/suite-2026-11-02T05-57-28-000Z/2026-11-02T06-03-33-851Z-3e60e00d/trace.json.</figcaption></figure><div class="meta"><p class="eyebrow">▸ Meta Global AI Developer Hackathon · Startup track · Push the Frontier</p><p class="brand-title" style="font-size:64px">hex-agent</p><p class="doclinks"><span>Write-up</span> · <a href="hex-agent-paper.pdf">PDF</a> · <a href="report.html">Technical report</a> · <a href="hex-agent-report.pdf">Report PDF</a> · <a href="https://github.com/Otd-llc/hex-agent">Repository</a></p><div><p class="eyebrow">▸ Brief</p><p class="brief">A tool caddy with a carry handle and divided bins for screws and bits.</p><p class="eyebrow" style="margin-top:18px">▸ The model's report</p><ul class="leaders"><li><span class="k">Tool caddy form factor (portable, multi-bin base)</span><span class="v">met</span></li><li><span class="k">Carry handle</span><span class="v">met</span></li><li><span class="k">Divided bins for screws and bits</span><span class="v">met</span></li></ul></div><div><p class="eyebrow">▸ Checked in code</p><ul class="leaders"><li><span class="k">finished</span><span class="v">pass</span></li><li><span class="k">claims match checks</span><span class="v">pass</span></li><li><span class="k">claims in scope</span><span class="v">pass</span></li><li><span class="k">placement rules</span><span class="v">pass</span></li><li><span class="k">collision check</span><span class="v">pass</span></li><li><span class="k">print pack</span><span class="v">pass</span></li><li><span class="k">share link round trip</span><span class="v">pass</span></li><li><span class="k">bom handle, min 1: saw 1</span><span class="v">pass</span></li><li><span class="k">bom div, min 1: saw 2</span><span class="v">pass</span></li></ul></div></div></section>
+<section class="lede paper"><div><h1 class="claim">A Muse Spark Open agent passes 89 to 94% of runs per batch on 36 development briefs in a live product configurator, checked by the product's rules and our code</h1><p class="byline">hex-agent. Meta Global AI Developer Hackathon, Startup track, problem statement Push the Frontier. One Thousand Drones. Accurate as of 2026-11-02.</p><p class="abstract">hex-agent lets Meta&#39;s open-weights Muse Spark Open design hardware in One Thousand Drones&#39; live Hex Cluster configurator: builds that pass the configurator&#39;s placement and collision rules, made from its catalog of printable parts, with a statement of which requirements were met. In seven effort-low batches of the 36 briefs, five runs per brief, the agent passed 89.4 to 93.9% of runs per batch and overclaimed in 3.3 to 6.1% (a lower bound). None of eight exploratory batch comparisons is distinguishable at this n. These are development-set rates: the same briefs were used to find and fix failures.</p></div><div><p class="numeral">89.4<small> to </small>93.9<small>%</small></p><p class="numeral-label">Pass rate per batch · 7 batches of 36 briefs × 5 · effort low</p><div style="margin-top:24px"><dl class="ident"><div><dt>Track</dt><dd>Startup</dd></div><div><dt>Problem</dt><dd>Push the Frontier</dd></div><div><dt>Model</dt><dd>Muse Spark Open</dd></div><div><dt>Hosts</dt><dd>Baseten · Modal · Fireworks</dd></div><div><dt>Repository</dt><dd>Otd-llc/hex-agent</dd></div><div><dt>As of</dt><dd>2026-11-02</dd></div></dl></div></div></section>
+<article class="body paper"><h2><span class="secno">01</span>What was built during the hackathon</h2>
+<p>One Thousand Drones&#39; existing product, before the event (2026-10-27): Hex Cluster, its <a href="https://hex.onethousanddrones.com/">configurator</a>, placement rules, collision check, the public <code>window.hexAPI</code>, print packs and printable parts. None of that source is in this repository; it holds a vendored copy of the public API contract and test fixture data. During the event One Thousand Drones also shipped configurator releases (every contract in Table 1), some prompted by the agent&#39;s runs; they are product work made during the event, outside this repository, and not claimed for judging, and every result here ran on them. Built during the hackathon in this repository, from its first commit (fb78560, 2026-10-27): the agent loop, browser bridge, checked tool layer, Meta model adapters, verification, honesty check, abstention, grader and rescoring, spend ledgers, evaluation suites and replay tool. Nothing was trained. HACKATHON_DELTA.md in the repository lists the pre-event product versions.</p>
+<h2><span class="secno">02</span>Impact</h2>
+<p>Hex Cluster is modular 3D-printed hexagonal storage, and the configurator already knows which parts fit where. hex-agent adds the step from a sentence such as &quot;a planter of four cells with a water pipe running through the bases to feed every cell&quot; to a valid build with a share link, a parts list, a print pack and a statement of which requirements were met, partly met or not met. It is built for makers who know what they want but not the part catalog. We expect the pattern to carry to other manufactured products whose rule engine explains its refusals; we have tested one product, and use by real customers is not yet measured.</p>
+<h2><span class="secno">03</span>Use of Meta AI tooling</h2>
+<p>Muse Spark Open does the design work: it reads the build, asks where parts fit and places them through 17 tools (in the current agent) over up to 30 turns, reading each refusal and the alternatives the configurator offers. The open weights ran on Baseten (<code>meta-models/muse-spark-open-1026</code>), a Modal Dedicated endpoint on 4 B300 GPUs, and Fireworks. Two capabilities beyond tool calling are measured below: self-report (every requirement marked met, partial, unmet or unverified, with all-met claims checked) and abstention (with a prompt block that names most of the test briefs, declining a brief that would carry a child or hold fuel, or building only its safe part). The Meta Model API has not been called yet.</p>
+<h2><span class="secno">04</span>Technical depth and execution</h2>
+<p>Each tool call is checked in code against the configurator&#39;s published API contract, then run through <code>window.hexAPI</code> in a real browser tab. A run passes when it ends in a build or a compromise (some requirements reported partial, unmet or unverified; code does not confirm they were unbuildable) and the placement rules and mesh collision check pass, the print pack is produced, the share link reloads in a fresh tab with the same parts and parts list, and the brief&#39;s coded checks pass; a decline that leaves the build empty needs only a finish and no broken rule. A check that did not run counts as failed. A requirement with no coded check rests on the model&#39;s statement, and a &quot;met&quot; claim that uses listed strength, heat or food-safety terms fails the run (a keyword check), since the configurator checks fit only. A run is overclaimed when the model reports every requirement met and a brief check, placement rule or mesh check fails, so that rate is a lower bound.</p>
+<p>The 36 briefs are three sets (12 core, 8 hard, 16 wide) written for the event, five of them honesty traps; a few were reworded between batches. Batches ran at effort low, except one high batch, with a 30-turn budget from 2026-10-27 to 2026-11-02. Our grader was wrong several times (an infeasible wording, disclaimers read as claims, a missed bolted handle); after each fix every suite was rescored from its traces with one grader (c7533b7), first scores kept beside them in the data files, for a net 0 to 9 fewer passes per five-repeat batch (some fixes loosened a check). Intervals are 95%, clustered by brief when briefs repeat and Wilson over runs for one run per brief. A comparison that attributes a difference to one factor is paired by brief and made only between runs sharing every other key field (host, model, effort, contract, page build, agent commit).</p>
+<h2><span class="secno">05</span>Demo and results</h2>
+<p>Demo video: [not yet available: owner adds the link].</p>
+<p>Table 1 and Figure 1 show one row per batch, because batches differ in host, configurator release or agent commit; the Baseten ×5 rows each join three suites whose agent commits were not recorded. Strict pass, which also needs every requirement reported met (honesty-trap briefs: pass alone), ran 86.7 to 90% per effort-low five-repeat batch, and 25 to 29 of the 36 briefs passed all five repeats in those batches. Eight batch pairs, chosen after seeing the data, were compared as exploratory checks, and none is distinguishable at this n; they could resolve only differences of 4.1 to 9.5 points. Six differ in several key fields at once and attribute nothing (first against last 0.0 points, 95% CI −6.2 to 6.2, 36 briefs, paired). Two share host, release and effort and differ only in agent commit, each a guards-only change: +4.4 points (−0.5 to 9.4) and −3.3 (−7.9 to 1.2).</p>
+<figure class="tab" id="tab1"><figcaption style="margin:0 0 10px"><b>Table 1</b> Muse Spark Open on the 36 briefs, effort low unless marked; counts are of completed runs. 95% CI clustered by brief for ×5 rows, Wilson over runs for ×1 rows. &quot;All 5&quot;: briefs whose five repeats all passed. $/run is token-equivalent (Modal bills GPU time). Contract: hash of the configurator&#39;s published API contract, one per release. ~: inferred from git time, treated as unknown. Sources: D1 <code>points</code> and <code>effort</code>, D4.</figcaption><div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Batch</th>
+<th>Host</th>
+<th>Contract</th>
+<th>Agent</th>
+<th>Passed</th>
+<th>95% CI</th>
+<th>All 5</th>
+<th>Overclaimed</th>
+<th>$/run</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>10-27 ×5</td>
+<td>Baseten</td>
+<td>~2b45909b</td>
+<td>~63469da</td>
+<td>163/180 (90.6%)</td>
+<td>83.5 to 97.6</td>
+<td>27/36</td>
+<td>11 (6.1%)</td>
+<td>0.038</td>
+</tr>
+<tr>
+<td>10-31 ×5 (a)</td>
+<td>Baseten</td>
+<td>d2fd3dad</td>
+<td>~1708c03, ~3627cd4</td>
+<td>165/180 (91.7%)</td>
+<td>85.5 to 97.8</td>
+<td>28/36</td>
+<td>6 (3.3%)</td>
+<td>0.054</td>
+</tr>
+<tr>
+<td>11-01 ×5</td>
+<td>Baseten</td>
+<td>238e6282</td>
+<td>~dc65686</td>
+<td>161/180 (89.4%)</td>
+<td>82.4 to 96.5</td>
+<td>27/36</td>
+<td>8 (4.4%)</td>
+<td>0.057</td>
+</tr>
+<tr>
+<td>11-01 ×5</td>
+<td>Baseten</td>
+<td>76ea6455</td>
+<td>~e275786</td>
+<td>164/180 (91.1%)</td>
+<td>84.1 to 98.2</td>
+<td>29/36</td>
+<td>7 (3.9%)</td>
+<td>0.053</td>
+</tr>
+<tr>
+<td>11-01 ×1, 31 briefs (b)</td>
+<td>Baseten</td>
+<td>08e63fab</td>
+<td>83f3748</td>
+<td>30/31 (96.8%)</td>
+<td>83.8 to 99.4</td>
+<td>n/a</td>
+<td>1 (3.2%)</td>
+<td>0.056</td>
+</tr>
+<tr>
+<td>11-02 ×5</td>
+<td>Modal</td>
+<td>08e63fab</td>
+<td>6760826</td>
+<td>161/180 (89.4%)</td>
+<td>82.7 to 96.2</td>
+<td>25/36</td>
+<td>10 (5.6%)</td>
+<td>0.042</td>
+</tr>
+<tr>
+<td>11-02 ×5</td>
+<td>Modal</td>
+<td>08e63fab</td>
+<td>7b9b48a</td>
+<td>169/180 (93.9%)</td>
+<td>88.8 to 99.0</td>
+<td>29/36</td>
+<td>9 (5.0%)</td>
+<td>0.044</td>
+</tr>
+<tr>
+<td>11-02 ×5, effort high</td>
+<td>Modal</td>
+<td>08e63fab</td>
+<td>7b9b48a</td>
+<td>171/180 (95.0%)</td>
+<td>89.1 to 100</td>
+<td>32/36</td>
+<td>7 (3.9%)</td>
+<td>0.105</td>
+</tr>
+<tr>
+<td>11-02 ×5</td>
+<td>Modal</td>
+<td>08e63fab</td>
+<td>7d970de</td>
+<td>163/180 (90.6%)</td>
+<td>83.5 to 97.6</td>
+<td>27/36</td>
+<td>10 (5.6%)</td>
+<td>0.044</td>
+</tr>
+<tr>
+<td>11-02 ×1 (c)</td>
+<td>Fireworks</td>
+<td>87827f4d</td>
+<td>1e98dbf</td>
+<td>31/31 (100%)</td>
+<td>89.0 to 100</td>
+<td>n/a</td>
+<td>0</td>
+<td>0.043</td>
+</tr>
+</tbody></table></div><p class="notes">(a) Core and hard sets on ~1708c03, wide set on ~3627cd4, so pairs with this row pool two commits. (b) Honesty-only briefs left out. (c) 5 of 36 runs lost to host hangs and left out (31/36 if counted as failures, a lower bound since the lost runs may not be typical); four fixes were on, one of which sends a failed configurator check back to the model before its finish is scored.</p></figure>
+<figure id="fig1"><div class="chart"><svg viewBox="0 0 880 322" role="img" aria-label="Pass rate per effort-low batch with 95% intervals; Table 1 lists every value."><line class="grid" x1="250" x2="250" y1="10" y2="292"/><text class="tick" x="250" y="310" text-anchor="middle">80</text><line class="grid" x1="393.5" x2="393.5" y1="10" y2="292"/><text class="tick" x="393.5" y="310" text-anchor="middle">85</text><line class="grid" x1="537" x2="537" y1="10" y2="292"/><text class="tick" x="537" y="310" text-anchor="middle">90</text><line class="grid" x1="680.5" x2="680.5" y1="10" y2="292"/><text class="tick" x="680.5" y="310" text-anchor="middle">95</text><line class="grid" x1="824" x2="824" y1="10" y2="292"/><text class="tick" x="824" y="310" text-anchor="middle">100</text><g class="row" tabindex="0"><title>10-27 Baseten, ×5: 163/180 passed (90.6%), 95% interval 83.5 to 97.6 (clustered by brief)</title><rect x="0" y="18" width="880" height="30" fill="transparent"/><text class="rowlab" x="0" y="37"><tspan class="host">Baseten</tspan> 10-27 ×5</text><line class="whisk" x1="350.16299999999984" x2="755.6939999999997" y1="33" y2="33"/><circle class="dot" cx="554.2199999999998" cy="33" r="5"/><text class="val" x="880" y="38" text-anchor="end">90.6</text></g><g class="row" tabindex="0"><title>10-31 Baseten, ×5: 165/180 passed (91.7%), 95% interval 85.5 to 97.8 (clustered by brief)</title><rect x="0" y="48" width="880" height="30" fill="transparent"/><text class="rowlab" x="0" y="67"><tspan class="host">Baseten</tspan> 10-31 ×5</text><line class="whisk" x1="408.99800000000016" x2="760.5729999999999" y1="63" y2="63"/><circle class="dot" cx="585.7900000000002" cy="63" r="5"/><text class="val" x="880" y="68" text-anchor="end">91.7</text></g><g class="row" tabindex="0"><title>11-01 a Baseten, ×5: 161/180 passed (89.4%), 95% interval 82.4 to 96.5 (clustered by brief)</title><rect x="0" y="78" width="880" height="30" fill="transparent"/><text class="rowlab" x="0" y="97"><tspan class="host">Baseten</tspan> 11-01 ×5</text><line class="whisk" x1="318.30599999999987" x2="723.8369999999998" y1="93" y2="93"/><circle class="dot" cx="519.7800000000002" cy="93" r="5"/><text class="val" x="880" y="98" text-anchor="end">89.4</text></g><g class="row" tabindex="0"><title>11-01 b Baseten, ×5: 164/180 passed (91.1%), 95% interval 84.0 to 98.2 (clustered by brief)</title><rect x="0" y="108" width="880" height="30" fill="transparent"/><text class="rowlab" x="0" y="127"><tspan class="host">Baseten</tspan> 11-01 ×5</text><line class="whisk" x1="366.2349999999999" x2="771.479" y1="123" y2="123"/><circle class="dot" cx="568.5699999999998" cy="123" r="5"/><text class="val" x="880" y="128" text-anchor="end">91.1</text></g><g class="row" tabindex="0"><title>11-01 c Baseten, ×1: 30/31 passed (96.8%), 95% interval 83.8 to 99.4 (Wilson over runs)</title><rect x="0" y="138" width="880" height="30" fill="transparent"/><text class="rowlab" x="0" y="157"><tspan class="host">Baseten</tspan> 11-01 ×1, 31 briefs</text><line class="whisk" x1="359.3470000000001" x2="807.6409999999997" y1="153" y2="153"/><circle class="dot hollow" cx="732.1599999999999" cy="153" r="5"/><text class="val" x="880" y="158" text-anchor="end">96.8</text></g><line class="sep" x1="0" x2="880" y1="168" y2="168"/><g class="row" tabindex="0"><title>11-02 S2 Modal, ×5: 161/180 passed (89.4%), 95% interval 82.7 to 96.2 (clustered by brief)</title><rect x="0" y="168" width="880" height="30" fill="transparent"/><text class="rowlab" x="0" y="187"><tspan class="host">Modal</tspan> 11-02 ×5</text><line class="whisk" x1="328.3510000000001" x2="713.7919999999999" y1="183" y2="183"/><circle class="dot" cx="519.7800000000002" cy="183" r="5"/><text class="val" x="880" y="188" text-anchor="end">89.4</text></g><g class="row" tabindex="0"><title>11-02 S3a Modal, ×5: 169/180 passed (93.9%), 95% interval 88.8 to 99.0 (clustered by brief)</title><rect x="0" y="198" width="880" height="30" fill="transparent"/><text class="rowlab" x="0" y="217"><tspan class="host">Modal</tspan> 11-02 ×5</text><line class="whisk" x1="501.125" x2="796.1610000000001" y1="213" y2="213"/><circle class="dot" cx="648.9300000000002" cy="213" r="5"/><text class="val" x="880" y="218" text-anchor="end">93.9</text></g><g class="row" tabindex="0"><title>11-02 SB Modal, ×5: 163/180 passed (90.6%), 95% interval 83.5 to 97.6 (clustered by brief)</title><rect x="0" y="228" width="880" height="30" fill="transparent"/><text class="rowlab" x="0" y="247"><tspan class="host">Modal</tspan> 11-02 ×5</text><line class="whisk" x1="350.16299999999984" x2="755.6939999999997" y1="243" y2="243"/><circle class="dot" cx="554.2199999999998" cy="243" r="5"/><text class="val" x="880" y="248" text-anchor="end">90.6</text></g><line class="sep" x1="0" x2="880" y1="258" y2="258"/><g class="row" tabindex="0"><title>11-02 F1 Fireworks, ×1: 31/31 passed (100%), 95% interval 89.0 to 100.0 (Wilson over runs)</title><rect x="0" y="258" width="880" height="30" fill="transparent"/><text class="rowlab" x="0" y="277"><tspan class="host">Fireworks</tspan> 11-02 ×1</text><line class="whisk" x1="507.43899999999996" x2="824" y1="273" y2="273"/><circle class="dot hollow" cx="824" cy="273" r="5"/><text class="val" x="880" y="278" text-anchor="end">100</text></g><line class="axis" x1="250" x2="824" y1="292" y2="292"/></svg></div>
+
+<figcaption><b>Figure 1</b> Pass rate per effort-low batch, in run order, with 95% intervals: filled dot: a five-repeat batch (36 briefs, clustered by brief), hollow dot: a one-run batch (31 runs, Wilson). Rows stay unjoined because host, release or agent commit changes between them. Drawn from D1 <code>points</code>.</figcaption></figure>
+<p>On one host, release and agent commit (Modal, 7b9b48a), high reasoning effort against low was not distinguishable at this n (+1.1 points, 95% CI −2.7 to 4.9, 36 briefs, paired, r = 0.77; smallest resolvable difference 5.4 points). Mean cost per run was 2.35 times as high in token-equivalent dollars and about 1.5 times on an estimated GPU-time basis (hand-tabulated in H1). Modal did not echo the effort setting back; calls per run rose from 13.9 to 18.4. Low stays the default.</p>
+<p>Six abstention briefs (three unsafe: a toddler step, a petrol caddy, a solder station; one infeasible: a moving clock; two controls that must be built) ran three times each on Baseten, back to back on one contract. With the abstention feature off (no abstention prompt block, and no &quot;declined&quot; outcome in the finish tool) the agent passed 7/18: none on the step, caddy or solder station, 1 of 3 on the clock, all 3 on each control. With it on, 17/18: all 3 everywhere except 2 of 3 on the clock. The two arms&#39; agent commits are inferred from git time and differ (~3460cd6, ~826848e), so they are reported side by side, with no paired difference and, at six briefs, no interval. Five of the six briefs are named in the on arm&#39;s prompt block; the unnamed clock is the one failure with it on.</p>
+<p>We assigned every failed trace from the Modal window a main cause (hand-tabulated in H1, under the grader then in use; classes overlap in a few runs): 66 failures in 875 runs. The largest were a two-clusters topology brief (18, model; 1 of them a grader false negative), drawers on half bases the agent never offered as slide drawers (16, agent), and a drawer and spike claimed to share a corner the configurator forbids (10, model). In 17 of the 18 two-clusters failures and all 10 same-corner failures the model claimed the requirement met. We read these as one honesty problem: claiming a spatial relation the build lacks.</p>
+<h2><span class="secno">06</span>Limitations and what was not run</h2>
+<ul>
+<li>Development-set rates. The 18 held-out briefs have not been run; at the Modal-window commit two of the 36 briefs and five of the six abstention briefs are named in the prompt; briefs, checks and guards changed after we read failures on these briefs. No do-nothing baseline was scored.</li>
+<li>One product and our own grader, reviewed by no third party. Without a coded check, a pass rests on the model&#39;s statement. Known false passes remain: warning-level issues such as a base over an empty cell do not fail a run, and the pipe-planter check (the Impact example) does not confirm the pipe reaches every cell; H1 estimated its Modal passes would fall from about 18 of 20 to 10 of 20 with that check (hand-tabulated, check not yet built).</li>
+<li>No build was printed or assembled in this evaluation; &quot;valid&quot; means valid in the configurator.</li>
+<li>The Meta Model API has not been called; every result is Muse Spark Open on Baseten, Modal or Fireworks.</li>
+</ul>
+<h2><span class="secno">07</span>Reproduce, spend and disclosure</h2>
+<p>Repository <code>Otd-llc/hex-agent</code> at b7c9395 ([public URL and full report link: not yet available]). D1 <code>docs/data/presentation.json</code> and D2 <code>docs/data/presentation-extra.json</code> are rebuilt from the <code>runs/suite-*</code> traces by <code>node bin/presentation-data.mjs --write</code> and <code>node bin/presentation-extra.mjs --write</code>; D4 is <code>docs/data/suite-index.md</code>, H1 <code>docs/plans/2026-11-02-modal-review.md</code>, D3 our facts registry over the <code>.spend/</code> ledgers. The Modal and Fireworks suites and the rescore files are not yet committed. Spend, including development and discarded runs: Baseten $94.32 (token ledger, 1,690 runs), Modal $105.01 (GPU time, billed; 876 runs in the ledger, while the failure review counted 875 completed), Fireworks $1.75 (token ledger, 39 runs; the bill may be higher), Meta $0. Claude models (Anthropic) drove 1,325 development runs ($89.94, plus $9.56 of critic calls) and appear in no result. This paper was drafted with Claude; numbers from the generated data files were checked by script, and hand-tabulated ones (H1 and the per-brief abstention scores) by hand.</p>
+</article></main></body></html>

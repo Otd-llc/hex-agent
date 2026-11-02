@@ -1,7 +1,7 @@
 <!-- CLASSIFICATION: public -->
 <!-- Claim ledger: ledger.md. Numbers: D1 docs/data/presentation.json, D2 docs/data/presentation-extra.json, D3 facts-compute-2026-11-02.yaml, D4 docs/data/suite-index.md; H1 docs/plans/2026-11-02-modal-review.md and H2 EVALUATION.md are hand-tabulated and labelled where used. -->
 
-# A Muse Spark Open agent passes 89 to 94% of runs on 36 design briefs in a live product configurator, graded by code: technical report
+# A Muse Spark Open agent passes 89 to 94% of runs per batch on 36 development briefs in a live product configurator, checked by the product's rules and our code: technical report
 
 hex-agent, Meta Global AI Developer Hackathon, Startup track, problem statement Push the Frontier. One Thousand Drones.
 Accurate as of 2026-11-02; figures should be re-verified before relying on them. Review by 2026-11-04. Companion to the two-page write-up (paper.md).

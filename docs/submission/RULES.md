@@ -71,3 +71,5 @@ Muse Code.
   (2026-10-26): the track is picked on the submission form and may be
   switched. The entry is One Thousand Drones' existing configurator plus the
   agent built during the event; the new work is marked per HACKATHON_DELTA.md.
+- 2026-11-02, owner: **Problem statement: Push the Frontier** (manufacturing; give a
+  machine a new capability).

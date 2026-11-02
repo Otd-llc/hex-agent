@@ -18,7 +18,9 @@ export function callReport(runs) {
       const known = u.cachedReported ?? (u.cachedInputTokens > 0);
       if (known) reported++;
       const frac = known && u.inputTokens ? u.cachedInputTokens / u.inputTokens : null;
-      if (u.reasoningTokens != null) { reasoning += u.reasoningTokens; reasoningSeen++; }
+      // Traces recorded before the top-level reasoning_tokens read keep it in rawUsage only.
+      const r = u.reasoningTokens ?? m.rawUsage?.reasoning_tokens ?? null;
+      if (r != null) { reasoning += r; reasoningSeen++; }
       served[m.servedBy ?? 'none'] = (served[m.servedBy ?? 'none'] ?? 0) + 1;
       const k = i + 1;
       if (at[k]) { at[k].ms.push(m.http?.ms); at[k].cached.push(frac); }

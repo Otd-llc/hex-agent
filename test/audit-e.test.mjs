@@ -179,6 +179,9 @@ test('E14: call stats read call 1 vs call 5 latency and cached share, and tell "
   assert.deepEqual(Object.keys(r.msByInFlight), ['1', '2', '3']);
   const silent = callReport([{ t: { events: [{ type: 'model', usage: { inputTokens: 1000, cachedInputTokens: 0, cachedReported: false }, http: { ms: 5 } }] } }]);
   assert.equal(silent.call1.medianCached, null, 'not reported is not 0');
+  // Modal Dedicated: reasoning_tokens at the top of usage, kept in rawUsage by older traces.
+  const top = callReport([{ t: { events: [{ type: 'model', usage: { inputTokens: 1, cachedInputTokens: 0, reasoningTokens: null }, rawUsage: { reasoning_tokens: 34 }, http: { ms: 5 } }] } }]);
+  assert.equal(top.reasoningTokens.mean, 34);
   assert.equal(silent.cachedReportedShare, 0);
 });
 

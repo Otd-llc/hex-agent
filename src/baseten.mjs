@@ -61,7 +61,8 @@ export function parseChat(json) {
       outputTokens: u.completion_tokens ?? 0,
       cachedInputTokens: u.prompt_tokens_details?.cached_tokens ?? 0,
       // null when the host does not say, so "0 cached" and "not reported" stay apart (E14).
-      reasoningTokens: u.completion_tokens_details?.reasoning_tokens ?? null,
+      // Modal's Dedicated Endpoint puts reasoning_tokens at the top of usage.
+      reasoningTokens: u.completion_tokens_details?.reasoning_tokens ?? u.reasoning_tokens ?? null,
       cachedReported: u.prompt_tokens_details?.cached_tokens != null,
     },
     // The usage object exactly as the host sent it.

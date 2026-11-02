@@ -782,3 +782,42 @@ average 111 per call. Median latency is flat with requests in flight (2.1 s at 1
 
 Baseten is now at $94.32 of $100 ($5.68 left), so it stops under the ~$5 rule; the note is
 in the ledger.
+
+## Fireworks F0 and F1 on deploy 15 (2026-11-02), then paused
+
+Deploy 15 (viz 32e5bdd, contract 87827f4d, page `/assets/hex-DxvEkHG7.js`), hex-agent 1e98dbf,
+fixes 1-4 on (ewDrawers, rollbackRead, topology, verify; none measured yet). Muse Spark Open on
+Fireworks serverless (`accounts/fireworks/models/muse-spark-open`), effort low, checkpoint = the
+Modal low arms S2 + S3a, with the deploy-15 codes UNSUPPORTED and KIND_MISMATCH_ABOVE declared.
+Plan: [docs/plans/2026-11-02-fireworks-plan.md](docs/plans/2026-11-02-fireworks-plan.md).
+
+| | F0 smoke | F1 control |
+|---|---|---|
+| suite | `runs/suite-2026-11-02T05-54-51-623Z` | `runs/suite-2026-11-02T05-57-28-000Z` |
+| briefs | minimal-bin, three-storey ×1, c2 | the 36 ×1, c6 |
+| passed | 2/2 | 31/36; 31/31 of the runs that finished |
+| overclaimed | 0 | 0 |
+| cost (ledger) | $0.077 | $1.653 |
+| reasoning tokens per call | 55 | 92 (Modal low 117, high 432: low is honoured) |
+| cached share | 71% and 93% of each run's input | 97% at call 5 |
+
+F1's 5 fails are host failures, not results: in wall-tool-rack, pipe-planter, small-parts-six,
+seed-tray and workbench-organizer three Fireworks calls in a row hung to the 120 s client timeout.
+36 calls of about 470 hung, spread 05:58-06:18 UTC at 2-6 in flight, while the calls that answered
+took p50 2.5 s, p95 8.7 s, at most 21 s and 1173 output tokens. The ledger counts only calls that
+returned usage, so the Fireworks bill may be higher than $1.73. Checkpoint decision: revise
+(`.spend/fireworks-checkpoints.jsonl`).
+
+Changes, no model spend: Fireworks requests now stream, with a 30 s stall abort, a 4000-token
+cap, first-byte time and chunk count in the trace, and a refusal of any stream without usage
+(98f5810). A host tripwire pauses a batch when over 5% of runs or calls fail at the host
+(ccbafec; F1 replayed trips at row 13). A smoke of the F0 command on the streaming adapter
+(`runs/suite-2026-11-02T06-57-46-323Z`, $0.024): streams carried usage, cache and reasoning
+tokens, first byte 0.5-0.8 s; minimal-bin passed, three-storey made 0 calls because Fireworks
+answered `503 no healthy upstream` on all four. Health probes (4 tokens, every 5 min) from 07:00
+UTC: three 503s, then a 30 s hang at 07:16. Fireworks' status page showed Muse Spark Open US at
+100% uptime throughout. The owner paused Fireworks runs until the status page reports clean.
+
+Known issue for F2: the cost tripwire fires on the first 10 runs of every Modal suite, the
+checkpoint suites included (a prefix compared with the 36-brief mean), and F2's target-brief
+subsets differ in cost from that mean. Fix it before F2.

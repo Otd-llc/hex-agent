@@ -1,65 +1,83 @@
 <!-- CLASSIFICATION: public -->
-<!-- Claim ledger: green-ledger.md. Numbers: docs/data/presentation.json (D1), docs/data/presentation-extra.json (D2), facts-compute-2026-11-02.yaml (D3), docs/data/suite-index.md (D4). Review by 2026-11-04, after the Meta Model API demo runs. -->
+<!-- Claim ledger and data sources: ledger.md beside this file. Review by 2026-11-04, after the Meta Model API demo runs. -->
 
-# A Muse Spark Open agent passes 89 to 94% of runs on 36 design briefs in a live product configurator, graded by code
+# A Muse Spark Open agent passes 89 to 94% of runs per batch on 36 development briefs in a live product configurator, checked by the product's rules and our code
 
-hex-agent, Meta Global AI Dev Hackathon, Indie track. One Thousand Drones. Accurate as of 2026-11-02.
+hex-agent. Meta Global AI Developer Hackathon, Startup track, problem statement Push the Frontier. One Thousand Drones. Accurate as of 2026-11-02.
 
-## Problem and claim
+hex-agent lets Meta's open-weights Muse Spark Open design hardware in One Thousand Drones' live Hex Cluster configurator: builds that pass the configurator's placement and collision rules, made from its catalog of printable parts, with a statement of which requirements were met. In seven effort-low batches of the 36 briefs, five runs per brief, the agent passed 89.4 to 93.9% of runs per batch and overclaimed in 3.3 to 6.1% (a lower bound). None of eight exploratory batch comparisons is distinguishable at this n. These are development-set rates: the same briefs were used to find and fix failures.
 
-An agent that edits a real product can be judged by that product. hex-agent puts Meta's open-weights Muse Spark Open in front of the live Hex Cluster configurator through the same public browser API a customer's script would use, lets the configurator accept or refuse every change by its own rules, and then checks the model's account of what it built against the build. In seven batches of the same 36 design briefs, five runs each, the agent passed 89.4 to 93.9% of runs per batch, and in 3.3 to 6.1% of runs it reported every requirement met while a check failed. No difference between batches is distinguishable at this sample size.
+## What was built during the hackathon
 
-## What it does
+One Thousand Drones' existing product, before the event (2026-10-27): Hex Cluster, its [configurator](https://hex.onethousanddrones.com/), placement rules, collision check, the public `window.hexAPI`, print packs and printable parts. None of that source is in this repository; it holds a vendored copy of the public API contract and test fixture data. During the event One Thousand Drones also shipped configurator releases (every contract in Table 1), some prompted by the agent's runs; they are product work made during the event, outside this repository, and not claimed for judging, and every result here ran on them. Built during the hackathon in this repository, from its first commit (fb78560, 2026-10-27): the agent loop, browser bridge, checked tool layer, Meta model adapters, verification, honesty check, abstention, grader and rescoring, spend ledgers, evaluation suites and replay tool. Nothing was trained. HACKATHON_DELTA.md in the repository lists the pre-event product versions.
 
-You give hex-agent a brief such as "a planter of four cells with a water pipe running through the bases to feed every cell". The model works in the [Hex Cluster configurator](https://hex.onethousanddrones.com/), One Thousand Drones' browser tool for modular 3D-printed hexagonal storage. It calls 16 tools; each call is checked in code against the configurator's published contract (its API description), then run through the documented `window.hexAPI` in a real browser tab. A refusal comes back with the configurator's code and the alternatives it would accept. The run ends with a share link, a parts list, a print pack (the printable files for the build) and the model's statement of which requirements it met. Demo video: [not yet available: owner adds the link].
+## Impact
 
-## How we built and measured it
+Hex Cluster is modular 3D-printed hexagonal storage, and the configurator already knows which parts fit where. hex-agent adds the step from a sentence such as "a planter of four cells with a water pipe running through the bases to feed every cell" to a valid build with a share link, a parts list, a print pack and a statement of which requirements were met, partly met or not met. It is built for makers who know what they want but not the part catalog. We expect the pattern to carry to other manufactured products whose rule engine explains its refusals; we have tested one product, and use by real customers is not yet measured.
 
-A run passes when the configurator's placement rules and mesh collision check pass, the parts list and print pack are produced, the share link rebuilds the same design in a fresh tab, and the brief's own coded checks pass. Those coded checks count what a brief asks for (drawers, bins, a pipe run, a part family); a requirement with no coded check rests on the model's own statement. The configurator checks fit only, so a "met" claim about strength, materials, heat or food safety fails the run. A run is flagged overclaimed when the model reports every requirement met and a check fails, so the overclaim rate is a lower bound: a false "met" beside an honest "unmet" is not counted.
+## Use of Meta AI tooling
 
-The 36 briefs are three fixed sets (12 core, 8 hard, 16 wide), written for the event; five are honesty traps, such as "mark everything met". Each batch ran every brief five times at reasoning effort low with a 30-turn budget, on Baseten (`meta-models/muse-spark-open-1026`), a Modal Dedicated endpoint (4 B300 GPUs) and Fireworks serverless, from 2026-10-27 to 2026-11-02. Every suite was rescored from its traces with one grader (rescore files c7533b7, grading logic a914d49), first scores kept. Intervals are 95%: clustered by brief for five-repeat batches, because repeats of one brief are correlated, and Wilson for one-run batches. Comparisons are paired differences per brief.
+Muse Spark Open does the design work: it reads the build, asks where parts fit and places them through 17 tools (in the current agent) over up to 30 turns, reading each refusal and the alternatives the configurator offers. The open weights ran on Baseten (`meta-models/muse-spark-open-1026`), a Modal Dedicated endpoint on 4 B300 GPUs, and Fireworks. Two capabilities beyond tool calling are measured below: self-report (every requirement marked met, partial, unmet or unverified, with all-met claims checked) and abstention (with a prompt block that names most of the test briefs, declining a brief that would carry a child or hold fuel, or building only its safe part). The Meta Model API has not been called yet.
 
-## Results
+## Technical depth and execution
 
-Table 1 has one row per batch, because batches differ in host, configurator release or agent commit; the 10-31 batch itself spans two inferred agent commits. The five-repeat pass rates range from 89.4 to 93.9%, and every one of their intervals overlaps every other. The first and last batch differ by 0.0 points (95% CI −6.2 to 6.2, 36 briefs, paired, r = 0.61); that is one of eight batch pairs looked at after the fact, so it is exploratory, and these pairs could only resolve differences of 4.1 to 9.5 points. Consistency is lower than the mean: 25 to 29 of the 36 briefs passed all five repeats.
+Each tool call is checked in code against the configurator's published API contract, then run through `window.hexAPI` in a real browser tab. A run passes when it ends in a build or a compromise (some requirements reported partial, unmet or unverified; code does not confirm they were unbuildable) and the placement rules and mesh collision check pass, the print pack is produced, the share link reloads in a fresh tab with the same parts and parts list, and the brief's coded checks pass; a decline that leaves the build empty needs only a finish and no broken rule. A check that did not run counts as failed. A requirement with no coded check rests on the model's statement, and a "met" claim that uses listed strength, heat or food-safety terms fails the run (a keyword check), since the configurator checks fit only. A run is overclaimed when the model reports every requirement met and a brief check, placement rule or mesh check fails, so that rate is a lower bound.
 
-**Table 1.** Muse Spark Open on the 36 briefs, effort low unless marked. Passed and overclaimed are counts of completed runs. 95% CI clustered by brief for ×5 rows, Wilson for ×1 rows. "All 5": briefs whose five repeats all passed. Cost is token-equivalent per run (Modal bills GPU time). ~ marks a value inferred from git time. Sources: D1, D2, D4.
+The 36 briefs are three sets (12 core, 8 hard, 16 wide) written for the event, five of them honesty traps; a few were reworded between batches. Batches ran at effort low, except one high batch, with a 30-turn budget from 2026-10-27 to 2026-11-02. Our grader was wrong several times (an infeasible wording, disclaimers read as claims, a missed bolted handle); after each fix every suite was rescored from its traces with one grader (c7533b7), first scores kept beside them in the data files, for a net 0 to 9 fewer passes per five-repeat batch (some fixes loosened a check). Intervals are 95%, clustered by brief when briefs repeat and Wilson over runs for one run per brief. A comparison that attributes a difference to one factor is paired by brief and made only between runs sharing every other key field (host, model, effort, contract, page build, agent commit).
+
+## Demo and results
+
+Demo video: [not yet available: owner adds the link].
+
+Table 1 and Figure 1 show one row per batch, because batches differ in host, configurator release or agent commit; the Baseten ×5 rows each join three suites whose agent commits were not recorded. Strict pass, which also needs every requirement reported met (honesty-trap briefs: pass alone), ran 86.7 to 90% per effort-low five-repeat batch, and 25 to 29 of the 36 briefs passed all five repeats in those batches. Eight batch pairs, chosen after seeing the data, were compared as exploratory checks, and none is distinguishable at this n; they could resolve only differences of 4.1 to 9.5 points. Six differ in several key fields at once and attribute nothing (first against last 0.0 points, 95% CI −6.2 to 6.2, 36 briefs, paired). Two share host, release and effort and differ only in agent commit, each a guards-only change: +4.4 points (−0.5 to 9.4) and −3.3 (−7.9 to 1.2).
+
+**Table 1.** Muse Spark Open on the 36 briefs, effort low unless marked; counts are of completed runs. 95% CI clustered by brief for ×5 rows, Wilson over runs for ×1 rows. "All 5": briefs whose five repeats all passed. $/run is token-equivalent (Modal bills GPU time). Contract: hash of the configurator's published API contract, one per release. ~: inferred from git time, treated as unknown. Sources: D1 `points` and `effort`, D4.
 
 | Batch | Host | Contract | Agent | Passed | 95% CI | All 5 | Overclaimed | $/run |
 |---|---|---|---|---|---|---|---|---|
 | 10-27 ×5 | Baseten | ~2b45909b | ~63469da | 163/180 (90.6%) | 83.5 to 97.6 | 27/36 | 11 (6.1%) | 0.038 |
-| 10-31 ×5 | Baseten | d2fd3dad | ~1708c03, ~3627cd4 | 165/180 (91.7%) | 85.5 to 97.8 | 28/36 | 6 (3.3%) | 0.054 |
+| 10-31 ×5 (a) | Baseten | d2fd3dad | ~1708c03, ~3627cd4 | 165/180 (91.7%) | 85.5 to 97.8 | 28/36 | 6 (3.3%) | 0.054 |
 | 11-01 ×5 | Baseten | 238e6282 | ~dc65686 | 161/180 (89.4%) | 82.4 to 96.5 | 27/36 | 8 (4.4%) | 0.057 |
 | 11-01 ×5 | Baseten | 76ea6455 | ~e275786 | 164/180 (91.1%) | 84.1 to 98.2 | 29/36 | 7 (3.9%) | 0.054 |
-| 11-01 ×1, 31 briefs (a) | Baseten | 08e63fab | 83f3748 | 30/31 (96.8%) | 83.8 to 99.4 | n/a | 1 (3.2%) | 0.056 |
+| 11-01 ×1, 31 briefs (b) | Baseten | 08e63fab | 83f3748 | 30/31 (96.8%) | 83.8 to 99.4 | n/a | 1 (3.2%) | 0.056 |
 | 11-02 ×5 | Modal | 08e63fab | 6760826 | 161/180 (89.4%) | 82.7 to 96.2 | 25/36 | 10 (5.6%) | 0.043 |
 | 11-02 ×5 | Modal | 08e63fab | 7b9b48a | 169/180 (93.9%) | 88.8 to 99.0 | 29/36 | 9 (5.0%) | 0.045 |
 | 11-02 ×5, effort high | Modal | 08e63fab | 7b9b48a | 171/180 (95.0%) | 89.1 to 100 | 32/36 | 7 (3.9%) | 0.105 |
 | 11-02 ×5 | Modal | 08e63fab | 7d970de | 163/180 (90.6%) | 83.5 to 97.6 | 27/36 | 10 (5.6%) | 0.044 |
-| 11-02 ×1 (b) | Fireworks | 87827f4d | 1e98dbf | 31/31 (100%) | 89.0 to 100 | n/a | 0 | 0.043 |
+| 11-02 ×1 (c) | Fireworks | 87827f4d | 1e98dbf | 31/31 (100%) | 89.0 to 100 | n/a | 0 | 0.043 |
 
-(a) The five honesty-only briefs left out. (b) 5 of 36 runs lost to host hangs and left out of the rate; this agent had four untested fixes switched on.
+(a) Core and hard sets on ~1708c03, wide set on ~3627cd4, so pairs with this row pool two commits. (b) Honesty-only briefs left out. (c) 5 of 36 runs lost to host hangs and left out (31/36 if counted as failures, a lower bound since the lost runs may not be typical); four fixes were on, one of which sends a failed configurator check back to the model before its finish is scored.
 
-Reasoning effort made no distinguishable difference where the comparison is like with like. On the same host, site and agent commit, high against low was not distinguishable at this n (difference +1.1 points, 95% CI −2.7 to 4.9, 36 briefs, paired, r = 0.77; smallest resolvable difference 5.4 points), and high cost 2.35 times as much per run in tokens (1.47 times on an estimated GPU-time basis). An earlier Baseten ablation on 20 briefs is also not distinguishable (−11.7 points, −26.9 to 3.5, r = −0.12). Low stays the default.
+```
+                   pass rate, % of completed runs (axis starts at 80)
+10-27 Baseten x5          |-------------#-------------|       90.6
+10-31 Baseten x5              |-----------#------------|      91.7
+11-01 Baseten x5        |-------------#-------------|         89.4
+11-01 Baseten x5           |-------------#-------------|      91.1
+11-01 Baseten x1           |-------------------------o----|   96.8
+11-02 Modal x5          |-------------#------------|          89.4
+11-02 Modal x5                       |---------#---------|    93.9
+11-02 Modal x5            |-------------#-------------|       90.6
+11-02 Fireworks x1                   |---------------------o  100
+                   +.........+.........+.........+.........+
+                   80        85        90        95       100
+```
 
-On six safety briefs (a toddler step, a petrol caddy, a moving clock, a solder station, and two controls that must be built), three runs each, the arm with the abstention instruction on passed 17/18 against 7/18 with it off (+55.6 points, 95% CI 15.4 to 95.7, 6 briefs, paired; a normal interval is rough at 6 briefs). Five of the six briefs are named in the prompt, the unnamed moving clock was the one failure with abstention on, and the two arms may differ in agent commit, so this is evidence the instruction works on what it names.
+**Figure 1.** Pass rate per effort-low batch, in run order, with 95% intervals: # a five-repeat batch (36 briefs, clustered by brief), o a one-run batch (31 runs, Wilson). Rows stay unjoined because host, release or agent commit changes between them. Drawn from D1 `points`.
 
-## What failed and what we learned
+On one host, release and agent commit (Modal, 7b9b48a), high reasoning effort against low was not distinguishable at this n (+1.1 points, 95% CI −2.7 to 4.9, 36 briefs, paired, r = 0.77; smallest resolvable difference 5.4 points). Mean cost per run was 2.35 times as high in token-equivalent dollars and about 1.5 times on an estimated GPU-time basis (hand-tabulated in H1). Modal did not echo the effort setting back; calls per run rose from 13.9 to 18.4. Low stays the default.
 
-Every failed trace from the Modal window was read and given one cause by hand. That window held 66 failures in 875 runs across 12 suites (the 36 briefs plus demo, safety and dressing sets, both efforts, three agent commits), counted under the grader then in use. The largest classes were a two-clusters topology brief (18, model), drawers on east or west half bases that the agent never asked for in the slide style (16, agent) and a drawer and spike claimed to share a corner the configurator does not allow (10, model). In 17 of the 18 two-clusters failures and all 10 same-corner failures the model claimed the requirement met. We read these 28 as the agent's clearest honesty gap: it claims a spatial relation the build lacks.
+Six abstention briefs (three unsafe: a toddler step, a petrol caddy, a solder station; one infeasible: a moving clock; two controls that must be built) ran three times each on Baseten, back to back on one contract. With the abstention feature off (no abstention prompt block, and no "declined" outcome in the finish tool) the agent passed 7/18: none on the step, caddy or solder station, 1 of 3 on the clock, all 3 on each control. With it on, 17/18: all 3 everywhere except 2 of 3 on the clock. The two arms' agent commits are inferred from git time and differ (~3460cd6, ~826848e), so they are reported side by side, with no paired difference and, at six briefs, no interval. Five of the six briefs are named in the on arm's prompt block; the unnamed clock is the one failure with it on.
 
-Our grader was wrong too. Reading flagged traces found errors in our own briefs and checks (an arbitrary bin count, two infeasible wordings, disclaimers read as claims, a handle check that missed bolted handles); each was fixed and every suite rescored, which lowered the five-repeat batches by 0 to 9 passes each. Agent runs also surfaced configurator gaps that One Thousand Drones fixed in its own product.
+We assigned every failed trace from the Modal window a main cause (hand-tabulated in H1, under the grader then in use; classes overlap in a few runs): 66 failures in 875 runs. The largest were a two-clusters topology brief (18, model; 1 of them a grader false negative), drawers on half bases the agent never offered as slide drawers (16, agent), and a drawer and spike claimed to share a corner the configurator forbids (10, model). In 17 of the 18 two-clusters failures and all 10 same-corner failures the model claimed the requirement met. We read these as one honesty problem: claiming a spatial relation the build lacks.
 
-## Limitations
+## Limitations and what was not run
 
-- Tuned on the test set. The 18 held-out briefs have not been run; nine briefs are named in the prompt; briefs, checks and agent guards were changed after reading failures on these same 36 briefs. No do-nothing baseline was scored.
-- One product, our own grader, 36 briefs; where a brief has no coded check, a pass rests on the model's statement, and no third party has reviewed the checks.
-- The Meta Model API has not been called yet; every result here is Muse Spark Open on Baseten, Modal or Fireworks.
+- Development-set rates. The 18 held-out briefs have not been run; at the Modal-window commit two of the 36 briefs and five of the six abstention briefs are named in the prompt; briefs, checks and guards changed after we read failures on these briefs. No do-nothing baseline was scored.
+- One product and our own grader, reviewed by no third party. Without a coded check, a pass rests on the model's statement. Known false passes remain: warning-level issues such as a base over an empty cell do not fail a run, and the pipe-planter check (the Impact example) does not confirm the pipe reaches every cell; H1 estimated its Modal passes would fall from about 18 of 20 to 10 of 20 with that check (hand-tabulated, check not yet built).
+- No build was printed or assembled in this evaluation; "valid" means valid in the configurator.
+- The Meta Model API has not been called; every result is Muse Spark Open on Baseten, Modal or Fireworks.
 
 ## Reproduce, spend and disclosure
 
-Repository `Otd-llc/hex-agent` at 6a79067 ([public URL and full report link: not yet available]). Each `runs/suite-*` folder holds `summary.json` and a `trace.json` per run, and `node bin/presentation-data.mjs --write` regenerates Table 1 from them; the paired figures come from a companion script still to be merged into it. The Modal and Fireworks suite folders and the rescore files are not yet committed, so those rows cannot yet be rebuilt from the repository.
-
-Spend, by what each host bills: Baseten $94.32 (ledger, 1,690 runs), Modal $105.01 (billed, 876 runs), Fireworks $1.75 (ledger, 39 runs; the bill may be higher because hung calls returned no usage), Meta $0. These include development, smoke and discarded runs, and came from hackathon credits, plus Modal account credit.
-
-Hex Cluster, its configurator, rules, collision check, API and print packs existed before the event and belong to One Thousand Drones; configurator fixes during the event are its work. The agent, browser bridge, checked tool layer, verification, abstention, grader and evaluation are the event work. Nothing was trained: every change is to the agent's tools, prompt and guards, or to the configurator. Claude models (Anthropic) drove 1,325 development runs ($89.94, plus $9.56 of critic calls) and appear in no result here. This paper was drafted with Claude and its numbers checked against the data files by script.
+Repository `Otd-llc/hex-agent` at b7c9395 ([public URL and full report link: not yet available]). D1 `docs/data/presentation.json` and D2 `docs/data/presentation-extra.json` are rebuilt from the `runs/suite-*` traces by `node bin/presentation-data.mjs --write` and `node bin/presentation-extra.mjs --write`; D4 is `docs/data/suite-index.md`, H1 `docs/plans/2026-11-02-modal-review.md`, D3 our facts registry over the `.spend/` ledgers. The Modal and Fireworks suites and the rescore files are not yet committed. Spend, including development and discarded runs: Baseten $94.32 (token ledger, 1,690 runs), Modal $105.01 (GPU time, billed; 876 runs in the ledger, while the failure review counted 875 completed), Fireworks $1.75 (token ledger, 39 runs; the bill may be higher), Meta $0. Claude models (Anthropic) drove 1,325 development runs ($89.94, plus $9.56 of critic calls) and appear in no result. This paper was drafted with Claude; numbers from the generated data files were checked by script, and hand-tabulated ones (H1 and the per-brief abstention scores) by hand.

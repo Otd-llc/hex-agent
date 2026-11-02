@@ -77,3 +77,6 @@ Muse Code.
   briefs (evals/briefs-heldout.json, in history since 76e977d) become public; they
   stay unrun, and the paper says so. Rewriting history would break the agent
   commit recorded in every trace.
+- 2026-11-02, owner: **Keep contract/hex-api-public.json** in the public repo: its content is already
+  published at https://academy.onethousanddrones.com/hex/api (contract da0834cc); NOTICE keeps it
+  under the API terms, outside Apache-2.0.

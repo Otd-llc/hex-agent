@@ -71,7 +71,7 @@ for (const row of summary.rows) {
   // The configurator verdict recomputed with the current rule (G0: the decline gate changed).
   const configurator = configuratorPass(outcomeOf(trace.finish, trace.verdict.nodes), trace);
   const after = configurator && fresh.pass && !overclaimed(t2) && scope !== 'fail' && !(trace.acceptance?.checks ?? []).some((x) => x.metButFails);
-  out.push({ id: row.id, attempt: row.attempt, before: row.pass, after, strict: strictPass(after, trace.finish, found.brief), changed: before(row) !== after, brief: found.brief.file, briefMatch: found.match, ...(fresh.pass ? {} : { failed: fresh.results.filter((x) => !x.pass).map((x) => `${JSON.stringify(x.expect)}=${x.saw}`) }) });
+  out.push({ id: row.id, attempt: row.attempt, before: row.pass, after, overclaimed: overclaimed(t2), strict: strictPass(after, trace.finish, found.brief), changed: before(row) !== after, brief: found.brief.file, briefMatch: found.match, ...(fresh.pass ? {} : { failed: fresh.results.filter((x) => !x.pass).map((x) => `${JSON.stringify(x.expect)}=${x.saw}`) }) });
 }
 function before(row) { return row.pass; }
 

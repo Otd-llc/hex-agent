@@ -75,7 +75,10 @@ function score(suites) {
     strict, strictRate: pct(strict / n),
     overclaimed: over, overclaimRate: pct(over / n), overclaimCI: wilson(over, n),
     // The interval to show: clustered by brief when a brief ran more than once, else Wilson.
-    passClustered: clustered(done, (r) => r.pass), overclaimClustered: clustered(done, (r) => r.overclaimed),
+    // One run per brief: clustering adds nothing and is degenerate at k = n, so Wilson.
+    ...(Math.max(...[...byBrief(done, () => true).values()].map((a) => a.length)) > 1
+      ? { passClustered: clustered(done, (r) => r.pass), overclaimClustered: clustered(done, (r) => r.overclaimed), intervalMethod: 'clustered by brief' }
+      : { intervalMethod: 'Wilson over runs (one run per brief)' }),
     passAllRepeats: passAll(done),
     firstScored: k((r) => r.first),
     twoClusters: { completed: tc.length, passed: tc.filter((r) => r.pass).length },
@@ -160,7 +163,11 @@ function paired(a, b, f = (r) => r.pass) {
   return { briefs: ids.length, diffPoints: pct(md), sePoints: pct(se), ci95Points: [pct(md - 1.96 * se), pct(md + 1.96 * se)], correlation: +(cov / (sd(xa, ma) * sd(xb, mb) || 1)).toFixed(2) };
 }
 const effortPaired = {
-  modalHighMinusLow: paired(S('11-02T01-04-53-972Z', '11-02T01-43-22-121Z', '11-02T02-54-22-767Z'), S('11-02T02-09-20-221Z')),
+  // Like with like: S3a and SA share agent commit 7b9b48a, host, deploy and briefs.
+  modalHighMinusLowSameCommit: paired(S('11-02T01-43-22-121Z'), S('11-02T02-09-20-221Z')),
+  // Variant only: the low arm pools S2, S3a, SB across three agent commits (guards only),
+  // which breaks the comparison key; shown so the difference is visible, not as a result.
+  modalHighMinusLowPooledLowVariant: paired(S('11-02T01-04-53-972Z', '11-02T01-43-22-121Z', '11-02T02-54-22-767Z'), S('11-02T02-09-20-221Z')),
   basetenHighMinusLow: paired(S('10-27T19-05-33-370Z', '10-27T19-12-30-903Z'), S('10-27T19-17-51-239Z', '10-27T19-28-29-596Z')),
 };
 
@@ -183,5 +190,5 @@ if (process.argv.includes('--write')) writeFileSync(join(root, 'docs/data/presen
 for (const p of points) console.log(`${p.key} ${p.label.padEnd(9)} ${p.host.padEnd(9)} ${p.passed}/${p.completed} (${p.passRate}%, CI ${p.passCI.map(pct).join('-')}) strict ${p.strictRate}% over ${p.overclaimed} (${p.overclaimRate}%) first ${p.firstScored} hostCut ${p.hostCut} w/o 2c ${p.withoutTwoClusters.passRate}% graders ${p.graders} agent ${p.agentCommit.join(',')} contract ${p.contract.join(',')}`);
 for (const e of effort) console.log(`${e.arm.padEnd(46)} ${e.passed}/${e.completed} (${e.passRate}%) strict ${e.strictRate}% over ${e.overclaimed} calls/run ${e.callsPerRun} tok$/run ${e.tokenCostPerRun}`);
 for (const [h, c] of Object.entries(hosts)) console.log(h.padEnd(34), JSON.stringify(c));
-for (const p of points) console.log(`${p.key} clustered pass ${p.passClustered.mean}% SE ${p.passClustered.se} CI ${p.passClustered.ci?.map(pct).join('-')} | over ${p.overclaimClustered.mean}% CI ${p.overclaimClustered.ci?.map(pct).join('-')} | pass^${p.passAllRepeats.k} ${p.passAllRepeats.allPassed}/${p.passAllRepeats.briefs}`);
+for (const p of points.filter((q) => q.passClustered)) console.log(`${p.key} clustered pass ${p.passClustered.mean}% SE ${p.passClustered.se} CI ${p.passClustered.ci?.map(pct).join('-')} | over ${p.overclaimClustered.mean}% CI ${p.overclaimClustered.ci?.map(pct).join('-')} | pass^${p.passAllRepeats.k} ${p.passAllRepeats.allPassed}/${p.passAllRepeats.briefs}`);
 console.log(JSON.stringify(effortPaired));

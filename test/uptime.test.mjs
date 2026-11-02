@@ -137,9 +137,13 @@ test('segments: validation is the fixed spec; others need a passing validation a
   assert.equal(l.approval('S2'), null);
 });
 
-test('dedicated hosts: *.modal.run only; refusals name a label, not the host; ids and text redacted', () => {
+test('dedicated hosts: *.modal.run or <ws>--ep-<name>-server.<region>.modal.direct; refusals name a label, not the host; ids and text redacted', () => {
   assert.equal(dedicatedHost('modal-dedicated:https://OTD--muse.modal.run/v1/'), 'otd--muse.modal.run');
+  assert.equal(dedicatedHost('modal-dedicated:https://OTD--ep-hex-muse-server.us-west.modal.direct/v1'), 'otd--ep-hex-muse-server.us-west.modal.direct');
   assert.throws(() => dedicatedHost('modal-dedicated:secret-x.us-west.modal.direct'), (e) => /Shared Endpoint/.test(e.message) && !e.message.includes('secret-x'));
+  for (const h of ['inference.us-west.modal.direct', 'otd--ep-x-server.modal.direct', 'otd--ep-x-server.us-west.modal.direct.evil.com', 'ep-x-server.us-west.modal.direct']) {
+    assert.throws(() => dedicatedHost(`modal-dedicated:${h}`), /Shared Endpoint|not a Modal Dedicated Endpoint host/, h);
+  }
   for (const h of ['evil.com', 'modal.run.evil.com', 'x.modal.run.evil.com', 'x.modal.run/../evil', 'a b.modal.run']) {
     assert.throws(() => dedicatedHost(`modal-dedicated:${h}`), (e) => /not a Modal Dedicated Endpoint host/.test(e.message) && !e.message.includes(h.split('/')[0]), h);
   }

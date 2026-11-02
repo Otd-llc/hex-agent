@@ -56,13 +56,17 @@ export const HOSTS = {
 export const DEDICATED_WEIGHTS = 'meta-models/Muse-Spark-Open-816B-A42B-NVFP4';
 
 // The endpoint host of a modal-dedicated id, as the dashboard gives it (a pasted
-// scheme or trailing /v1 is dropped). Only a *.modal.run host is a Dedicated
-// Endpoint: *.modal.direct is the card-billed Shared router, and anything else
-// would carry the proxy token to a host that is not Modal's.
+// scheme or trailing /v1 is dropped). A Dedicated Endpoint is served at its own
+// <workspace>--ep-<name>-server.<region>.modal.direct (seen 2026-11-02) or a *.modal.run
+// host. Any other *.modal.direct host (inference.<region>.modal.direct) is the
+// card-billed Shared router, and anything else would carry the proxy token to a
+// host that is not Modal's.
+const DEDICATED_DIRECT = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?--ep-[a-z0-9]([a-z0-9-]*[a-z0-9])?-server[.][a-z0-9]([a-z0-9-]*[a-z0-9])?[.]modal[.]direct$/;
 export function dedicatedHost(model) {
   const h = String(model).slice('modal-dedicated:'.length).trim().toLowerCase()
     .replace(/^https?:[/][/]/, '').replace(/[/](v1[/]?)?$/, '');
   if (!h) return '';
+  if (DEDICATED_DIRECT.test(h)) return h;
   // Refusals name the host by its label only: the text reaches consoles and logs.
   if (/[.]modal[.]direct$/.test(h)) throw new Error(`${hostLabel(h)} is a Modal Shared Endpoint host (*.modal.direct, billed to the card, not the credit): refused`);
   if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?([.][a-z0-9]([a-z0-9-]*[a-z0-9])?)*[.]modal[.]run$/.test(h)) {

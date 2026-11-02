@@ -41,3 +41,14 @@ test('tripwires: a refusal code no checkpoint run saw, in 3+ runs', () => {
   assert.equal(tripped([clash(), clash()], base), null, 'a rare code twice is not a trip');
   assert.match(tripped([clash(), clash(), clash()], base), /^refusal: SPIKE_CLASH \(3 runs\)/);
 });
+
+test('tripwires: the model host failing, by runs lost or by failed calls', () => {
+  const ok = Array.from({ length: 30 }, () => row('a', true, { calls: 10 }));
+  const lost = () => row('a', false, { infra: 'model error', calls: 4, hostErrors: 3 });
+  assert.equal(tripped([...ok, lost()], base), null, 'one lost run is not enough');
+  assert.match(tripped([...ok, lost(), lost()], base), /^host: 2 of 32 runs/);
+  // Retries saved every run, but 20 of 320 calls failed at the host.
+  const rescued = Array.from({ length: 30 }, (_, i) => row('a', true, { calls: 10, ...(i < 10 ? { hostErrors: 2 } : {}) }));
+  assert.match(tripped(rescued, base), /^host: 20 of 320 model calls/);
+  assert.equal(tripped(Array.from({ length: 30 }, (_, i) => row('a', true, { calls: 10, ...(i < 2 ? { hostErrors: 1 } : {}) })), base), null, '2 failed calls are noise');
+});

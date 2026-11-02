@@ -6,7 +6,10 @@
 //              under 5% likely by chance (binomial, Bonferroni over the briefs, checkpoint rate smoothed)
 //   cost       mean cost per scored run drifts more than 30% from the checkpoint (10+ runs)
 //   refusal    a refusal code no checkpoint run ever saw, in 3+ runs (rare codes appear once by chance)
-export const LIMITS = { harnessShare: 0.05, harnessMin: 2, regressionPts: 0.2, regressionMinRuns: 3, regressionAlpha: 0.05, costDrift: 0.3, costMinRuns: 10, refusalMinRuns: 3 };
+//   host       the model host failing: runs lost to it over 5% (at least 2), or failed calls (503,
+//              stall, timeout, retried or not) over 5% of calls (at least 3). F1 2026-11-02 lost 5 of
+//              36 runs to Fireworks hangs and --infra-stop never fired: good runs came in between.
+export const LIMITS = { harnessShare: 0.05, harnessMin: 2, hostShare: 0.05, hostRunsMin: 2, hostCallsMin: 3, regressionPts: 0.2, regressionMinRuns: 3, regressionAlpha: 0.05, costDrift: 0.3, costMinRuns: 10, refusalMinRuns: 3 };
 
 // Rows that are results: not budget cuts, not harness errors, not host outages.
 const scored = (rows) => rows.filter((r) => !r.budget && !r.error && !r.infra);
@@ -38,6 +41,11 @@ export function tripped(rows, base, lim = LIMITS) {
   const done = rows.filter((r) => !r.budget);
   const h = done.filter(harnessFailed).length;
   if (h >= lim.harnessMin && h / done.length > lim.harnessShare) return `harness: ${h} of ${done.length} runs failed in the browser or page`;
+  const lost = done.filter((r) => r.infra === 'model error').length;
+  if (lost >= lim.hostRunsMin && lost / done.length > lim.hostShare) return `host: ${lost} of ${done.length} runs ended on a model host error`;
+  const failedCalls = done.reduce((a, r) => a + (r.hostErrors ?? 0), 0);
+  const allCalls = failedCalls + done.reduce((a, r) => a + (r.calls ?? 0), 0);
+  if (failedCalls >= lim.hostCallsMin && failedCalls / allCalls > lim.hostShare) return `host: ${failedCalls} of ${allCalls} model calls failed at the host (503, stall or timeout)`;
   const s = scored(rows);
   const byBrief = {};
   for (const r of s) (byBrief[r.id] ??= []).push(r.pass);

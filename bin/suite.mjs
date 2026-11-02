@@ -129,6 +129,8 @@ async function runJob({ b, attempt }) {
       parts: trace.verdict.nodes,
       refusals: trace.counters.refusalCodes,
       calls: trace.usage.calls,
+      // Model calls the host failed (503, stall, timeout), retried or not: the host tripwire reads them.
+      ...((n) => (n ? { hostErrors: n } : {}))((trace.events ?? []).filter((e) => e.type === 'model_error').length),
       seconds: Math.round(trace.elapsedMs / 1000),
       costUsd: Number((trace.usage.costUsd ?? 0).toFixed(4)),
       trace: `${trace.runId}/trace.json`,

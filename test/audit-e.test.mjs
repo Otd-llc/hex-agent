@@ -310,3 +310,36 @@ test('fix 1: find_sockets offers slide drawers on east/west halves that openSock
   assert.equal((await t.run('find_sockets', { family: 'drawer', style: 'classic' })).total, 1, 'classic never fits an east/west half');
   assert.equal((await t.run('find_sockets', { family: 'drawer', style: 'swing' })).sockets.at(-1).op.style, 'swing');
 });
+
+test('fix 2: a rolled-back batch reads as not applied; NOTHING_BELOW comes with its fix', async () => {
+  const add = { op: 'place', at: { q: 0, r: 1, level: 0 }, variant: 'full' };
+  const bad = { op: 'addBin', at: { q: 9, r: 9, level: 0 }, stem: 'hex-bin-full' };
+  const refusedWithHint = { ...no(bad, 'KIND_MISMATCH_BELOW'), details: { tryInstead: { op: 'place', at: { q: 5, r: 5, level: 1 }, variant: 'full' } }, validAlternatives: [{ op: add, at: add.at }] };
+  const hex = fakeHex({ applyAll: (ops) => ({ rolledBack: true, outcomes: [ok(ops[0], ['piece:0,1,0;full']), refusedWithHint] }) });
+  const t = createTools(hex);
+  const r = await t.run('apply', { ops: [add, bad] });
+  assert.equal(r.rolledBack, true);
+  assert.equal(r.outcomes[0].ok, false);
+  assert.equal(r.outcomes[0].code, 'ROLLED_BACK');
+  assert.equal(r.outcomes[0].added, undefined, 'no refs for parts that are not there');
+  assert.equal(r.outcomes[1].tryInstead, undefined, 'a hint worked out on the undone interim state is dropped');
+  assert.equal(r.outcomes[1].alternatives, undefined);
+  assert.match(r.rollback, /Nothing in this batch is on the build/);
+  assert.equal(t.counters.applied, 0);
+
+  const floating = createTools(fakeHex({ applyAll: (ops) => ({ rolledBack: false, outcomes: [{ ...ok(ops[0], ['piece:0,1,1;full']), warnings: [{ code: 'NOTHING_BELOW' }] }] }) }));
+  const f = await floating.run('apply', { ops: [{ ...add, at: { q: 0, r: 1, level: 1 } }] });
+  assert.match(f.fix.NOTHING_BELOW, /build from the ground up/);
+  assert.equal(floating.counters.applied, 1);
+});
+
+test('fix 2: the grader ignores spikes and open drawers from rolled-back batches', async () => {
+  const { checkBrief } = await import('../src/checks.mjs');
+  const nodes = [{ family: 'drawer', at: { q: 0, r: 0, level: 0 } }];
+  const v = { bom: { lines: [] }, validation: { issues: [] } };
+  const open = { op: 'setDrawerOpen', at: { q: 0, r: 0, level: 0 }, open: true };
+  const ev = (rolledBack) => [{ type: 'apply', ops: [open], outcomes: [{ ok: true, op: open }], rolledBack }];
+  const seen = (events) => checkBrief([{ drawerOpen: 1 }], { state: { nodes }, verdict: v, finish: { requirements: [] }, events }).results[0].pass;
+  assert.equal(seen(ev(false)), true);
+  assert.equal(seen(ev(true)), false);
+});

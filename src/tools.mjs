@@ -110,6 +110,10 @@ const PROP_FIX = {
 };
 const PROP_CODES = new Set(Object.keys(PROP_FIX));
 
+const ROLLBACK_NOTE = 'Nothing in this batch is on the build: one op was refused, so every op in it was undone. ' +
+  'Fix or drop the refused op and send the batch again; refs and offers from this batch do not exist.';
+const NOTHING_BELOW_FIX = 'A base went on with nothing below it: it floats and the build will not stand. ' +
+  'Remove it (or undo), place the storey below first, and build from the ground up.';
 // The drawer styles an east or west half takes (values.drawerStyle minus classic and longbin, probed on deploy 14).
 const EW_DRAWER_STYLES = ['slide', 'swing', 'long'];
 export const LIMITS = { opsPerCall: 30, opsTotal: 250, socketsShown: 40, partsShown: 40, nodesShown: 200, propsShown: 40, surfacesShown: 40, offersAfterApply: 12 };
@@ -901,9 +905,12 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
         if (role) roleFor.set(op, role);
       }
       opsTotal += resolved.length;
-      const tally = (outcomes) => {
+      // Fix 2: an op accepted inside a batch that was then rolled back is not on the build.
+      const tally = (outcomes, rolledBack) => {
         for (const o of outcomes) {
-          if (o.ok) counters.applied++;
+          if (o.ok) {
+            if (!rolledBack) counters.applied++;
+          }
           else {
             counters.refused++;
             counters.refusalCodes[o.code] = (counters.refusalCodes[o.code] ?? 0) + 1;
@@ -914,7 +921,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       let batch = resolved;
       let r = await hex.call('applyAll', batch, options);
       await hex.call('settle');
-      tally(r.outcomes);
+      tally(r.outcomes, r.rolledBack);
       onEvent({ type: 'apply', ops: batch, outcomes: r.outcomes, rolledBack: r.rolledBack, atomic });
 
       // An atomic batch undone only because some ops were ALREADY_FITTED (e.g.
@@ -931,24 +938,39 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
         if (!batch.length) break;
         r = await hex.call('applyAll', batch, options);
         await hex.call('settle');
-        tally(r.outcomes);
+        tally(r.outcomes, r.rolledBack);
         onEvent({ type: 'apply', ops: batch, outcomes: r.outcomes, rolledBack: r.rolledBack, atomic, retryWithout: dropped.length });
       }
       if (!r.rolledBack) tagRoles(batch, r.outcomes, roleFor);
-      const out = { rolledBack: r.rolledBack, outcomes: r.outcomes.map(summarizeOutcome) };
+      // Fix 2 (Modal review): a rolled-back batch read as built left phantom parts in 8 runs. Its
+      // accepted ops say ROLLED_BACK with no added refs, and a refusal's tryInstead and alternatives
+      // are dropped: the page worked them out on the batch's interim state, which is gone.
+      const out = {
+        rolledBack: r.rolledBack,
+        outcomes: r.rolledBack
+          ? r.outcomes.map((o) => (o.ok
+            ? { ok: false, op: o.op.op, code: 'ROLLED_BACK', message: 'accepted, then undone with the rest of the batch: not on the build' }
+            : (({ tryInstead, alternatives, ...rest }) => rest)(summarizeOutcome(o))))
+          : r.outcomes.map(summarizeOutcome),
+      };
+      if (r.rolledBack) out.rollback = ROLLBACK_NOTE;
       // The running print cost after this call (A51): the last applied op's.
       const budget = r.outcomes.filter((o) => o.ok && o.budget).at(-1)?.budget;
       if (budget && !r.rolledBack) out.budget = { grams: mm(budget.grams), minutes: mm(budget.minutes), parts: budget.parts, ...(budget.unmeasured?.length ? { unmeasured: budget.unmeasured } : {}) };
       const change = roles.size ? roleChange(before, liveSet(await hex.call('getState'))) : null;
       if (change) out.roles = change;
       // Consecutive refusals across calls: past the limit, say so plainly.
-      for (const o of r.outcomes) refusalStreak = o.ok ? 0 : refusalStreak + 1;
+      // A rolled-back accept is no progress: it neither ends the streak nor adds to it.
+      for (const o of r.outcomes) if (!(o.ok && r.rolledBack)) refusalStreak = o.ok ? 0 : refusalStreak + 1;
       if (refusalStreak >= STREAK_LIMIT) {
         out.warning = `${refusalStreak} refusals in a row. Stop guessing: read the refusal messages, change the build so find_sockets offers the part, or report the requirement as unmet.`;
       }
       // A prop warning on an outcome (PROP_BELOW_RIM) comes with its fix.
-      const propWarned = [...new Set(r.outcomes.flatMap((o) => (o.ok ? o.warnings.map((w) => w.code) : [])).filter((c) => PROP_CODES.has(c)))];
+      const warned = r.rolledBack ? [] : [...new Set(r.outcomes.flatMap((o) => (o.ok ? o.warnings.map((w) => w.code) : [])))];
+      const propWarned = warned.filter((c) => PROP_CODES.has(c));
       if (propWarned.length) out.fix = Object.fromEntries(propWarned.map((c) => [c, PROP_FIX[c]]));
+      // A base placed over an empty cell floats: fix it now, before parts go on it (fix 2).
+      if (warned.includes('NOTHING_BELOW')) out.fix = { ...(out.fix ?? {}), NOTHING_BELOW: NOTHING_BELOW_FIX };
       if (dropped.length) {
         out.droppedAlreadyFitted = dropped;
         out.note = 'These ops were refused ALREADY_FITTED or NO_CHANGE (that state already holds), so the batch was applied again without them.';

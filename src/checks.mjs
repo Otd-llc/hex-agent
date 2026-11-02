@@ -69,7 +69,7 @@ const refKey = (ref) => {
 // accepted addSpike / setSpikeAccessory for its junction in the run.
 export function spikeKinds(nodes, events = []) {
   const ok = [];
-  for (const e of events) if (e.type === 'apply') (e.outcomes ?? []).forEach((o, i) => { if (o.ok) ok.push(e.ops?.[i] ?? o.op); });
+  for (const e of events) if (e.type === 'apply' && !e.rolledBack) (e.outcomes ?? []).forEach((o, i) => { if (o.ok) ok.push(e.ops?.[i] ?? o.op); });
   return nodes.filter((n) => n.family === 'spike').map((n) => {
     const entry = n.detail?.entry;
     if (entry) {
@@ -87,7 +87,7 @@ export function spikeKinds(nodes, events = []) {
 function openDrawers(nodes, events = []) {
   const drawers = nodes.filter((n) => n.family === 'drawer');
   const last = new Map();
-  for (const e of events) if (e.type === 'apply') (e.outcomes ?? []).forEach((o, i) => {
+  for (const e of events) if (e.type === 'apply' && !e.rolledBack) (e.outcomes ?? []).forEach((o, i) => {
     const op = e.ops?.[i] ?? o.op;
     if (o.ok && op?.op === 'setDrawerOpen') last.set(`${op.at.q},${op.at.r},${op.at.level ?? 0}`, !!op.open);
   });

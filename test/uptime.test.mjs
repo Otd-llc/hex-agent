@@ -407,6 +407,6 @@ test('segment guards: harness failures are counted per FAIL line; memory per bro
   assert.equal(isHarnessFailure('FAIL minimal-bin#3 harness error (trace kept at x): Error: hexAPI settle did not answer in 90 s'), true);
   assert.equal(isHarnessFailure('configurator did not load (hexAPI settle did not answer in 90 s); retrying once'), false, 'a retry is not a failure yet');
   assert.equal(isHarnessFailure('FAIL three-storey#1 parts=11 OVERCLAIMED'), false, 'a model fail is not a harness failure');
-  assert.deepEqual(memoryOk(4.5 * 2 ** 30, 6), { ok: true, freeGb: 4.5, needGb: 3.6 });
-  assert.equal(memoryOk(4.5 * 2 ** 30, 9).ok, false);
+  assert.deepEqual(memoryOk(7.5 * 2 ** 30, 6), { ok: true, freeGb: 7.5, needGb: 5.1 });
+  assert.equal(memoryOk(4.5 * 2 ** 30, 6).ok, false);
 });

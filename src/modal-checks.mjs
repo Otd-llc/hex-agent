@@ -65,8 +65,8 @@ export async function warmup(probe, { maxMinutes, fastMs, everyMs, headroom, log
 export const HARNESS_TRIP_LIMIT = 3;
 export const isHarnessFailure = (line) => /harness error|page[.]goto: Timeout|hexAPI settle did not answer/.test(line) && /^FAIL /.test(line);
 
-// Free memory for the browsers a segment opens: each configurator page takes ~0.6 GB.
-export const GB_PER_BROWSER = 0.6;
+// Free memory for the browsers a segment opens: each configurator page took ~0.85 GB (S2, 2026-11-02).
+export const GB_PER_BROWSER = 0.85;
 export function memoryOk(freeBytes, concurrency, perGb = GB_PER_BROWSER) {
   const freeGb = Math.round((freeBytes / 2 ** 30) * 10) / 10;
   const needGb = Math.round(concurrency * perGb * 10) / 10;

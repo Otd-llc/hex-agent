@@ -82,3 +82,4 @@ Muse Code.
   under the API terms, outside Apache-2.0.
 - 2026-11-02, owner: **Keep the commit author emails** (aol + company) in public history.
 - 2026-11-02, owner: **Leave private repo names and C:/zzz paths** in docs as they are.
+- 2026-11-02, owner: **.env.example reviewed** (all 6 versions): every key empty, only credit numbers. Clean.

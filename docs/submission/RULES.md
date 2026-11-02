@@ -74,8 +74,8 @@ Muse Code.
 - 2026-11-02, owner: **Problem statement: Push the Frontier** (manufacturing; give a
   machine a new capability).
 - 2026-11-02, owner: **Keep git history when the repo goes public.** The held-out
-  briefs (evals/briefs-heldout.json, in history since 76e977d) become public; they
-  stay unrun, and the paper says so. Rewriting history would break the agent
+  briefs (evals/briefs-heldout.json, in history since 76e977d) become public, and
+  so do their runs (see below). Rewriting history would break the agent
   commit recorded in every trace.
 - 2026-11-02, owner: **Keep contract/hex-api-public.json** in the public repo: its content is already
   published at https://academy.onethousanddrones.com/hex/api (contract da0834cc); NOTICE keeps it
@@ -86,3 +86,14 @@ Muse Code.
 - 2026-11-02, owner: **Flip the repo public once the paper is final.**
 - 2026-11-02, owner: **No hosted live agent for judges.** Meta Model API credit ($150) now funds agent development; keep about $50 for the demo recordings (the code's demo reserve). Claude stays development-only, never in the demo or results.
 - 2026-11-02, owner: **Run the held-out briefs once**, on the frozen agent (tag eval-final), plus the 36 briefs x5, both on Muse Spark 1.3 via the Meta Model API, purpose eval. Supersedes "never run evals/briefs-heldout.json".
+- 2026-11-02, owner: **Run the held-out briefs four more times** (x4, 72 runs, suite
+  2026-11-02T15-47-26-043Z), decided AFTER seeing the pre-committed x1 result (14/18, suite
+  2026-11-02T14-02-50-056Z). The x1 stays the headline held-out number; the x4 is reported as a
+  later extension, pooled only with an interval clustered by brief.
+- 2026-11-02, owner: **Run the fixes-off harm test** (fixes 1 to 4 off, 13 briefs x5, suite
+  2026-11-02T16-56-59-857Z) **and the abstention A/B** (6 briefs x3 per arm, suites
+  2026-11-02T17-16-28-256Z on, 17-22-33-831Z off), both on the frozen agent.
+- 2026-11-02: **Muse Wonder 1.0** smoke (17-46-26-922Z) and 36 briefs x1 (17-48-59-000Z) ran on
+  the frozen agent, eval purpose. Its own row; never pooled with Muse Spark 1.3.
+- 2026-11-02, owner: **Run screenshots:** traces and summaries of new suites are committed; their
+  PNGs (final.png, still-N.png) are published as a GitHub Release zip instead of in git.

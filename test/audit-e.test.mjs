@@ -293,3 +293,20 @@ test('held-out briefs: valid checks, start builds exist, never quoted in the pro
     assert.ok(r.results.every((x) => !x.error), `${b.id}: unknown expectation`);
   }
 });
+
+test('fix 1: find_sockets offers slide drawers on east/west halves that openSockets leaves out', async () => {
+  const state = {
+    pieces: [{ q: 0, r: 0, level: 0, variant: 'half-e' }, { q: 1, r: 0, level: 0, variant: 'half-w' }, { q: 2, r: 0, level: 0, variant: 'half-w' }, { q: 3, r: 0, level: 1, variant: 'half-e' }, { q: 4, r: 0, level: 0, variant: 'half-n' }],
+    drawers: ['0#2,0#cut~e:slide'],
+  };
+  const classic = [{ op: { op: 'addDrawer', at: { q: 4, r: 0, level: 0 }, key: 's' } }];
+  const hex = { async call(m, q) { return m === 'getState' ? { state, nodes: [] } : m === 'openSockets' ? (q.family === 'drawer' ? classic : []) : undefined; } };
+  const t = createTools(hex);
+  const r = await t.run('find_sockets', { family: 'drawer' });
+  const ops = r.sockets.map((s) => s.op);
+  assert.deepEqual(ops.map((o) => [o.at.q, o.key, o.style]), [[4, 's', undefined], [0, 'w', 'slide'], [1, 'e', 'slide'], [3, 'w', 'slide']], 'the opposite key, slide; the half with a drawer left out');
+  const l0 = (await t.run('find_sockets', { family: 'drawer', level: 0 })).sockets.map((s) => s.op.at.q);
+  assert.deepEqual(l0, [4, 0, 1]);
+  assert.equal((await t.run('find_sockets', { family: 'drawer', style: 'classic' })).total, 1, 'classic never fits an east/west half');
+  assert.equal((await t.run('find_sockets', { family: 'drawer', style: 'swing' })).sockets.at(-1).op.style, 'swing');
+});

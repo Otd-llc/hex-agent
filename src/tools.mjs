@@ -28,7 +28,7 @@ const NO_OFFERS =
   'beside or below it), then ask again. Guessing raw ops for a part with no offers rarely works.';
 // E13: what each family needs before it is offered, said when find_sockets finds none.
 export const NEEDS = {
-  drawer: 'A drawer sits on the cut face of a half base: place a half base (variant half-n, half-s, half-e or half-w) first.',
+  drawer: 'A drawer sits on the cut face of a half base: place a half base first. Half-n and half-s take any drawer style; half-e and half-w take a slide, swing or long drawer (find_sockets offers those once the half base is on).',
   notch: 'A notch drawer stands in an empty cell beside two bases that touch each other: leave that cell empty, with two touching bases beside it.',
   bay: 'A bay stands in an empty cell with three bases around it.',
   spike: 'A spike stands where three bases meet at a corner: place three bases around one junction first.',
@@ -110,6 +110,8 @@ const PROP_FIX = {
 };
 const PROP_CODES = new Set(Object.keys(PROP_FIX));
 
+// The drawer styles an east or west half takes (values.drawerStyle minus classic and longbin, probed on deploy 14).
+const EW_DRAWER_STYLES = ['slide', 'swing', 'long'];
 export const LIMITS = { opsPerCall: 30, opsTotal: 250, socketsShown: 40, partsShown: 40, nodesShown: 200, propsShown: 40, surfacesShown: 40, offersAfterApply: 12 };
 // Refusals that only say the state already holds: an atomic batch undone for these alone is re-run without them.
 const HOLDS_ALREADY = new Set(['ALREADY_FITTED', 'NO_CHANGE']);
@@ -542,6 +544,23 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
     return id;
   };
 
+  // Fix 1 (Modal review): openSockets offers drawers only on half-n / half-s cut faces (deploy 14);
+  // a half-e base takes a slide drawer keyed w, a half-w base one keyed e (probed live: classic is
+  // INVALID_PART_ID there, the same key as the base is HOST_MISMATCH). Offer those here, one per
+  // east/west half with no drawer in it yet, so the agent stops dead-ending on empty drawer queries.
+  async function ewDrawerOffers(query, have) {
+    if (query.style && !EW_DRAWER_STYLES.includes(query.style)) return [];
+    const s = (await hex.call('getState'))?.state ?? {};
+    const taken = new Set((s.drawers ?? []).map((d) => String(d).split('#cut')[0]));
+    const seen = new Set(have.map((o) => JSON.stringify(o.op?.at ?? null)));
+    return (s.pieces ?? [])
+      .filter((p) => (p.variant === 'half-e' || p.variant === 'half-w')
+        && (query.level == null || (p.level ?? 0) === query.level)
+        && !taken.has(`${p.level ?? 0}#${p.q},${p.r}`))
+      .map((p) => ({ op: { op: 'addDrawer', at: { q: p.q, r: p.r, level: p.level ?? 0 }, key: p.variant === 'half-e' ? 'w' : 'e', style: query.style ?? 'slide' } }))
+      .filter((o) => !seen.has(JSON.stringify(o.op.at)));
+  }
+
   async function liveRefs() {
     const s = await hex.call('getState');
     return { node: new Set(s.nodes.map((n) => n.ref)), prop: new Set((s.staging?.props ?? []).map((p) => p.ref)) };
@@ -841,6 +860,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       // edge, a run) keeps the offer's cell and posMm, so it can be placed by where it is (L13).
       // A page before A59 answers full offers too; a compact row is the op alone.
       const offers = (await hex.call('openSockets', query)).map((o) => (typeof o.op === 'string' ? { op: o } : o));
+      if (query?.family === 'drawer') offers.push(...(await ewDrawerOffers(query, offers)));
       const out = {
         total: offers.length,
         // The op already names the cell and the face, bearing or slot: no need to repeat them (A59).

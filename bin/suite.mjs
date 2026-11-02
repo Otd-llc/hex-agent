@@ -43,6 +43,11 @@ const startOf = (b) => {
 };
 // --briefs takes one file or several (comma-separated): one queue over all of them.
 const briefFiles = String(flag('briefs', 'evals/briefs.json')).split(',');
+// The held-out set runs once, on the final agent (Fireworks plan F4/F5): never in a fix loop.
+if (briefFiles.some((f) => /heldout/.test(f)) && flag('heldout-final', null) !== true) {
+  console.error('evals/briefs-heldout.json runs only as the final held-out check: pass --heldout-final (docs/plans/2026-11-02-fireworks-plan.md F4)');
+  process.exit(2);
+}
 const briefs = briefFiles.flatMap((f) => JSON.parse(readFileSync(f, 'utf8')).map((b) => ({ ...b, set: f })))
   .filter((b) => !only || only.includes(b.id));
 // --max-minutes: no run starts after this long (runs already going finish).

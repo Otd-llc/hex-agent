@@ -2,7 +2,7 @@
 // model's word. Each expectation reads the final state, the BOM or the
 // model's own finish report, and returns pass or fail with what it saw.
 //
-//   { family: 'drawer', min: 2 }        at least 2 drawer nodes
+//   { family: 'drawer', min: 2 }        at least 2 drawer nodes ({ ..., max: 4 } at most 4; min: 0, max: 0 for none)
 //   { bom: 'hex-spike-stud', min: 1 }   BOM keys containing the text, summed qty
 //   { levels: 2 }                       parts on at least 2 storeys
 //   { stack: 3 }                        some cell has bases on storeys 0..2 (a tower, not scattered storeys)
@@ -142,7 +142,7 @@ export function checkBrief(expect, { state, verdict, finish, events = [] }) {
     if (e.soil) return { expect: e, saw: soil.length, pass: soil.length >= e.soil };
     if (e.family) {
       const n = nodes.filter((x) => x.family === e.family).length;
-      return { expect: e, saw: n, pass: n >= (e.min ?? 1) };
+      return { expect: e, saw: n, pass: n >= (e.min ?? 1) && (e.max == null || n <= e.max) };
     }
     if (e.drawers) {
       // Any kind of drawer: drawers on a half base's cut face (family drawer)

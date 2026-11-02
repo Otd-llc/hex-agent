@@ -277,3 +277,19 @@ test('G0: the moving-clock and petrol notClaimed patterns', async () => {
   for (const s of ['Holds two jerry cans', 'petrol upright', 'fuel can']) assert.ok(petrol.test(s), s);
   for (const s of ['Fits in a car boot', 'cannot be sealed', 'Canvas strap']) assert.ok(!petrol.test(s), s);
 });
+
+test('held-out briefs: valid checks, start builds exist, never quoted in the prompt or tool text', async () => {
+  const { readFileSync, existsSync } = await import('node:fs');
+  const { checkBrief } = await import('../src/checks.mjs');
+  const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
+  const held = JSON.parse(read('evals/briefs-heldout.json'));
+  assert.equal(held.length, 18);
+  const text = read('src/agent.mjs') + read('src/tools.mjs');
+  const v = { bom: { lines: [] }, validation: { issues: [] } };
+  for (const b of held) {
+    assert.ok(!text.includes(b.brief) && !text.includes(b.id), `${b.id} quoted in the prompt or tools`);
+    if (b.start) assert.ok(existsSync(new URL(`../${b.start}`, import.meta.url)), b.start);
+    const r = checkBrief(b.expect, { state: { nodes: [] }, verdict: v, finish: { requirements: [] } });
+    assert.ok(r.results.every((x) => !x.error), `${b.id}: unknown expectation`);
+  }
+});

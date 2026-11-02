@@ -2,25 +2,24 @@
 // in both themes (sandbox/demo-stills.mjs), the model's own look views, the checks and the
 // model's report verbatim. Agent builds, never hand builds. A reviewer's verdicts are shown
 // when docs/paper/sandbox/demo/review.json exists ({ runIdSuffix: { verdict, note } }).
-//   node sandbox/demo-page.mjs <suite dir>
+//   node sandbox/demo-page.mjs <suite dir> [more suite dirs]
 import { mkdirSync, readdirSync, readFileSync, existsSync, copyFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const suite = process.argv[2];
-if (!suite) throw new Error('usage: node sandbox/demo-page.mjs <suite dir>');
+const suites = process.argv.slice(2);
+if (!suites.length) throw new Error('usage: node sandbox/demo-page.mjs <suite dir> [more suite dirs]');
 const OUT = 'docs/paper/sandbox/demo';
 mkdirSync(join(OUT, 'model'), { recursive: true });
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const summary = JSON.parse(readFileSync(join(suite, 'summary.json'), 'utf8'));
 const briefs = JSON.parse(readFileSync('evals/briefs-demo.json', 'utf8'));
 const review = existsSync(join(OUT, 'review.json')) ? JSON.parse(readFileSync(join(OUT, 'review.json'), 'utf8')) : {};
-const rows = summary.rows.map((r) => {
+const rows = suites.flatMap((suite) => JSON.parse(readFileSync(join(suite, 'summary.json'), 'utf8')).rows.map((r) => {
   const runId = r.trace.split('/')[0];
   const t = JSON.parse(readFileSync(join(suite, r.trace), 'utf8'));
   const stills = readdirSync(join(suite, runId)).filter((f) => /^still-\d+\.png$/.test(f)).sort();
   for (const s of stills) copyFileSync(join(suite, runId, s), join(OUT, 'model', `${runId}-${s}`));
   return { ...r, runId, t, stills };
-});
+}));
 
 const run = (r) => {
   const rv = review[r.runId.slice(-8)];
@@ -38,7 +37,7 @@ const run = (r) => {
 </article>`;
 };
 
-const sections = briefs.map((b) => {
+const sections = briefs.filter((b) => rows.some((r) => r.id === b.id)).map((b) => {
   const rs = rows.filter((r) => r.id === b.id);
   const k = rs.filter((r) => r.pass).length;
   return `<section class="brief-block"><p class="eyebrow">▸ ${esc(b.id.replace('demo-', ''))} · ${k}/${rs.length} passed all checks</p>
@@ -81,7 +80,7 @@ details { margin-top: 6px; } summary { font: 11px var(--font-mono); letter-spaci
 @media (max-width: 480px) { .runs { grid-template-columns: 1fr; } h1 { font-size: 34px; } }
 </style></head><body><main class="sheet">
 <div class="top"><h1>Demo pick</h1><button class="toggle" id="t">Light</button></div>
-<p class="lede">Agent builds, not hand builds: Muse Spark 1.3 through the Meta Model API, effort low, agent code identical to eval-final, five runs per brief (suite ${esc(suite.split('/').pop())}). Every run is shown, passed or not. Each still is the run's own share link reloaded in a fresh configurator. A demo set, written for the video, not an evaluation.</p>
+<p class="lede">Agent builds, not hand builds: Muse Spark 1.3 through the Meta Model API, effort low, agent code identical to eval-final, five runs per brief (suites ${esc(suites.map((x) => x.split('/').pop()).join(', '))}). Every run is shown, passed or not. Each still is the run's own share link reloaded in a fresh configurator. A demo set, written for the video, not an evaluation.</p>
 ${sections}
 </main>
 <script>

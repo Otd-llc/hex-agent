@@ -59,3 +59,16 @@ export async function warmup(probe, { maxMinutes, fastMs, everyMs, headroom, log
   }
   return { ok: false, tries, why: `no fast 200 in ${maxMinutes} min` };
 }
+
+// A suite line that is a harness failure (the browser or page, not the model). A segment stops at
+// `limit` of them: the endpoint bills while browsers hang, and their runs score nothing.
+export const HARNESS_TRIP_LIMIT = 3;
+export const isHarnessFailure = (line) => /harness error|page[.]goto: Timeout|hexAPI settle did not answer/.test(line) && /^FAIL /.test(line);
+
+// Free memory for the browsers a segment opens: each configurator page takes ~0.6 GB.
+export const GB_PER_BROWSER = 0.6;
+export function memoryOk(freeBytes, concurrency, perGb = GB_PER_BROWSER) {
+  const freeGb = Math.round((freeBytes / 2 ** 30) * 10) / 10;
+  const needGb = Math.round(concurrency * perGb * 10) / 10;
+  return { ok: freeGb >= needGb, freeGb, needGb };
+}

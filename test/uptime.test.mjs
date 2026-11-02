@@ -399,3 +399,14 @@ test('validation checks: gated on minimal-bin pass, recovered errors, servedBy, 
   assert.deepEqual(noTry.filter((c) => !c.ok).map((c) => [c.check, c.gate]), [['three-storey refusal with tryInstead', false]]);
   assert.equal(validationPassed(noTry), true);
 });
+
+test('segment guards: harness failures are counted per FAIL line; memory per browser', async () => {
+  const { isHarnessFailure, memoryOk } = await import('../src/modal-checks.mjs');
+  assert.equal(isHarnessFailure('FAIL minimal-bin#1 harness error (trace kept at x): page.goto: Timeout 90000ms exceeded.'), true);
+  assert.equal(isHarnessFailure('FAIL minimal-bin#8 page.goto: Timeout 90000ms exceeded.'), true);
+  assert.equal(isHarnessFailure('FAIL minimal-bin#3 harness error (trace kept at x): Error: hexAPI settle did not answer in 90 s'), true);
+  assert.equal(isHarnessFailure('configurator did not load (hexAPI settle did not answer in 90 s); retrying once'), false, 'a retry is not a failure yet');
+  assert.equal(isHarnessFailure('FAIL three-storey#1 parts=11 OVERCLAIMED'), false, 'a model fail is not a harness failure');
+  assert.deepEqual(memoryOk(4.5 * 2 ** 30, 6), { ok: true, freeGb: 4.5, needGb: 3.6 });
+  assert.equal(memoryOk(4.5 * 2 ** 30, 9).ok, false);
+});

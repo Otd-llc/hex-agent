@@ -15,7 +15,8 @@ import { loadEnv } from '../src/env.mjs';
 import { modelFor } from '../src/session.mjs';
 import { liveNote } from '../src/provenance.mjs';
 import { dedicatedHost } from '../src/hosted.mjs';
-import { validationChecks, validationPassed, warmup } from '../src/modal-checks.mjs';
+import { freemem } from 'node:os';
+import { validationChecks, validationPassed, warmup, isHarnessFailure, HARNESS_TRIP_LIMIT, memoryOk } from '../src/modal-checks.mjs';
 import { VALIDATE_SPEC } from '../src/uptime.mjs';
 
 loadEnv();
@@ -99,13 +100,27 @@ function suite(s) {
       console.error(`watchdog: the suite ran past ${Math.round(WATCHDOG_MS / 60_000)} min; killing it and its browsers`);
       killTree('SIGTERM');
     }, WATCHDOG_MS);
+    // Keep warm: browsers that hang make no model calls, and past the 15 min scaledown the
+    // endpoint goes cold (a ~26 min cold start, 2026-11-02). A probe bills nothing extra while up.
+    const warm = setInterval(() => model.probe().catch(() => {}), 4 * 60_000);
+    // Harness trip: at HARNESS_TRIP_LIMIT browser/page failures the segment stops; they score nothing.
+    let harness = 0;
     let out = '';
     child.stdout.on('data', (d) => {
       out += d;
       process.stdout.write(d);
+      for (const line of String(d).split('\n')) {
+        if (!isHarnessFailure(line) || report.harnessTrip) continue;
+        if (++harness >= HARNESS_TRIP_LIMIT) {
+          report.harnessTrip = harness;
+          console.error(`harness trip: ${harness} browser/page failures; killing the suite and its browsers (free memory ${memoryOk(freemem(), s.concurrency).freeGb} GB)`);
+          killTree('SIGTERM');
+        }
+      }
     });
     child.on('close', (code) => {
       clearTimeout(dog);
+      clearInterval(warm);
       child = null;
       report.suiteExit = code;
       done(out.match(/summary (\S+summary\.json)/)?.[1] ?? null);
@@ -133,6 +148,14 @@ if (step === 'validate' && ok) {
   console.log(ok ? 'VALIDATION PASSED' : 'VALIDATION FAILED: no segment until it is understood');
 }
 if (step === 'validate') ledger.recordValidation({ passed: ok, summary: report.summary ?? null });
+if (step === 'run' && ok) {
+  const mem = memoryOk(freemem(), spec.concurrency);
+  report.memory = mem;
+  if (!mem.ok) {
+    console.log(`memory: ${mem.freeGb} GB free, ${mem.needGb} GB needed for ${spec.concurrency} browsers; not starting (free memory, or approve a lower concurrency)`);
+    ok = false;
+  }
+}
 if (step === 'run' && ok) {
   report.summary = await suite(spec);
   ok = report.summary != null && report.suiteExit === 0;

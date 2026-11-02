@@ -7,7 +7,8 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { budgetCut, infraCut, rescoreFiles } from '../src/runkey.mjs';
+import { budgetCut, infraCut, rescoreFiles, armOf } from '../src/runkey.mjs';
+import { critOrNull } from './stats.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
@@ -33,25 +34,34 @@ function clustered(done, f) {
   const items = [...byBrief(done, f).values()].map(mean);
   const B = items.length, mu = mean(items);
   const se = B > 1 ? Math.sqrt(items.reduce((a, x) => a + (x - mu) ** 2, 0) / (B - 1) / B) : null;
-  return { briefs: B, mean: pct(mu), se: se == null ? null : pct(se), ci: se == null ? null : [+Math.max(0, mu - 1.96 * se).toFixed(4), +Math.min(1, mu + 1.96 * se).toFixed(4)] };
+  // t with briefs-1 df below 30 briefs; no interval below 10 (per-brief scores only).
+  const c = se == null ? null : critOrNull(B);
+  return { briefs: B, mean: pct(mu), se: se == null ? null : pct(se), crit: c?.name ?? null, ci: c == null ? null : [+Math.max(0, mu - c.value * se).toFixed(4), +Math.min(1, mu + c.value * se).toFixed(4)] };
 }
+// Per-brief passes, for sets too small for an interval and for the held-out table.
+const perBrief = (done) => Object.fromEntries([...byBrief(done, (r) => r.pass)].map(([id, a]) => [id, `${a.filter(Boolean).length}/${a.length}`]));
 // pass^k: the share of briefs whose every repeat passed (consistency, tau-bench).
 const passAll = (done) => { const v = [...byBrief(done, (r) => r.pass).values()]; return { briefs: v.length, k: Math.min(...v.map((a) => a.length)), allPassed: v.filter((a) => a.every(Boolean)).length }; };
 const q = (xs, f) => { const v = xs.filter(Number.isFinite).sort((a, b) => a - b); return v.length ? v[Math.min(v.length - 1, Math.floor(v.length * f))] : null; };
 
 // Every row of the named suites, scored by the newest rescore.
-function rows(suites) {
+function rows(suites, { anyArm = false } = {}) {
   const out = [];
+  const arms = new Set();
   for (const id of suites) {
     const dir = join(root, 'runs', id);
     const s = readJson(join(dir, 'summary.json'));
+    // Rates never pool arms: a feature switched off (summary.features) is a different agent.
+    // Host latency (calls) may: it measures the host, not the agent.
+    arms.add(armOf(s) || 'default');
+    if (!anyArm && arms.size > 1) throw new Error(`refusing to pool arms ${[...arms].join(' / ')} (${suites.join(', ')})`);
     const re = rescoreFiles(dir)[0];
     const by = new Map((re?.rows ?? []).map((r) => [`${r.id}#${r.attempt}`, r]));
     for (const row of s.rows) {
       const tp = row.trace ? join(dir, row.trace) : null;
       const t = tp && existsSync(tp) ? readJson(tp) : null;
       const r = by.get(`${row.id}#${row.attempt}`);
-      out.push({ suite: id, grader: re?.graderCommit?.slice(0, 7) ?? 'as run', id: row.id, row, t,
+      out.push({ suite: id, arm: armOf(s) || 'default', grader: re?.graderCommit?.slice(0, 7) ?? 'as run', id: row.id, row, t,
         // A harness error (the page never answered, the run never started) is not a result either.
         cut: budgetCut(row, t) ? 'budget' : row.infra === 'harness' || row.error ? 'harness' : infraCut(row, t) ? 'host' : null,
         pass: r ? r.after : row.pass, strict: r ? r.strict : row.strict, overclaimed: r?.overclaimed ?? row.overclaimed, first: row.pass });
@@ -90,6 +100,9 @@ function score(suites) {
     contract: uniq(all.map((r) => r.t?.contractHash?.slice(0, 8))),
     pageBuild: uniq(all.map((r) => r.t?.pageBuild?.replace(/^\/assets\/hex-|\.js$/g, ''))),
     agentCommit: uniq(all.map((r) => r.t?.agent?.commit?.slice(0, 7))),
+    prompt: uniq(all.map((r) => r.t?.agent?.promptSha256?.slice(0, 8))),
+    featureArm: uniq(all.map((r) => r.arm))[0],
+    model: uniq(all.map((r) => r.t?.model)),
   };
 }
 
@@ -97,7 +110,7 @@ function score(suites) {
 function calls(suites) {
   const ms = [], failed = { calls: 0, timeouts: 0, http5xx: 0 };
   let answered = 0, runs = 0, hostCut = 0;
-  for (const r of rows(suites)) {
+  for (const r of rows(suites, { anyArm: true })) {
     runs++;
     if (r.cut === 'host') hostCut++;
     for (const e of r.t?.events ?? []) {
@@ -128,7 +141,32 @@ const points = [
   { key: 'p9', label: '11-02 F1', host: 'Fireworks', effort: 'low', repeat: 1, site: 'deploy 15, 87827f4d (viz 32e5bdd)', suites: S('11-02T05-57-28-000Z'), source: 'EVALUATION.md "Fireworks F0 and F1"', note: '5 of 36 runs lost to host hangs, left out of the rate' },
   // Muse Spark 1.3 through the Meta Model API: Meta's hosted model, not the open weights above.
   { key: 'p10', label: '11-02 M1', host: 'Meta Model API', model: 'muse-spark-1.3', effort: 'low', repeat: 1, site: 'deploy 15b, da0834cc (viz d726540)', suites: S('11-02T11-31-12-330Z'), source: 'EVALUATION.md "Meta Model API, first runs"' },
+  // The frozen agent (tag eval-final, 0c840bc), five runs per brief.
+  { key: 'p11', label: '11-02 M5', host: 'Meta Model API', model: 'muse-spark-1.3', effort: 'low', repeat: 5, site: 'deploy 15b, da0834cc (viz d726540)', suites: S('11-02T14-16-28-867Z'), source: 'EVALUATION.md "Meta Model API, the frozen agent"' },
 ].map((p) => ({ ...p, ...score(p.suites) }));
+
+// The held-out set on the frozen agent. x1 was pre-committed and is the headline; the owner
+// decided the x4 after seeing x1 (RULES.md), so the pooled x5 is secondary, clustered by brief.
+// Scored as run: rescore.mjs is never run on these dirs (a rescore would be a second column).
+const HELDOUT_X1 = S('11-02T14-02-50-056Z'), HELDOUT_X4 = S('11-02T15-47-26-043Z');
+// Two held-out themes were written with fixes 1 and 3 in view (modal-review.md, H1 themes 8 and 11).
+const FIX_THEMED = ['ho-west-drawer', 'ho-two-groups-of-three'];
+const heldoutScore = (suites) => {
+  const done = rows(suites).filter((r) => !r.cut);
+  const lessFix = done.filter((r) => !FIX_THEMED.includes(r.id));
+  return { ...score(suites), perBrief: perBrief(done),
+    withoutFixThemed: { left: FIX_THEMED, completed: lessFix.length, passed: lessFix.filter((r) => r.pass).length, passCI: wilson(lessFix.filter((r) => r.pass).length, lessFix.length) } };
+};
+const heldout = {
+  model: 'muse-spark-1.3', effort: 'low', agent: 'eval-final (0c840bc)',
+  x1: heldoutScore(HELDOUT_X1),
+  x4: heldoutScore(HELDOUT_X4),
+  pooledX5: heldoutScore([...HELDOUT_X1, ...HELDOUT_X4]),
+  note: 'x1 pre-committed (headline, Wilson); x4 decided by the owner after seeing x1; pooled shown only with the interval clustered by brief',
+};
+
+// Muse Wonder 1.0: its own model, never pooled with or plotted beside the Spark 1.3 series.
+const wonder = { model: 'muse-wonder-1.0', effort: 'low', ...score(S('11-02T17-48-59-000Z')) };
 
 // What landed between points. who: configurator = One Thousand Drones' configurator (credited to it,
 // not to this entry); agent = this entry's tool layer, prompt and guards; host = the model host changed.
@@ -169,7 +207,8 @@ function paired(a, b, f = (r) => r.pass) {
   const ma = mean(xa), mb = mean(xb);
   const cov = ids.reduce((s, _, i) => s + (xa[i] - ma) * (xb[i] - mb), 0);
   const sd = (xs, m) => Math.sqrt(xs.reduce((s, x) => s + (x - m) ** 2, 0));
-  return { briefs: ids.length, diffPoints: pct(md), sePoints: pct(se), ci95Points: [pct(md - 1.96 * se), pct(md + 1.96 * se)], correlation: +(cov / (sd(xa, ma) * sd(xb, mb) || 1)).toFixed(2) };
+  const c = critOrNull(ids.length);
+  return { briefs: ids.length, diffPoints: pct(md), sePoints: pct(se), crit: c?.name ?? null, ci95Points: c ? [pct(md - c.value * se), pct(md + c.value * se)] : null, correlation: +(cov / (sd(xa, ma) * sd(xb, mb) || 1)).toFixed(2) };
 }
 const effortPaired = {
   // Like with like: S3a and SA share agent commit 7b9b48a, host, deploy and briefs.
@@ -189,16 +228,42 @@ const gpuSource = 'docs/plans/2026-11-02-modal-review.md section 1 (S3a $0.068, 
 // Per host: every eval and smoke suite on that host (from the class file).
 const classes = readJson(join(root, 'docs/data/suite-classes.json')).suites;
 const index = readJson(join(root, 'docs/data/suite-index.json')).suites;
-const hostSuites = (prov) => index.filter((r) => r.provider === prov && ['eval', 'smoke'].includes(classes[r.suite]?.class) && !r.noSummary).map((r) => r.suite);
+// One row per host and model: two models on one host are never one row.
+const hostSuites = (prov, model) => index.filter((r) => r.provider === prov && (!model || r.model === model) && ['eval', 'smoke', 'heldout'].includes(classes[r.suite]?.class) && !r.noSummary).map((r) => r.suite);
 const hosts = {
   Baseten: { ...calls(hostSuites('baseten')), latencyFrom: 'eval + smoke suites' },
   'Baseten (deploy 14 control only)': calls(S('11-01T23-05-41-873Z')),
   Modal: { ...calls(hostSuites('modal-dedicated')), latencyFrom: 'eval + smoke suites' },
   Fireworks: { ...calls(hostSuites('fireworks')), latencyFrom: 'eval + smoke suites' },
-  'Meta Model API': { ...calls(hostSuites('meta')), latencyFrom: 'eval suites (the smoke predates timing)' },
+  'Meta Model API, muse-spark-1.3': { ...calls(hostSuites('meta', 'muse-spark-1.3')), latencyFrom: 'eval, held-out and smoke suites (the first smoke predates timing)' },
+  'Meta Model API, muse-wonder-1.0': { ...calls(hostSuites('meta', 'muse-wonder-1.0')), latencyFrom: 'eval + smoke suites' },
 };
 
-const data = { generatedAt: new Date().toISOString(), method: 'newest rescore per suite (one grader); host- and budget-cut runs left out of rates; the interval to report is passClustered / overclaimClustered (95%, clustered by brief) when a brief ran more than once, else Wilson over runs (intervalMethod names which); passCI and overclaimCI are Wilson over runs for every point and are too narrow when briefs repeat; tokenCostPerRun is a token-equivalent mean, unrounded to 6 dp', points, changes, effort, effortPaired, gpuSource, hosts };
+// Evidence of Meta Model API use, from the traces of every classed Meta suite: calls, the model
+// that served each call (the response's own model field), cached input share, and token-ledger
+// cost (list prices x recorded tokens; an estimate until checked against the Meta console).
+function metaUse() {
+  const by = {};
+  for (const suite of hostSuites('meta')) {
+    // A row with no trace (a harness error before the first call) made no Meta call.
+    for (const r of rows([suite]).filter((x) => x.t)) {
+      const m = r.t.model;
+      const u = (by[m] ??= { suites: new Set(), runs: 0, calls: 0, serverErrors: 0, servedBy: {}, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0, tokenCostUsd: 0 });
+      u.suites.add(suite); u.runs++; u.tokenCostUsd += r.row.costUsd ?? 0;
+      for (const e of r.t?.events ?? []) {
+        if (e.type === 'model_error') u.serverErrors++;
+        if (e.type !== 'model') continue;
+        u.calls++;
+        u.servedBy[e.servedBy ?? 'not recorded'] = (u.servedBy[e.servedBy ?? 'not recorded'] ?? 0) + 1;
+        u.inputTokens += e.usage?.inputTokens ?? 0; u.cachedInputTokens += e.usage?.cachedInputTokens ?? 0;
+        u.outputTokens += e.usage?.outputTokens ?? 0; u.reasoningTokens += e.usage?.reasoningTokens ?? 0;
+      }
+    }
+  }
+  return Object.fromEntries(Object.entries(by).map(([m, u]) => [m, { ...u, suites: u.suites.size, cachedShare: pct(u.cachedInputTokens / (u.inputTokens || 1)), tokenCostUsd: +u.tokenCostUsd.toFixed(2) }]));
+}
+
+const data = { generatedAt: new Date().toISOString(), method: 'newest rescore per suite (one grader), except the held-out suites, scored as run; host-, harness- and budget-cut runs left out of rates; arms (summary.features) are never pooled; the interval to report is passClustered / overclaimClustered (95%, clustered by brief, t with briefs-1 df below 30 briefs, crit names it, none below 10 briefs) when a brief ran more than once, else Wilson over runs (intervalMethod names which); passCI and overclaimCI are Wilson over runs for every point and are too narrow when briefs repeat; paired differences use the same t rule; tokenCostPerRun is a token-equivalent mean, unrounded to 6 dp', points, heldout, wonder, changes, effort, effortPaired, gpuSource, hosts, metaUse: metaUse() };
 if (process.argv.includes('--write')) writeFileSync(join(root, 'docs/data/presentation.json'), JSON.stringify(data, null, 2) + '\n');
 for (const p of points) console.log(`${p.key} ${p.label.padEnd(9)} ${p.host.padEnd(9)} ${p.passed}/${p.completed} (${p.passRate}%, CI ${p.passCI.map(pct).join('-')}) strict ${p.strictRate}% over ${p.overclaimed} (${p.overclaimRate}%) first ${p.firstScored} hostCut ${p.hostCut} w/o 2c ${p.withoutTwoClusters.passRate}% graders ${p.graders} agent ${p.agentCommit.join(',')} contract ${p.contract.join(',')}`);
 for (const e of effort) console.log(`${e.arm.padEnd(46)} ${e.passed}/${e.completed} (${e.passRate}%) strict ${e.strictRate}% over ${e.overclaimed} calls/run ${e.callsPerRun} tok$/run ${e.tokenCostPerRun}`);

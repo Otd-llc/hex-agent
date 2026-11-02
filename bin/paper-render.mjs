@@ -60,7 +60,7 @@ function figure1() {
     const tip = `${p.label} ${p.host}, ×${p.repeat}: ${p.passed}/${p.completed} passed (${p.passRate}%), 95% interval ${(ci[0] * 100).toFixed(1)} to ${(ci[1] * 100).toFixed(1)} (${five ? 'clustered by brief' : 'Wilson over runs'})`;
     parts.push(`<g class="row" tabindex="0"><title>${esc(tip)}</title>`
       + `<rect x="0" y="${y - rowH / 2}" width="${W}" height="${rowH}" fill="transparent"/>`
-      + `<text class="rowlab" x="0" y="${y + 4}"><tspan class="host">${esc(p.host)}</tspan> ${esc(p.label.replace(/ (a|b|c|S2|S3a|SB|F1|M1)$/, ''))} ×${p.repeat}${p.briefs !== 36 ? `, ${p.briefs} briefs` : ''}</text>`
+      + `<text class="rowlab" x="0" y="${y + 4}"><tspan class="host">${esc(p.host)}</tspan> ${esc(p.label.replace(/ (a|b|c|S2|S3a|SB|F1|M1|M5)$/, ''))} ×${p.repeat}${p.briefs !== 36 ? `, ${p.briefs} briefs` : ''}</text>`
       + `<line class="whisk" x1="${X(a)}" x2="${X(b)}" y1="${y}" y2="${y}"/>`
       + `<circle class="dot${five ? '' : ' hollow'}" cx="${X(p.passRate)}" cy="${y}" r="5"/>`
       + `<text class="val" x="${W}" y="${y + 5}" text-anchor="end">${p.passRate}</text></g>`);

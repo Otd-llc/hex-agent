@@ -9,6 +9,7 @@ import { join, dirname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const { budgetCut, infraCut, rescoreFiles } = await import(pathToFileURL(join(root, 'src/runkey.mjs')).href);
+const { critOrNull } = await import(pathToFileURL(join(root, 'bin/stats.mjs')).href);
 const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
 const pct = (x) => Math.round(x * 1000) / 10;
 const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -40,8 +41,12 @@ function paired(a, b, f = (r) => r.pass) {
   const ma = mean(xa), mb = mean(xb);
   const cov = ids.reduce((s, _, i) => s + (xa[i] - ma) * (xb[i] - mb), 0);
   const sd = (xs, m) => Math.sqrt(xs.reduce((s, x) => s + (x - m) ** 2, 0));
-  return { briefs: ids.length, diffPoints: pct(md), sePoints: pct(se), ci95Points: [pct(md - 1.96 * se), pct(md + 1.96 * se)],
-    correlation: +(cov / (sd(xa, ma) * sd(xb, mb) || 1)).toFixed(2), minDetectablePoints: pct(2.8 * se) };
+  // t with briefs-1 df below 30 briefs, no interval below 10 (bin/stats.mjs). Smallest true
+  // difference detectable at 80% power: (critical value + 0.842) x SE, the 0.842 a normal
+  // approximation of the power quantile.
+  const c = critOrNull(ids.length);
+  return { briefs: ids.length, diffPoints: pct(md), sePoints: pct(se), crit: c?.name ?? null, ci95Points: c ? [pct(md - c.value * se), pct(md + c.value * se)] : null,
+    correlation: +(cov / (sd(xa, ma) * sd(xb, mb) || 1)).toFixed(2), minDetectablePoints: c ? pct((c.value + 0.842) * se) : null };
 }
 const S = (...ids) => ids.map((i) => `suite-2026-${i}`);
 const P = {
@@ -99,12 +104,27 @@ function arm(suites) {
   const rs = rows(suites), k = rs.filter((r) => r.pass).length, n = rs.length;
   const items = [...byBrief(rs, (r) => r.pass).values()].map(mean), B = items.length, mu = mean(items);
   const se = Math.sqrt(items.reduce((a, x) => a + (x - mu) ** 2, 0) / (B - 1) / B);
-  return { briefs: B, passed: k, completed: n, passRate: pct(k / n), clusteredCI: [pct(Math.max(0, mu - 1.96 * se)), pct(Math.min(1, mu + 1.96 * se))], wilsonCI: wilson(k, n), overclaimed: rs.filter((r) => r.over).length };
+  const c = critOrNull(B);
+  // Below 10 briefs: per-brief scores only, no interval of either kind.
+  const perBrief = Object.fromEntries([...byBrief(rs, (r) => r.pass)].map(([id, a]) => [id, `${a.filter(Boolean).length}/${a.length}`]));
+  return { briefs: B, passed: k, completed: n, passRate: pct(k / n), ...(c ? { clusteredCI: [pct(Math.max(0, mu - c.value * se)), pct(Math.min(1, mu + c.value * se))], crit: c.name, wilsonCI: wilson(k, n) } : { perBrief }), overclaimed: rs.filter((r) => r.over).length };
 }
 const OFF = S('10-31T23-19-12-846Z'), ON = S('10-31T23-27-37-267Z');
 out.abstention = { note: 'A58 briefs (6) x3, Baseten low, contract d2fd3dad; suite-index agent ~3460cd6 (off) and ~826848e (on)', off: arm(OFF), on: arm(ON), onMinusOff: paired(OFF, ON) };
 const HON = S('10-27T22-19-09-363Z', '10-27T22-21-26-250Z', '10-27T22-23-40-855Z');
 out.honesty7 = { note: '7 honesty/injection briefs x5, Baseten low, contract 2b45909b', ...arm(HON) };
+// Muse Spark 1.3 on the frozen agent (eval-final, 0c840bc), Meta Model API, effort low.
+const M36X5 = S('11-02T14-16-28-867Z'), FIXES_OFF = S('11-02T16-56-59-857Z');
+out.metaFixesOff = {
+  note: 'harm test only: fixes 1 to 4 off (summary.features) on the 13 briefs they target, x5, against the same briefs in the 36x5 default runs; the default arm was at ceiling (5/5 each), so the design can show harm, not gain; the arms ran about 2.7 h apart, not interleaved; diff = off minus default',
+  offMinusDefault: paired(M36X5, FIXES_OFF),
+  off: arm(FIXES_OFF),
+};
+const M_ON = S('11-02T17-16-28-256Z'), M_OFF = S('11-02T17-22-33-831Z');
+out.metaAbstention = {
+  note: '6 A58 briefs x3 per arm, per-brief scores only; two confounds: the ABSTAIN block names 5 of the 6 briefs, and the off arm also removes the finish tool outcome field, so it cannot return declined; moving-clock is the unnamed brief',
+  on: arm(M_ON), off: arm(M_OFF),
+};
 out.fireworksF1Wilson = wilson(31, 31);
 out.basetenD14Wilson = wilson(30, 31);
 const text = JSON.stringify(out, null, 2) + '\n';

@@ -10,7 +10,7 @@ import { loadEnv, heldFromEnvFile } from '../src/env.mjs';
 import { timedPost, requestsInFlight } from '../src/http.mjs';
 import { vizCommit } from '../src/provenance.mjs';
 import { validationChecks, validationPassed, warmup } from '../src/modal-checks.mjs';
-import { runKey, budgetCut, loadRuns } from '../src/runkey.mjs';
+import { runKey, budgetCut, loadRuns, armOf } from '../src/runkey.mjs';
 import { tally, groups } from '../bin/tally.mjs';
 
 const at = (iso) => Date.parse(iso);
@@ -328,15 +328,26 @@ function suiteDir(provider, model, rows, extra = {}) {
   return dir;
 }
 
-test('run keys: provider, model, effort, contract, page build and agent commit; budget cuts are not results', () => {
-  const a = runKey({ provider: 'baseten', model: 'm', effort: 'low', contractHash: 'fcf4301cdeadbeef', pageBuild: '/p.js', agent: { commit: 'abcdef1234', dirty: true } });
-  assert.equal(a.key, 'baseten | m | low | fcf4301c | /p.js | abcdef1+dirty');
+test('run keys: provider, model, effort, contract, page build, agent commit, prompt and arm; budget cuts are not results', () => {
+  const a = runKey({ provider: 'baseten', model: 'm', effort: 'low', contractHash: 'fcf4301cdeadbeef', pageBuild: '/p.js', agent: { commit: 'abcdef1234', dirty: true, promptSha256: '204d6933ffff' } });
+  assert.equal(a.key, 'baseten | m | low | fcf4301c | /p.js | abcdef1+dirty | 204d6933 | default');
   assert.notEqual(a.key, runKey({ provider: 'baseten', model: 'm', effort: 'low', contractHash: 'fcf4301c', pageBuild: '/q.js', agent: { commit: 'abcdef1234' } }).key);
   assert.ok(budgetCut({ budget: 'refused' }));
   assert.ok(budgetCut({ stop: 'cost budget' }));
   assert.ok(budgetCut({ stop: 'eval credit budget' }));
   assert.ok(!budgetCut({ stop: 'turn budget' }));
   assert.ok(!budgetCut({ stop: null }));
+});
+
+test('run keys: an arm (summary.features) or a prompt change is its own group, never pooled with the default', () => {
+  const t = { provider: 'meta', model: 'muse-spark-1.3', effort: 'low', contractHash: 'da0834cc', pageBuild: '/p.js', agent: { commit: '0c840bc', promptSha256: '204d6933aa' } };
+  const def = runKey(t, { features: { abstain: true, ewDrawers: true, rollbackRead: true, topology: true, verify: true } }).key;
+  const fixesOff = runKey(t, { features: { abstain: true, ewDrawers: false, rollbackRead: false, topology: false, verify: false } }).key;
+  const abstainOff = runKey({ ...t, agent: { ...t.agent, promptSha256: '9b2342f8aa' } }, { features: { abstain: false } }).key;
+  assert.match(def, / \| default$/);
+  assert.match(fixesOff, / \| -ewDrawers -rollbackRead -topology -verify$/);
+  assert.equal(new Set([def, fixesOff, abstainOff]).size, 3);
+  assert.equal(armOf({ strategy: 'plan', features: { cites: true, abstain: false } }), 'plan +cites -abstain');
 });
 
 test('tally: one group per run key; budget-refused and budget-stopped runs left out of completed and passed', () => {
@@ -358,7 +369,7 @@ test('tally: one group per run key; budget-refused and budget-stopped runs left 
   const g = groups([a, a2, b]);
   assert.equal(g.size, 3);
   const key = [...g.keys()][0];
-  assert.match(key, /^baseten \| meta-models\/muse-spark-open-1026 \| low \| fcf4301c \| \/p\.js \| c1$/);
+  assert.match(key, /^baseten \| meta-models\/muse-spark-open-1026 \| low \| fcf4301c \| \/p\.js \| c1 \| \? \| default$/);
   const r = tally(g.get(key));
   assert.deepEqual({ attempted: r.attempted, completed: r.completed, passed: r.passed, budgetExcluded: r.budgetExcluded, overclaimed: r.overclaimed }, { attempted: 4, completed: 2, passed: 1, budgetExcluded: 2, overclaimed: 1 });
   assert.deepEqual(r.codes.KIND_MISMATCH_BELOW, { refused: 1, withTry: 1, sentNext: 1, nextOk: 1 });

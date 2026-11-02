@@ -10,7 +10,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from 
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
-import { budgetCut, infraCut, rescoreFiles } from '../src/runkey.mjs';
+import { budgetCut, infraCut, rescoreFiles, armOf } from '../src/runkey.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const runsDir = join(root, 'runs');
@@ -36,9 +36,7 @@ const mainLog = execSync('git log --first-parent main --format=%h,%cI', { cwd: r
 const headAt = (ms) => mainLog.find((c) => c.at <= ms)?.h ?? null;
 const suiteMs = (dir) => Date.parse(dir.slice(6).replace(/T(\d\d)-(\d\d)-(\d\d)-(\d+)Z/, 'T$1:$2:$3.$4Z'));
 // Arm: anything that differs from the default strategy (interactive) and features.
-const arm = (s) => [s.strategy === 'plan' ? 'plan' : null,
-  ...['acceptance', 'rolegraph', 'cites'].filter((f) => s.features?.[f]).map((f) => '+' + f),
-  s.features && s.features.abstain === false ? '-abstain' : null].filter(Boolean).join(' ');
+const arm = armOf;
 
 const classFile = existsSync(join(root, 'docs/data/suite-classes.json')) ? readJson(join(root, 'docs/data/suite-classes.json')) : { suites: {}, contractEras: [] };
 const classes = classFile.suites;
@@ -88,7 +86,8 @@ for (const dir of readdirSync(runsDir, { withFileTypes: true }).filter((d) => d.
   }
   const briefIds = uniq(s.rows.map((r) => r.id));
   const usedHeldout = briefIds.filter((b) => heldout.has(b) && !briefFile.has(b));
-  if (usedHeldout.length) problems.push(`${dir}: HELD-OUT briefs ${usedHeldout.join(',')}`);
+  // A held-out run the owner approved is classed heldout (suite-classes.json, RULES.md); any other is a problem.
+  if (usedHeldout.length && classes[dir]?.class !== 'heldout') problems.push(`${dir}: HELD-OUT briefs ${usedHeldout.join(',')}`);
   const sets = s.briefSets ? s.briefSets.map((b) => b.replace(/^evals\/briefs-?|\.json$/g, '') || 'core') : uniq(briefIds.map((b) => briefFile.get(b) ?? '?'));
   let commits = uniq(t.map((x) => x.agent?.commit ? short(x.agent.commit, 7) + (x.agent.dirty ? '+dirty' : '') : null));
   if (!commits.length) commits = ['~' + headAt(suiteMs(dir))];
@@ -129,7 +128,7 @@ for (const dir of readdirSync(runsDir, { withFileTypes: true }).filter((d) => d.
 }
 
 // Ledger reconciliation: distinct runIds per provider ledger, and how many sit in a suite.
-const ledgers = { anthropic: 'anthropic.jsonl', baseten: 'baseten.jsonl', modal: 'modal-dedicated.jsonl', fireworks: 'fireworks.jsonl' };
+const ledgers = { anthropic: 'anthropic.jsonl', baseten: 'baseten.jsonl', modal: 'modal-dedicated.jsonl', fireworks: 'fireworks.jsonl', meta: 'meta.jsonl' };
 const provOf = (p) => (p === 'modal-dedicated' || p === 'modal' ? 'modal' : p);
 const recon = {};
 const ledgerLines = Object.fromEntries(Object.entries(ledgers).map(([prov, f]) =>

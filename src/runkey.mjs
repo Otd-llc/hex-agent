@@ -4,7 +4,17 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-export const KEY_FIELDS = ['provider', 'model', 'effort', 'contractHash', 'pageBuild', 'agentCommit'];
+export const KEY_FIELDS = ['provider', 'model', 'effort', 'contractHash', 'pageBuild', 'agentCommit', 'prompt', 'arm'];
+
+// Arm: what a suite turned on or off against the default strategy (interactive) and features.
+// Read from the summary: the trace carries only some of the flags. '' is the default arm.
+const OPT_IN = ['acceptance', 'rolegraph', 'cites'];
+export function armOf(summary = {}) {
+  const f = summary.features ?? {};
+  return [summary.strategy === 'plan' ? 'plan' : null,
+    ...OPT_IN.filter((k) => f[k]).map((k) => '+' + k),
+    ...Object.keys(f).filter((k) => !OPT_IN.includes(k) && f[k] === false).sort().map((k) => '-' + k)].filter(Boolean).join(' ');
+}
 
 export function runKey(trace, summary = {}) {
   const k = {
@@ -14,6 +24,8 @@ export function runKey(trace, summary = {}) {
     contractHash: trace?.contractHash ? String(trace.contractHash).slice(0, 8) : null,
     pageBuild: trace?.pageBuild ?? null,
     agentCommit: trace?.agent?.commit ? trace.agent.commit.slice(0, 7) + (trace.agent.dirty ? '+dirty' : '') : null,
+    prompt: trace?.agent?.promptSha256 ? trace.agent.promptSha256.slice(0, 8) : null,
+    arm: armOf(summary) || 'default',
   };
   return { key: KEY_FIELDS.map((f) => k[f] ?? '?').join(' | '), fields: k };
 }

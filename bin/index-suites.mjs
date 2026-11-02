@@ -10,7 +10,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from 
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
-import { budgetCut, infraCut } from '../src/runkey.mjs';
+import { budgetCut, infraCut, rescoreFiles } from '../src/runkey.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const runsDir = join(root, 'runs');
@@ -61,8 +61,10 @@ for (const dir of readdirSync(runsDir, { withFileTypes: true }).filter((d) => d.
     continue;
   }
   const s = readJson(sp);
-  const re = join(p, 'rescore.json');
-  const resc = existsSync(re) ? new Map(readJson(re).rows.map((r) => [`${r.id}#${r.attempt}`, r])) : null;
+  // The newest rescore scores the row; every earlier one is kept beside it (grader: passed).
+  const vintages = rescoreFiles(p);
+  const resc = vintages.length ? new Map(vintages[0].rows.map((r) => [`${r.id}#${r.attempt}`, r])) : null;
+  const passedBy = (v) => s.rows.filter((row) => !budgetCut(row) && (v.rows.find((r) => r.id === row.id && r.attempt === row.attempt)?.after ?? row.pass)).length;
   const t = [];
   let passed = 0, rescored = 0, strict = 0, strictKnown = 0, over = 0, infra = 0, budget = 0, errors = 0, cost = 0, calls = 0;
   const runIds = [];
@@ -110,6 +112,8 @@ for (const dir of readdirSync(runsDir, { withFileTypes: true }).filter((d) => d.
     runs: s.rows.length,
     passed,
     rescored: resc ? rescored : null,
+    rescoredBy: vintages[0] ? short(vintages[0].graderCommit, 7) + (vintages[0].graderDirty ? '+dirty' : '') : null,
+    earlierRescores: vintages.slice(1).map((v) => ({ grader: short(v.graderCommit, 7) + (v.graderDirty ? '+dirty' : ''), at: v.rescoredAt, file: v.file, passed: passedBy(v) })),
     strict: strictKnown ? strict : null,
     strictOf: strictKnown,
     overclaimed: over,
@@ -149,10 +153,10 @@ for (const prov of Object.keys(ledgers)) {
 const out = { generatedAt: new Date().toISOString(), suites: rows.map(({ runIds, ...r }) => r), reconcile: recon, problems };
 const fmt = (a) => (Array.isArray(a) ? a.join(' ') : a ?? '');
 const md = [
-  '| suite | date (UTC) | provider | model | effort | arm | contract | page | agent | sets | runs | passed | rescored | strict | over | infra | $ | class |',
-  '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
-  ...out.suites.map((r) => r.noSummary ? `| ${r.suite.slice(6)} | ${r.date} | ${r.provider ?? '?'} | (no summary.json) | | | | | | | ${r.runs} | | | | | | ${r.costUsd.toFixed(2)} | ${r.class ?? ''} |`
-    : `| ${r.suite.slice(6)} | ${r.date} | ${r.provider} | ${r.model} | ${r.effort ?? ''} | ${r.arm} | ${fmt(r.contract)} | ${fmt(r.pageBuild)} | ${fmt(r.agentCommit)} | ${fmt(r.briefSets)} | ${r.runs} | ${r.passed} | ${r.rescored ?? ''} | ${r.strict ?? ''} | ${r.overclaimed} | ${r.infraCut} | ${r.costUsd.toFixed(2)} | ${r.class ?? ''} |`),
+  '| suite | date (UTC) | provider | model | effort | arm | contract | page | agent | sets | runs | passed | rescored (grader) | earlier rescores | strict | over | infra | $ | class |',
+  '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
+  ...out.suites.map((r) => r.noSummary ? `| ${r.suite.slice(6)} | ${r.date} | ${r.provider ?? '?'} | (no summary.json) | | | | | | | ${r.runs} | | | | | | | ${r.costUsd.toFixed(2)} | ${r.class ?? ''} |`
+    : `| ${r.suite.slice(6)} | ${r.date} | ${r.provider} | ${r.model} | ${r.effort ?? ''} | ${r.arm} | ${fmt(r.contract)} | ${fmt(r.pageBuild)} | ${fmt(r.agentCommit)} | ${fmt(r.briefSets)} | ${r.runs} | ${r.passed} | ${r.rescored == null ? '' : `${r.rescored} (${r.rescoredBy})`} | ${(r.earlierRescores ?? []).map((v) => `${v.passed} (${v.grader})`).join(', ')} | ${r.strict ?? ''} | ${r.overclaimed} | ${r.infraCut} | ${r.costUsd.toFixed(2)} | ${r.class ?? ''} |`),
 ].join('\n');
 
 if (process.argv.includes('--write')) {

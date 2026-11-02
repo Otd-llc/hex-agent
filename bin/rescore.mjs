@@ -2,7 +2,9 @@
 // Re-apply the current brief checks to the traces of an earlier suite, when a
 // check turned out to be wrong. Prints old and new verdicts side by side and
 // writes rescore.json next to the summary; never edits the original summary.
-//   node bin/rescore.mjs runs/<suite-id>/summary.json [--briefs=evals/briefs.json]
+// --versioned writes rescore-<grader commit>.json instead and leaves earlier rescores as
+// they are (refused on a dirty tree, where the commit would not name the grader).
+//   node bin/rescore.mjs runs/<suite-id>/summary.json [--briefs=evals/briefs.json] [--versioned]
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -15,6 +17,11 @@ const summaryPath = args.find((a) => !a.startsWith('--'));
 const briefsArg = args.find((a) => a.startsWith('--briefs='))?.split('=')[1];
 const root = dirname(summaryPath);
 const summary = JSON.parse(readFileSync(summaryPath, 'utf8'));
+const versioned = args.includes('--versioned');
+if (versioned && agentCommit().dirty) {
+  console.error('rescore --versioned: tracked files have changes; commit first so the file name names the grader');
+  process.exit(2);
+}
 // Every brief file (an id can be in more than one, with other text or checks): each trace is
 // scored against the brief it actually ran, found by its brief hash.
 const sha = (t) => createHash('sha256').update(t).digest('hex');
@@ -73,4 +80,4 @@ const n = (k) => out.filter((r) => r[k]).length;
 console.log(`${summary.model}: ${n('before')}/${out.length} as first scored -> ${n('after')}/${out.length} with current checks, ${n('strict')}/${out.length} strict`);
 // Which grader and which briefs: a rescore is only comparable with one by the same code on the same files.
 const grader = agentCommit();
-writeFileSync(join(root, 'rescore.json'), JSON.stringify({ rescoredAt: new Date().toISOString(), graderCommit: grader.commit, graderDirty: grader.dirty, briefsSha256, briefFiles: files, rows: out }, null, 2) + '\n');
+writeFileSync(join(root, versioned ? `rescore-${grader.commit.slice(0, 7)}.json` : 'rescore.json'), JSON.stringify({ rescoredAt: new Date().toISOString(), graderCommit: grader.commit, graderDirty: grader.dirty, briefsSha256, briefFiles: files, rows: out }, null, 2) + '\n');

@@ -9,7 +9,8 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { openHex } from '../src/bridge.mjs';
+import { openHex, hexUrl } from '../src/bridge.mjs';
+import { CONTRACT } from '../src/contract.mjs';
 import { verify, outOfScopeClaims } from '../src/agent.mjs';
 import { checkBrief, configuratorPass, outcomeOf, overclaimed } from '../src/checks.mjs';
 
@@ -32,6 +33,7 @@ async function measure(start) {
       const loaded = await hex.call('load', start);
       if (!loaded.ok) throw new Error(`start did not load: ${loaded.code}`);
     }
+    pageBuilds.add(hex.build ?? null);
     await hex.call('settle');
     const asServed = { state: await hex.call('getState'), verdict: await verify({ hex, openFresh: () => hex.fresh(), finish: FINISH }) };
     const nodes = asServed.state.nodes.map((n) => n.ref);
@@ -53,6 +55,7 @@ function score(expect, { state, verdict }, finish) {
 }
 
 const starts = new Map();
+const pageBuilds = new Set();
 const out = { generatedBy: 'bin/do-nothing.mjs', rules: 'rescore.mjs pass rules (configuratorPass, brief checks, overclaimed, scope)', variants: { unmet: 'start left as is, every requirement unmet', noList: 'start left as is, no requirements listed', empty: 'every part removed, every requirement unmet' }, sets: {} };
 for (const [set, files] of Object.entries(SETS)) {
   const briefs = files.flatMap((f) => readJson(f));
@@ -78,4 +81,6 @@ for (const [set, files] of Object.entries(SETS)) {
   console.log(`${set}: ${n} briefs; do-nothing passes unmet ${count('unmet')}, noList ${count('noList')}, empty ${count('empty')}, any ${any}`);
 }
 out.startVerdicts = Object.fromEntries([...starts].map(([k, m]) => [k, { asServed: { nodes: m.asServed.verdict.nodes, checks: m.asServed.verdict.checks }, empty: { nodes: m.empty.verdict.nodes, checks: m.empty.verdict.checks } }]));
+// Which live release this was measured on: a later release may score differently.
+out.measuredOn = { generatedAt: new Date().toISOString(), url: hexUrl(), contract: CONTRACT.hash.slice(0, 8), pageBuild: [...pageBuilds] };
 if (process.argv.includes('--write')) writeFileSync(join(root, 'docs/data/do-nothing.json'), JSON.stringify(out, null, 2) + '\n');

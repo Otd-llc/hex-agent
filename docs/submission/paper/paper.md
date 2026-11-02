@@ -31,7 +31,7 @@ The 36 development briefs are three sets (12 core, 8 hard, 16 wide) written for 
 
 ## Demo and results
 
-Demo video: [not yet available: owner adds the link]. The video shows one run from a demo set of three planter briefs written for the video, five runs each, not an evaluation: the brief on screen, the model's own messages and tool calls, the configurator accepting and refusing placements, the checks, and the final build reloaded from its share link. The demo set passed 14 of 15 runs (D4); the owner chose the run shown from all 15.
+Demo video: [not yet available: owner adds the link]. The video shows one run from a demo set of three planter briefs written for the video, five runs each, not an evaluation: the brief on screen, the model's own messages and tool calls, the configurator accepting and refusing placements, the checks, and the final build reloaded from its share link. The demo set passed 14 of 15 runs (D4); the owner chose the run shown from all 15: a strawberry tower (run 9329ae20), which is not one of the four runs with a hidden row described in Limitations (D8).
 
 **Table 1.** Muse Spark 1.3 and Muse Wonder 1.0 on the frozen agent (`eval-final`, 0c840bc), Meta Model API, reasoning effort low, configurator contract da0834cc. 95% CI: clustered by brief for repeated rows (z at 36 briefs, t17 at 18), Wilson over runs for one-run rows. "All repeats": briefs whose every repeat passed. Overclaimed: a lower bound, measured with fix 4 on. $/run in tokens at list price. Sources: D1 `points` (p11), `heldout`, `wonder`.
 

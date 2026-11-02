@@ -64,3 +64,10 @@ Video; "Describe your use of Meta products to build the submitted project";
 "Why are Meta's models important to your solution?"; partner feedback
 (Fireworks, Modal, Baseten); survey questions on the Meta Model API and
 Muse Code.
+
+## Decisions
+
+- 2026-11-02, owner: **Startup track.** Cerebral Valley in Discord
+  (2026-10-26): the track is picked on the submission form and may be
+  switched. The entry is One Thousand Drones' existing configurator plus the
+  agent built during the event; the new work is marked per HACKATHON_DELTA.md.

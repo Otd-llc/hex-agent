@@ -73,3 +73,7 @@ Muse Code.
   agent built during the event; the new work is marked per HACKATHON_DELTA.md.
 - 2026-11-02, owner: **Problem statement: Push the Frontier** (manufacturing; give a
   machine a new capability).
+- 2026-11-02, owner: **Keep git history when the repo goes public.** The held-out
+  briefs (evals/briefs-heldout.json, in history since 76e977d) become public; they
+  stay unrun, and the paper says so. Rewriting history would break the agent
+  commit recorded in every trace.

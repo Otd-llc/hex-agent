@@ -77,6 +77,9 @@ if (model.provider === 'fireworks' && !checkpointFiles.length) {
   process.exit(2);
 }
 const checkpoint = checkpointFiles.length ? baselineOf(checkpointFiles.map((f) => JSON.parse(readFileSync(f, 'utf8')))) : null;
+// --expect-codes=A,B: refusal codes a site deploy added since the checkpoint (deploy 15: UNSUPPORTED on
+// place, KIND_MISMATCH_ABOVE); they are not a new failure class of this batch.
+if (checkpoint && typeof flag('expect-codes', null) === 'string') for (const c of flag('expect-codes').split(',')) checkpoint.codes.add(c);
 let tripwire = null;
 
 const rows = [];

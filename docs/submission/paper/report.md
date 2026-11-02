@@ -1,5 +1,5 @@
 <!-- CLASSIFICATION: public -->
-<!-- Claim ledger: green-ledger.md. Numbers: D1 docs/data/presentation.json, D2 green-extra.json, D3 facts-compute-2026-11-02.yaml, D4 docs/data/suite-index.md; H1 docs/plans/2026-11-02-modal-review.md and H2 EVALUATION.md are hand-tabulated and labelled where used. -->
+<!-- Claim ledger: green-ledger.md. Numbers: D1 docs/data/presentation.json, D2 docs/data/presentation-extra.json, D3 facts-compute-2026-11-02.yaml, D4 docs/data/suite-index.md; H1 docs/plans/2026-11-02-modal-review.md and H2 EVALUATION.md are hand-tabulated and labelled where used. -->
 
 # A Muse Spark Open agent passes 89 to 94% of runs on 36 design briefs in a live product configurator, graded by code: technical report
 
@@ -148,7 +148,7 @@ Code: `Otd-llc/hex-agent` at 6a79067 (visibility and license pending, O12). At t
 node bin/index-suites.mjs --write          # docs/data/suite-index.md and .json
 node bin/rescore.mjs <suite dir>           # current grader over a suite's traces
 node bin/presentation-data.mjs --write     # docs/data/presentation.json (Tables A1, A2)
-node green-extra.mjs > green-extra.json    # paired pairs, power, ranges (to merge into the above)
+node bin/presentation-extra.mjs > docs/data/presentation-extra.json    # paired pairs, power, ranges (to merge into the above)
 node bin/suite.mjs --model=<model> --purpose=eval --effort=low --briefs=evals/briefs.json,evals/briefs-hard.json,evals/briefs-wide.json --repeat=5
 ```
 

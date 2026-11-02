@@ -10,7 +10,7 @@ either document.
 Data files (the only number sources):
 
 - `D1` C:/zzz/hex-agent/docs/data/presentation.json, written by `node bin/presentation-data.mjs --write` (generatedAt 2026-11-02T08:30:57.879Z; re-run read-only on 2026-11-02 and every printed figure matched).
-- `D2` scratchpad/green-extra.json, written by `node scratchpad/green-extra.mjs` (read-only over the same suite folders, same scoring rules as D1; adds the same-commit effort pair, batch pairs, power, ranges, cost ratios, abstention). It belongs in `bin/presentation-data.mjs` before anything ships (owner item O3).
+- `D2` scratchpad/docs/data/presentation-extra.json, written by `node scratchpad/bin/presentation-extra.mjs` (read-only over the same suite folders, same scoring rules as D1; adds the same-commit effort pair, batch pairs, power, ranges, cost ratios, abstention). It belongs in `bin/presentation-data.mjs` before anything ships (owner item O3).
 - `D3` C:/zzz/_premades/provider-page/facts-compute-2026-11-02.yaml (facts registry; owner attestation pending).
 - `D4` C:/zzz/hex-agent/docs/data/suite-index.md, written by `node bin/index-suites.mjs --write`.
 - `H1` C:/zzz/hex-agent/docs/plans/2026-11-02-modal-review.md and `H2` C:/zzz/hex-agent/EVALUATION.md: hand-written from tally output. Numbers that trace only to H1 or H2 are marked "hand-tabulated" in the status column and carry that label in the text.

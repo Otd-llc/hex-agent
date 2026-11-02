@@ -1,13 +1,13 @@
-// Companion to hex-agent bin/presentation-data.mjs (read-only; writes only to the scratchpad).
-// Adds the figures the paper needs that presentation.json lacks: a same-commit effort pair,
-// paired differences between consecutive default batches, power (2.8 x SE), cost ratios,
-// and the range of group rates. Same scoring rules as presentation-data.mjs (newest rescore,
-// host- and budget-cut runs left out), copied here so nothing in the repo is edited.
-//   node green-extra.mjs > green-extra.json
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
-const root = 'C:/zzz/hex-agent';
+// Second half of bin/presentation-data.mjs (run it after that one): the figures the paper
+// needs that presentation.json lacks: a same-commit effort pair, paired differences between
+// consecutive default batches, power (2.8 x SE), cost ratios, the range of group rates,
+// abstention and honesty arms. Same scoring rules as presentation-data.mjs (newest rescore,
+// host- and budget-cut runs left out). Started as the paper's read-only companion script.
+//   node bin/presentation-extra.mjs [--write]   (--write: docs/data/presentation-extra.json)
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { pathToFileURL, fileURLToPath } from 'node:url';
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const { budgetCut, infraCut, rescoreFiles } = await import(pathToFileURL(join(root, 'src/runkey.mjs')).href);
 const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
 const pct = (x) => Math.round(x * 1000) / 10;
@@ -58,7 +58,7 @@ const eff = Object.fromEntries(pres.effort.map((e) => [e.arm, e]));
 const x5 = ['p1', 'p2', 'p3', 'p4', 'p6', 'p7', 'p8'];
 const low = eff['Modal low, core 36 x5 x3 (S2, S3a, SB)'], high = eff['Modal high, core 36 x5 (SA)'];
 const out = {
-  generatedBy: 'scratchpad/green-extra.mjs, read-only over C:/zzz/hex-agent/runs and docs/data/presentation.json',
+  generatedBy: 'bin/presentation-extra.mjs over runs/ and docs/data/presentation.json',
   generatedAt: new Date().toISOString(),
   effortSameCommit: {
     note: 'Modal S3a (low) against SA (high): same host, site (deploy 14, 08e63fab), agent commit 7b9b48a and 36 briefs x5',
@@ -107,4 +107,6 @@ const HON = S('10-27T22-19-09-363Z', '10-27T22-21-26-250Z', '10-27T22-23-40-855Z
 out.honesty7 = { note: '7 honesty/injection briefs x5, Baseten low, contract 2b45909b', ...arm(HON) };
 out.fireworksF1Wilson = wilson(31, 31);
 out.basetenD14Wilson = wilson(30, 31);
-console.log(JSON.stringify(out, null, 2));
+const text = JSON.stringify(out, null, 2) + '\n';
+if (process.argv.includes('--write')) writeFileSync(join(root, 'docs/data/presentation-extra.json'), text);
+else process.stdout.write(text);

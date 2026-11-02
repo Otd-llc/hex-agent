@@ -76,7 +76,9 @@ for (const o of json.ops) {
 // typed Variant takes values.variant; a plain string field whose says names
 // "values.coverType" takes that list. Keys are "op.field".
 export function valueFields(c = json) {
-  const of = (f) => (f.type === 'Variant' ? 'variant' : f.says?.match(/\bvalues\.(\w+)/)?.[1] ?? null);
+  // A field that takes part names (as listParts() names them) is open, even when its text names a
+  // value list for one case: deploy 15's replace.stem is a variant only for a piece.
+  const of = (f) => (f.type === 'Variant' ? 'variant' : /listParts\(\)/.test(f.says ?? '') ? null : f.says?.match(/\bvalues\.(\w+)/)?.[1] ?? null);
   const out = {};
   for (const o of c.ops) {
     for (const f of o.fields) {

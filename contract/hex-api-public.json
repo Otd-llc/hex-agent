@@ -1,5 +1,5 @@
 {
-  "hash": "08e63fabae4dd1cac246e6eef9dfcc7547322d9d0149c6bb03dd497c5738f54c",
+  "hash": "87827f4dae4fb54f28a4403252ce43922004e8c2d55ab6aa4b1b6923a5ef6a2f",
   "apiVersion": 1,
   "status": "experimental",
   "members": [
@@ -121,7 +121,7 @@
   "ops": [
     {
       "op": "place",
-      "says": "Place a base (full, half or quarter cell), optionally 2 or 3 stories tall. Placed above an empty cell it stands as the bottom of its own column, and the outcome warns NOTHING_BELOW.",
+      "says": "Place a base (full, half or quarter cell), optionally 2 or 3 stories tall. Above the ground it needs a base in the cell below: over an empty cell it is refused UNSUPPORTED, and details.steps places the storeys below first. Placed under a base it must be that kind (KIND_MISMATCH_ABOVE), and the stacking collar between them is fitted.",
       "fields": [
         {
           "name": "at",
@@ -760,12 +760,12 @@
         {
           "name": "ref",
           "type": "NodeRef",
-          "says": "The part to swap: a bin, binBolt, notch, bay or accessory node."
+          "says": "The part to swap: a bin, binBolt, notch, bay, accessory or piece node."
         },
         {
           "name": "stem",
           "type": "string",
-          "says": "The part to put there, as listParts() names it (its value)."
+          "says": "The part to put there, as listParts() names it (its value); for a piece, the new variant (values.variant), not a part name."
         }
       ],
       "constraints": []
@@ -841,7 +841,7 @@
     },
     {
       "op": "addProp",
-      "says": "Place a prop from listProps() on a part, a placed prop or the bench, resting as the props panel rests it (configurator only). Refused for where or how it rests (PROP_NO_REST, PROP_WOULD_SHIFT), details.tryInstead may hold the same op varied (on the flat prop in the way, a mat or a napkin; a smaller heap of the same kind; its other pose; posed and it would not stay, its rest where aimed or where it came to rest; a turn, a shift of up to 90 mm; unposed, its natural rest, which may lean; a long prop stood on end in a pocket too narrow to lie in; the centre of the target; a hang refused on a hook, another hook, the piece it is on or the bench), worked out as the op would be, that does place: send it as it is. A prop that does not hang on a wall hook is refused INVALID_INPUT with details.tryInstead on the piece the hook is on, or the bench.",
+      "says": "Place a prop from listProps() on a part, a placed prop or the bench, resting as the props panel rests it (configurator only). Refused for where or how it rests (PROP_NO_REST, PROP_WOULD_SHIFT), details.tryInstead may hold the same op varied (on the flat prop in the way, a mat or a napkin; a smaller heap of the same kind; its other pose; posed and it would not stay, its rest where aimed or where it came to rest; a turn, a shift of up to 90 mm; unposed, its natural rest, which may lean; a long prop stood on end in a pocket too narrow to lie in; the centre of the target; a hang refused on a hook, another hook at its storey or higher, and nothing else), worked out as the op would be, that does place: send it as it is. A prop that does not hang on a wall hook is refused INVALID_INPUT with details.tryInstead on the piece the hook is on, or the bench.",
       "fields": [
         {
           "name": "id",
@@ -1213,7 +1213,7 @@
     {
       "name": "type",
       "type": "string",
-      "says": "cover type ('plain'), drawer style ('classic') or spike variant ('solid', values.spikeVariant).",
+      "says": "cover type ('plain'), drawer style ('classic' on n/s, 'slide' on e/w) or spike variant ('solid', values.spikeVariant).",
       "optional": true
     },
     {
@@ -1363,6 +1363,10 @@
     {
       "code": "INVALID_PART_ID",
       "says": "The part name is not one the configurator places. On addDrawer and addNotch, validAlternatives are the drawers or site parts that fit near the cell, and details.tryInstead the same drawer as a slide drawer (which comes in every half) when it fits."
+    },
+    {
+      "code": "KIND_MISMATCH_ABOVE",
+      "says": "A base placed under one carries only its kind: the cell above is a different shape. details.above names it, and details.tryInstead is the same place with that kind when it would stand."
     },
     {
       "code": "KIND_MISMATCH_BELOW",
@@ -1646,7 +1650,7 @@
     },
     {
       "code": "UNSUPPORTED",
-      "says": "Nothing below carries the part."
+      "says": "Nothing below carries the part. A base placed over an empty cell: details.steps places the storeys below first, then it."
     },
     {
       "code": "WEDGED_LID",
@@ -1759,10 +1763,6 @@
     {
       "code": "ANCHOR_SUGGESTED",
       "says": "warning: the build stands over 3 times as tall as its footprint is wide at its narrowest; anchor it to a wall. Geometry only: not structurally tested."
-    },
-    {
-      "code": "NOTHING_BELOW",
-      "says": "warning (place): the base stands above an empty cell, as the bottom of its own column, held up by nothing."
     },
     {
       "code": "CAPS_SKIPPED",

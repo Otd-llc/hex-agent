@@ -433,3 +433,10 @@ test('fix 2 on deploy 15: whole-batch details.steps kept, interim hints dropped,
   assert.equal(first[0].alternatives.length, 1);
   assert.equal(first[1].code, 'ROLLED_BACK');
 });
+
+test('deploy 15 contract: replace.stem stays open (a variant only for a piece), other value lists still checked', async () => {
+  const { CONTRACT } = await import('../src/contract.mjs');
+  assert.equal(CONTRACT.valueOf['replace.stem'], undefined, 'bins and accessories take part names');
+  assert.ok(Object.keys(CONTRACT.valueOf).length > 3, 'the closed lists are still read');
+  assert.equal(CONTRACT.valueOf['addDrawer.style'], 'drawerStyle');
+});

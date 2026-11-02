@@ -84,3 +84,4 @@ Muse Code.
 - 2026-11-02, owner: **Leave private repo names and C:/zzz paths** in docs as they are.
 - 2026-11-02, owner: **.env.example reviewed** (all 6 versions): every key empty, only credit numbers. Clean.
 - 2026-11-02, owner: **Flip the repo public once the paper is final.**
+- 2026-11-02, owner: **No hosted live agent for judges.** Meta Model API credit ($150) now funds agent development; keep about $50 for the demo recordings (the code's demo reserve). Claude stays development-only, never in the demo or results.

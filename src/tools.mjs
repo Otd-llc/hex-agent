@@ -27,6 +27,11 @@ const NO_OFFERS =
   'No place on the build takes this part right now. Change the build so it can (for example add the cells it needs ' +
   'beside or below it), then ask again. Guessing raw ops for a part with no offers rarely works.';
 // E13: what each family needs before it is offered, said when find_sockets finds none.
+// The texts before fixes 1 and 3, for a batch's before arm (features -ewDrawers / -topology).
+const NEEDS_BEFORE = {
+  drawer: 'A drawer sits on the cut face of a half base: place a half base (variant half-n, half-s, half-e or half-w) first.',
+  connector: 'A side connector joins two bases that stand side by side on the same storey.',
+};
 export const NEEDS = {
   drawer: 'A drawer sits on the cut face of a half base: place a half base first. Half-n and half-s take any drawer style; half-e and half-w take a slide, swing or long drawer (find_sockets offers those once the half base is on).',
   notch: 'A notch drawer stands in an empty cell beside two bases that touch each other: leave that cell empty, with two touching bases beside it.',
@@ -110,6 +115,7 @@ const PROP_FIX = {
 };
 const PROP_CODES = new Set(Object.keys(PROP_FIX));
 
+const TOPOLOGY_SOCKETS = 'Bases that touch with no connector on the wall between them are one body; a side connector on a wall keeps two groups apart and joins them, so every wall between two groups needs one (get_build lists the walls and groups). ';
 const ROLLBACK_NOTE = 'Nothing in this batch is on the build: one op was refused, so every op in it was undone. ' +
   'Fix or drop the refused op and send the batch again; refs and offers from this batch do not exist.';
 const NOTHING_BELOW_FIX = 'A base went on with nothing below it: it floats and the build will not stand. ' +
@@ -221,7 +227,7 @@ export const TOOL_SPECS = [
       'refuse bins with PIPE_THROUGH_CELL, and a run is refused ROUTE_BIN_IN_WAY where a bin is in its way, so lay the run ' +
       'first and take bin offers after it, or keep the run straight; -pvc bins are for a vertical riser through the floor. ' +
       'A handle needs a cover on its face; spikes stand where three cells meet. ' +
-      'Bases that touch with no connector on the wall between them are one body; a side connector on a wall keeps two groups apart and joins them, so every wall between two groups needs one (get_build lists the walls and groups). ' +
+      TOPOLOGY_SOCKETS +
       'A spool axle (family axle) seats in a rod socket (a hex-acc-rod accessory) that faces another rod socket across an ' +
       'empty cell; it is refused NO_PARTNER without one. A filament spool then HANGS on it: addProp {id:"filament-spool", ' +
       'on:"axle:..."} with the axle ref from get_build, no atMm (hang_spools does every axle at once). ' +
@@ -446,8 +452,9 @@ export const TOOL_SPECS = [
 // The tool list a session offers: set_requirements and a finish keyed by
 // requirement id only with acceptance tests (A64), an outcome only with
 // abstention (A58). Neither on is the interactive default as it was.
-export function toolSpecsFor({ acceptance = false, abstain = false, rolegraph = false } = {}) {
-  return TOOL_SPECS.filter((t) => (acceptance || t.name !== 'set_requirements') && (rolegraph || t.name !== 'plan_build')).map((t) => {
+export function toolSpecsFor({ acceptance = false, abstain = false, rolegraph = false, topology = true } = {}) {
+  return TOOL_SPECS.filter((t) => (acceptance || t.name !== 'set_requirements') && (rolegraph || t.name !== 'plan_build')).map((t0) => {
+    const t = !topology && t0.name === 'find_sockets' ? { ...t0, description: t0.description.replace(TOPOLOGY_SOCKETS, '') } : t0;
     if (t.name !== 'finish') return acceptance ? t : withoutRole(t);
     if (!acceptance && !abstain) return t;
     const req = {
@@ -491,7 +498,9 @@ function withoutRole(t) {
 // Tools that change the build: with acceptance tests on, none runs before set_requirements.
 const MUTATING = new Set(['plan_build', 'apply', 'dress', 'hang_spools', 'fill_and_plant', 'fill_compartments', 'undo', 'redo']);
 
-export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}) {
+export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes = {} } = {}) {
+  const FIX = { ewDrawers: true, rollbackRead: true, topology: true, ...fixes };
+  const needs = (family) => (!FIX.ewDrawers && family === 'drawer') || (!FIX.topology && family === 'connector') ? NEEDS_BEFORE[family] : NEEDS[family];
   const sockets = new Map();
   let nextSocket = 1;
   const surfaces = new Map();
@@ -727,7 +736,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       const s = await hex.call('getState');
       const counts = {};
       for (const n of s.nodes) counts[n.family] = (counts[n.family] ?? 0) + 1;
-      const topo = topology(s.nodes);
+      const topo = FIX.topology ? topology(s.nodes) : null;
       return {
         nodes: s.nodes.slice(0, LIMITS.nodesShown).map((n) => ({ ref: n.ref, family: n.family, at: n.at, stem: n.stem, ...roleOf(n.ref) })),
         total: s.nodes.length,
@@ -868,7 +877,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       // edge, a run) keeps the offer's cell and posMm, so it can be placed by where it is (L13).
       // A page before A59 answers full offers too; a compact row is the op alone.
       const offers = (await hex.call('openSockets', query)).map((o) => (typeof o.op === 'string' ? { op: o } : o));
-      if (query?.family === 'drawer') offers.push(...(await ewDrawerOffers(query, offers)));
+      if (FIX.ewDrawers && query?.family === 'drawer') offers.push(...(await ewDrawerOffers(query, offers)));
       const out = {
         total: offers.length,
         // The op already names the cell and the face, bearing or slot: no need to repeat them (A59).
@@ -878,7 +887,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
           ...(o.op.at || !o.at ? {} : { at: o.at, ...(o.posMm ? { posMm: o.posMm } : {}) }),
         })),
       };
-      if (!offers.length) out.note = query?.family && NEEDS[query.family] ? `${NEEDS[query.family]} ${NO_OFFERS}` : NO_OFFERS;
+      if (!offers.length) out.note = query?.family && needs(query.family) ? `${needs(query.family)} ${NO_OFFERS}` : NO_OFFERS;
       return out;
     },
 
@@ -913,7 +922,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       const tally = (outcomes, rolledBack) => {
         for (const o of outcomes) {
           if (o.ok) {
-            if (!rolledBack) counters.applied++;
+            if (!(FIX.rollbackRead && rolledBack)) counters.applied++;
           }
           else {
             counters.refused++;
@@ -951,13 +960,13 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       // are dropped: the page worked them out on the batch's interim state, which is gone.
       const out = {
         rolledBack: r.rolledBack,
-        outcomes: r.rolledBack
+        outcomes: FIX.rollbackRead && r.rolledBack
           ? r.outcomes.map((o) => (o.ok
             ? { ok: false, op: o.op.op, code: 'ROLLED_BACK', message: 'accepted, then undone with the rest of the batch: not on the build' }
             : (({ tryInstead, alternatives, ...rest }) => rest)(summarizeOutcome(o))))
           : r.outcomes.map(summarizeOutcome),
       };
-      if (r.rolledBack) out.rollback = ROLLBACK_NOTE;
+      if (FIX.rollbackRead && r.rolledBack) out.rollback = ROLLBACK_NOTE;
       // The running print cost after this call (A51): the last applied op's.
       const budget = r.outcomes.filter((o) => o.ok && o.budget).at(-1)?.budget;
       if (budget && !r.rolledBack) out.budget = { grams: mm(budget.grams), minutes: mm(budget.minutes), parts: budget.parts, ...(budget.unmeasured?.length ? { unmeasured: budget.unmeasured } : {}) };
@@ -965,7 +974,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       if (change) out.roles = change;
       // Consecutive refusals across calls: past the limit, say so plainly.
       // A rolled-back accept is no progress: it neither ends the streak nor adds to it.
-      for (const o of r.outcomes) if (!(o.ok && r.rolledBack)) refusalStreak = o.ok ? 0 : refusalStreak + 1;
+      for (const o of r.outcomes) if (!(FIX.rollbackRead && o.ok && r.rolledBack)) refusalStreak = o.ok ? 0 : refusalStreak + 1;
       if (refusalStreak >= STREAK_LIMIT) {
         out.warning = `${refusalStreak} refusals in a row. Stop guessing: read the refusal messages, change the build so find_sockets offers the part, or report the requirement as unmet.`;
       }
@@ -974,7 +983,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       const propWarned = warned.filter((c) => PROP_CODES.has(c));
       if (propWarned.length) out.fix = Object.fromEntries(propWarned.map((c) => [c, PROP_FIX[c]]));
       // A base placed over an empty cell floats: fix it now, before parts go on it (fix 2).
-      if (warned.includes('NOTHING_BELOW')) out.fix = { ...(out.fix ?? {}), NOTHING_BELOW: NOTHING_BELOW_FIX };
+      if (FIX.rollbackRead && warned.includes('NOTHING_BELOW')) out.fix = { ...(out.fix ?? {}), NOTHING_BELOW: NOTHING_BELOW_FIX };
       if (dropped.length) {
         out.droppedAlreadyFitted = dropped;
         out.note = 'These ops were refused ALREADY_FITTED or NO_CHANGE (that state already holds), so the batch was applied again without them.';
@@ -1027,7 +1036,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
     async check_build() {
       const v = await hex.call('validate');
       const props = v.issues.filter((i) => PROP_CODES.has(i.code)).map(propFlag);
-      const topo = topology((await hex.call('getState')).nodes ?? []);
+      const topo = FIX.topology ? topology((await hex.call('getState')).nodes ?? []) : null;
       return {
         ok: v.ok,
         meshClash: v.meshClash,

@@ -366,3 +366,30 @@ test('fix 3: topology shows the groups the clusters check sees, and each touchin
   assert.ok(walls.includes('0,0|1,0'));
   assert.equal(topology([piece(0, 0)]), null, 'one base: nothing to report');
 });
+
+test('fixes 1-3 switched off give back the pre-fix agent (the before arm on the same commit)', async () => {
+  const state = { pieces: [{ q: 0, r: 0, level: 0, variant: 'half-e' }, { q: 1, r: 0, level: 0, variant: 'full' }], drawers: [] };
+  const nodes = [{ ref: 'piece:0,0,0;half-e', family: 'piece', at: { q: 0, r: 0, level: 0 } }, { ref: 'piece:1,0,0;full', family: 'piece', at: { q: 1, r: 0, level: 0 } }];
+  const add = { op: 'place', at: { q: 0, r: 1, level: 0 }, variant: 'full' };
+  const hex = { async call(m, q) {
+    if (m === 'getState') return { state, nodes };
+    if (m === 'openSockets') return [];
+    if (m === 'applyAll') return { rolledBack: true, outcomes: [ok(q[0], ['piece:0,1,0;full']), no(q[1], 'KIND_MISMATCH_BELOW')] };
+    return undefined;
+  } };
+  const off = createTools(hex, { fixes: { ewDrawers: false, rollbackRead: false, topology: false } });
+  const d = await off.run('find_sockets', { family: 'drawer' });
+  assert.equal(d.total, 0);
+  assert.match(d.note, /variant half-n, half-s, half-e or half-w/);
+  const a = await off.run('apply', { ops: [add, { ...add, at: { q: 5, r: 5, level: 0 } }] });
+  assert.equal(a.outcomes[0].ok, true, 'the old reading');
+  assert.equal(a.rollback, undefined);
+  assert.equal(off.counters.applied, 1);
+  assert.equal((await off.run('get_build', {})).topology, undefined);
+  const on = createTools(hex);
+  assert.equal((await on.run('find_sockets', { family: 'drawer' })).total, 1);
+  assert.ok((await on.run('get_build', {})).topology);
+  const { toolSpecsFor } = await import('../src/tools.mjs');
+  const fs = (o) => toolSpecsFor(o).find((t) => t.name === 'find_sockets').description;
+  assert.ok(fs({}).includes('one body') && !fs({ topology: false }).includes('one body'));
+});

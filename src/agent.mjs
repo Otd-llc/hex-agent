@@ -77,25 +77,37 @@ Working method for this session: plan, then batch. First survey with get_build, 
 // The role-graph planner (A50) is off until an A/B against the interactive default says otherwise.
 // Citation check (L19): offline on 1849 traces it would have sent back 4 fails (3 overclaims) and 3
 // passes, all 3 citing a wrong ref; off until a live A/B.
-export const DEFAULT_FEATURES = { acceptance: false, abstain: true, rolegraph: false, cites: false };
+// ewDrawers, rollbackRead and topology are the Modal-review fixes 1-3 (default on): a batch turns one
+// off (--features=-topology) for its before arm on the same commit, so each gain keeps a known cause.
+export const DEFAULT_FEATURES = { acceptance: false, abstain: true, rolegraph: false, cites: false, ewDrawers: true, rollbackRead: true, topology: true };
 
-// Parse --features: a list of names turns exactly those on; 'none' turns all off; absent keeps the defaults.
+// Parse --features: a list of names turns exactly those on; 'none' turns all off; absent keeps the defaults;
+// -name / +name (every entry signed) turn one default off or on.
 export function parseFeatures(arg) {
   if (arg == null || arg === true || arg === '') return { ...DEFAULT_FEATURES };
-  const on = String(arg).split(',').filter((f) => f && f !== 'none');
+  const list = String(arg).split(',').filter(Boolean);
+  if (list.length && list.every((f) => /^[+-]/.test(f))) {
+    const bad = list.filter((f) => !(f.slice(1) in DEFAULT_FEATURES));
+    if (bad.length) throw new Error(`unknown feature ${bad.join(', ')}: ${Object.keys(DEFAULT_FEATURES).join(', ')}`);
+    return { ...DEFAULT_FEATURES, ...Object.fromEntries(list.map((f) => [f.slice(1), f[0] === '+'])) };
+  }
+  const on = list.filter((f) => f !== 'none');
   const unknown = on.filter((f) => !(f in DEFAULT_FEATURES));
   if (unknown.length) throw new Error(`unknown feature ${unknown.join(', ')}: ${Object.keys(DEFAULT_FEATURES).join(', ')} or none`);
-  return Object.fromEntries(Object.keys(DEFAULT_FEATURES).map((f) => [f, on.includes(f)]));
+  // A plain list (or none) sets the behaviour features only: the fixes stay on unless signed off,
+  // so an older command line (--features=abstain) does not quietly run the pre-fix agent.
+  return Object.fromEntries(Object.keys(DEFAULT_FEATURES).map((f) => [f, FIXES.includes(f) ? (on.includes(f) || DEFAULT_FEATURES[f]) : on.includes(f)]));
 }
+const FIXES = ['ewDrawers', 'rollbackRead', 'topology'];
 
 // Pushbacks on a finish whose own tests disagree with it, before it is taken as it is.
 const PUSHBACKS = 2;
 
 export async function runAgent({ hex, model, brief, budget = {}, ledger = null, purpose = 'dev', runId = null, strategy = 'interactive', features = {}, onEvent = () => {} }) {
   if (!(strategy in STRATEGIES)) throw new Error(`unknown strategy ${strategy}: ${Object.keys(STRATEGIES).join(', ')}`);
-  const { acceptance, abstain, rolegraph, cites } = { ...DEFAULT_FEATURES, ...features };
+  const { acceptance, abstain, rolegraph, cites, ewDrawers, rollbackRead, topology } = { ...DEFAULT_FEATURES, ...features };
   const instructions = INSTRUCTIONS + (acceptance ? ACCEPTANCE : '') + (abstain ? ABSTAIN : '') + (rolegraph ? ROLEGRAPH : '') + STRATEGIES[strategy];
-  const specs = toolSpecsFor({ acceptance, abstain, rolegraph });
+  const specs = toolSpecsFor({ acceptance, abstain, rolegraph, topology });
   const offered = new Set(specs.map((t) => t.name));
   let pushbacks = 0;
   const maxTurns = budget.maxTurns ?? 30;
@@ -116,7 +128,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     events.push(ev);
     onEvent(ev);
   };
-  const tools = createTools(hex, { onEvent: emit, acceptance });
+  const tools = createTools(hex, { onEvent: emit, acceptance, fixes: { ewDrawers, rollbackRead, topology } });
   const usage = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, calls: 0 };
   const items = [{ role: 'user', content: brief }];
   let finish = null;

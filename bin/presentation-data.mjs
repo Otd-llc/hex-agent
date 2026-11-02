@@ -250,8 +250,13 @@ function metaUse() {
       const m = r.t.model;
       const u = (by[m] ??= { suites: new Set(), runs: 0, calls: 0, serverErrors: 0, servedBy: {}, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0, tokenCostUsd: 0 });
       u.suites.add(suite); u.runs++; u.tokenCostUsd += r.row.costUsd ?? 0;
-      for (const e of r.t?.events ?? []) {
-        if (e.type === 'model_error') u.serverErrors++;
+      const ev = r.t?.events ?? [];
+      for (const [i, e] of ev.entries()) {
+        if (e.type === 'model_error') {
+          u.serverErrors++;
+          // Retried successfully: an answered call follows the error in the same run.
+          if (ev.slice(i + 1).some((x) => x.type === 'model')) u.serverErrorsThenAnswered = (u.serverErrorsThenAnswered ?? 0) + 1;
+        }
         if (e.type !== 'model') continue;
         u.calls++;
         u.servedBy[e.servedBy ?? 'not recorded'] = (u.servedBy[e.servedBy ?? 'not recorded'] ?? 0) + 1;

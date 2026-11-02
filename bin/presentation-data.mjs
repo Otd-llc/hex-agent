@@ -148,6 +148,21 @@ const points = [
   { key: 'p11', label: '11-02 M5', host: 'Meta Model API', model: 'muse-spark-1.3', effort: 'low', repeat: 5, site: 'deploy 15b, da0834cc (viz d726540)', suites: S('11-02T14-16-28-867Z'), source: 'EVALUATION.md "Meta Model API, the frozen agent"' },
 ].map((p) => ({ ...p, ...score(p.suites) }));
 
+// The demo set (evals/briefs-demo.json, purpose demo, written for the video, not an evaluation):
+// per brief, every run of every demo suite, so the video's "chosen from N runs" traces here.
+const DEMO = S('11-02T18-42-02-972Z', '11-02T20-53-43-549Z', '11-02T21-45-05-881Z');
+const demo = (() => {
+  const all = rows(DEMO);
+  const by = {};
+  for (const r of all) {
+    const b = (by[r.id] ??= { runs: 0, passed: 0, cut: 0 });
+    b.runs++;
+    if (r.cut) b.cut++;
+    else if (r.pass) b.passed++;
+  }
+  return { suites: DEMO, runs: all.length, passed: all.filter((r) => !r.cut && r.pass).length, perBrief: by };
+})();
+
 // The held-out set on the frozen agent. x1 was pre-committed and is the headline; the owner
 // decided the x4 after seeing x1 (RULES.md), so the pooled x5 is secondary, clustered by brief.
 // Scored as run: rescore.mjs is never run on these dirs (a rescore would be a second column).
@@ -271,7 +286,7 @@ function metaUse() {
   return Object.fromEntries(Object.entries(by).map(([m, u]) => [m, { ...u, suites: u.suites.size, cachedShare: pct(u.cachedInputTokens / (u.inputTokens || 1)), tokenCostUsd: +u.tokenCostUsd.toFixed(2) }]));
 }
 
-const data = { generatedAt: new Date().toISOString(), method: 'newest rescore per suite (one grader), except the held-out suites, scored as run; host-, harness- and budget-cut runs left out of rates; arms (summary.features) are never pooled; the interval to report is passClustered / overclaimClustered (95%, clustered by brief, t with briefs-1 df below 30 briefs, crit names it, none below 10 briefs) when a brief ran more than once, else Wilson over runs (intervalMethod names which); passCI and overclaimCI are Wilson over runs for every point and are too narrow when briefs repeat; paired differences use the same t rule; tokenCostPerRun is a token-equivalent mean, unrounded to 6 dp', points, heldout, wonder, changes, effort, effortPaired, gpuSource, hosts, metaUse: metaUse() };
+const data = { generatedAt: new Date().toISOString(), method: 'newest rescore per suite (one grader), except the held-out suites, scored as run; host-, harness- and budget-cut runs left out of rates; arms (summary.features) are never pooled; the interval to report is passClustered / overclaimClustered (95%, clustered by brief, t with briefs-1 df below 30 briefs, crit names it, none below 10 briefs) when a brief ran more than once, else Wilson over runs (intervalMethod names which); passCI and overclaimCI are Wilson over runs for every point and are too narrow when briefs repeat; paired differences use the same t rule; tokenCostPerRun is a token-equivalent mean, unrounded to 6 dp', points, heldout, wonder, demo, changes, effort, effortPaired, gpuSource, hosts, metaUse: metaUse() };
 if (process.argv.includes('--write')) writeFileSync(join(root, 'docs/data/presentation.json'), JSON.stringify(data, null, 2) + '\n');
 for (const p of points) console.log(`${p.key} ${p.label.padEnd(9)} ${p.host.padEnd(9)} ${p.passed}/${p.completed} (${p.passRate}%, CI ${p.passCI.map(pct).join('-')}) strict ${p.strictRate}% over ${p.overclaimed} (${p.overclaimRate}%) first ${p.firstScored} hostCut ${p.hostCut} w/o 2c ${p.withoutTwoClusters.passRate}% graders ${p.graders} agent ${p.agentCommit.join(',')} contract ${p.contract.join(',')}`);
 for (const e of effort) console.log(`${e.arm.padEnd(46)} ${e.passed}/${e.completed} (${e.passRate}%) strict ${e.strictRate}% over ${e.overclaimed} calls/run ${e.callsPerRun} tok$/run ${e.tokenCostPerRun}`);

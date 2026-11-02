@@ -12,6 +12,7 @@ nothing is staged or re-performed by hand.
 | Slot | Trace | Status |
 |---|---|---|
 | Main build (preferred) | a Muse Spark 1.3 demo run (Meta Model API, `evals/briefs-demo.json`, suite `18-42-02-972Z`, 14/15 passed); the owner picks from the sandbox page | `runs/suite-2026-11-02T18-42-02-972Z/2026-11-02T18-49-19-520Z-9329ae20/trace.json` (strawberry tower #3, owner pick 2026-11-02; replay rehearsed: 11 steps, none diverged, parts, families and staging match) |
+| Second build | kitchen garden terrace, 12 planters, 12 species (Muse Spark 1.3, `demo-kitchen-terrace-facing`, 3 of 5 passed) | `runs/suite-2026-11-02T21-45-05-881Z/2026-11-02T21-45-05-939Z-a1530f79/trace.json` (owner: both builds, 2026-11-02; replay rehearsed: 8 steps, none diverged, parts, families and staging match) |
 | Main build (fallback) | Muse Spark Open via Baseten, pipe-planter: 30 accepted ops, 3 refusals (`ROUTE_NO_PATH` ×2, `ROUTE_BIN_IN_WAY` ×1), all checks pass | `runs/suite-2026-10-27T21-15-15-341Z/2026-10-27T21-15-15-438Z-7f0ee7d5/trace.json` |
 | Honest "no" (abstention) | a Muse run of an `evals/briefs-a58.json` brief (toddler step or petrol caddy), declined | Muse Spark Open, toddler-step declined in 2 calls: a trace in `runs/suite-2026-10-31T23-27-37-267Z` (pick one; nothing is placed, so it is a caption card, not a replay) |
 | Honest "unmet" | Muse Spark Open, dishwasher-safe brief, material claims reported unmet | in `runs/suite-2026-10-27T22-19-09-363Z` (pick one run) |

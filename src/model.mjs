@@ -8,6 +8,7 @@
 import { claudeCostUsd } from './claude.mjs';
 import { basetenCostUsd } from './baseten.mjs';
 import { hostOf, hostedCostUsd } from './hosted.mjs';
+import { timedPost, requestParams } from './http.mjs';
 
 export const META_BASE = 'https://api.meta.ai/v1';
 
@@ -48,15 +49,14 @@ export function metaModel({ model = 'muse-wonder-1.0', apiKey = process.env.MODE
         prompt_cache_key: 'hex-agent-v1',
         prompt_cache_retention: '24h',
       };
-      const res = await fetchImpl(`${META_BASE}/responses`, {
-        method: 'POST',
+      // Timed like the Baseten and Fireworks adapters, so hosts compare on latency and load.
+      const { res, raw, http } = await timedPost(fetchImpl, `${META_BASE}/responses`, {
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(timeoutMs),
+        body,
+        timeoutMs,
       });
-      const raw = await res.text();
-      if (!res.ok) throw Object.assign(new Error(`Meta API ${res.status}: ${raw.slice(0, 500)}`), { status: res.status });
-      return parseResponse(JSON.parse(raw));
+      if (!res.ok) throw Object.assign(new Error(`Meta API ${res.status}: ${raw.slice(0, 500)}`), { status: res.status, http });
+      return { ...parseResponse(JSON.parse(raw)), http, params: { ...requestParams(body), reasoningEffort: reasoningEffort } };
     },
   };
 }
@@ -77,8 +77,11 @@ export function parseResponse(json) {
     inputTokens: u.input_tokens ?? u.prompt_tokens ?? 0,
     outputTokens: u.output_tokens ?? u.completion_tokens ?? 0,
     cachedInputTokens: u.input_tokens_details?.cached_tokens ?? 0,
+    // Whether the host reported cached tokens at all (0 reported is not the same as none sent).
+    cachedReported: u.input_tokens_details?.cached_tokens != null,
+    reasoningTokens: u.output_tokens_details?.reasoning_tokens ?? null,
   };
-  return { id: json.id, output, calls, text, usage };
+  return { id: json.id, servedBy: json.model ?? null, output, calls, text, usage };
 }
 
 // A scripted stand-in for tests. Every trace it touches says kind: 'mock'.

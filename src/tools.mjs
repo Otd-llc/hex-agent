@@ -117,7 +117,9 @@ const PROP_CODES = new Set(Object.keys(PROP_FIX));
 
 const TOPOLOGY_SOCKETS = 'Bases that touch with no connector on the wall between them are one body; a side connector on a wall keeps two groups apart and joins them, so every wall between two groups needs one (get_build lists the walls and groups). ';
 const ROLLBACK_NOTE = 'Nothing in this batch is on the build: one op was refused, so every op in it was undone. ' +
-  'Fix or drop the refused op and send the batch again; refs and offers from this batch do not exist.';
+  'Fix or drop the refused op and send the batch again (a refusal with details.steps gives the whole batch with it fixed: send those ops as one apply); refs and offers from this batch do not exist.';
+// Deploy 15's whole-batch way forward on a rolled-back refusal (viz 2c4d2b1f).
+const WHOLE_BATCH_STEPS = /details\.steps is the batch again/;
 const NOTHING_BELOW_FIX = 'A base went on with nothing below it: it floats and the build will not stand. ' +
   'Remove it (or undo), place the storey below first, and build from the ground up.';
 // The drawer styles an east or west half takes (values.drawerStyle minus classic and longbin, probed on deploy 14).
@@ -657,6 +659,22 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes
     };
   }
 
+  // A refusal in a rolled-back batch. With nothing landed before it, the page worked its hints out on
+  // the state the rollback restored: all of them hold. After a landed op they were worked out on the
+  // undone interim state, except the whole-batch details.steps of deploy 15 (viz 2c4d2b1f: the
+  // batch again with this op changed, its message says so); the rest are dropped.
+  function rolledBackRefusal(o, landedBefore) {
+    const s = summarizeOutcome(o);
+    if (!landedBefore) return s;
+    const { tryInstead, alternatives, ...rest } = s;
+    if (rest.details?.steps && !WHOLE_BATCH_STEPS.test(o.message ?? '')) {
+      const { steps, ...d } = rest.details;
+      if (Object.keys(d).length) rest.details = d;
+      else delete rest.details;
+    }
+    return rest;
+  }
+
   const roleOf = (ref) => (roles.has(ref) ? { role: roles.get(ref) } : {});
 
   const handlers = {
@@ -963,9 +981,9 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes
       const out = {
         rolledBack: r.rolledBack,
         outcomes: FIX.rollbackRead && r.rolledBack
-          ? r.outcomes.map((o) => (o.ok
+          ? r.outcomes.map((o, i) => (o.ok
             ? { ok: false, op: o.op.op, code: 'ROLLED_BACK', message: 'accepted, then undone with the rest of the batch: not on the build' }
-            : (({ tryInstead, alternatives, ...rest }) => rest)(summarizeOutcome(o))))
+            : rolledBackRefusal(o, r.outcomes.slice(0, i).some((x) => x.ok))))
           : r.outcomes.map(summarizeOutcome),
       };
       if (FIX.rollbackRead && r.rolledBack) out.rollback = ROLLBACK_NOTE;

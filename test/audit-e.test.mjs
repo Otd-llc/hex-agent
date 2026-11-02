@@ -413,3 +413,23 @@ test('fix 4: an all-met finish is checked against the build: rules, mesh, floati
   assert.match(capped[0].why, /OPEN_CAP_FACE/);
   assert.equal(verifyIssues({ requirements: [met('Bins on top')] }, state, { issues: [{ severity: 'info', code: 'OPEN_CAP_FACE', message: 'open' }], meshClash: 'clear' }, []), null, 'open caps matter only to a closed requirement');
 });
+
+test('fix 2 on deploy 15: whole-batch details.steps kept, interim hints dropped, first-op hints kept', async () => {
+  const a = { op: 'place', at: { q: 0, r: 0, level: 0 }, variant: 'half-s' };
+  const b = { op: 'place', at: { q: 0, r: 0, level: 1 }, variant: 'full' };
+  const fixed = [a, { ...b, variant: 'half-s' }];
+  const run = async (outcomes) => (await createTools(fakeHex({ applyAll: () => ({ rolledBack: true, outcomes }) })).run('apply', { ops: [a, b] })).outcomes;
+  // Deploy 15: the batch again with the refused op changed.
+  const d15 = await run([ok(a), { ...no(b, 'KIND_MISMATCH_BELOW'), message: 'kinds differ. The batch was rolled back: details.steps is the batch again with this op changed.', details: { below: ['half-s'], steps: fixed } }]);
+  assert.deepEqual(d15[1].details.steps, fixed);
+  // Deploy 14: steps and tryInstead after a landed op were the interim state's.
+  const d14 = await run([ok(a), { ...no(b, 'KIND_MISMATCH_BELOW'), details: { below: ['half-s'], steps: [b], tryInstead: b } }]);
+  assert.equal(d14[1].details.steps, undefined);
+  assert.deepEqual(d14[1].details.below, ['half-s']);
+  assert.equal(d14[1].tryInstead, undefined);
+  // The first op refused: nothing landed before it, its hints hold on the restored state.
+  const first = await run([{ ...no(a, 'SITE_TAKEN'), details: { tryInstead: { ...a, at: { q: 1, r: 0, level: 0 } } }, validAlternatives: [{ op: b, at: b.at }] }, ok(b)]);
+  assert.ok(first[0].tryInstead);
+  assert.equal(first[0].alternatives.length, 1);
+  assert.equal(first[1].code, 'ROLLED_BACK');
+});

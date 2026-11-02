@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Results Draft</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface-1: #fcfcfb;
+  --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --band: rgba(11,11,11,0.035);
+  --series-pass: #2a78d6; --series-strict: #eb6834; --series-over: #1baf7a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface-1: #1a1a19;
+    --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --band: rgba(255,255,255,0.04);
+    --series-pass: #3987e5; --series-strict: #d95926; --series-over: #199e70;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface-1: #1a1a19;
+  --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --band: rgba(255,255,255,0.04);
+  --series-pass: #3987e5; --series-strict: #d95926; --series-over: #199e70;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--text-primary); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 24px; margin: 0 0 4px; }
+h2 { font-size: 18px; margin: 40px 0 6px; }
+p, li { color: var(--text-secondary); max-width: 76ch; }
+.draft { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; border: 1px solid var(--border); padding: 2px 8px; border-radius: 4px; color: var(--text-secondary); }
+.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-top: 12px; position: relative; }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.key { width: 18px; height: 0; border-top: 2px solid; display: inline-block; }
+.key.dot { width: 8px; height: 8px; border: none; border-radius: 50%; }
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+.scroller { overflow-x: auto; }
+.scroller svg { min-width: 760px; }
+svg text { fill: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+svg .lab { fill: var(--text-secondary); font-size: 11.5px; }
+svg .val { fill: var(--text-primary); font-size: 11.5px; font-weight: 600; }
+svg .ptitle { fill: var(--text-primary); font-size: 13px; font-weight: 600; }
+.tip { position: absolute; pointer-events: none; background: var(--surface-1); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font-size: 12.5px; box-shadow: 0 4px 16px rgba(0,0,0,.12); display: none; min-width: 220px; z-index: 2; }
+.tip b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.tip .r { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+.tip .m { color: var(--text-muted); font-size: 11.5px; margin-top: 4px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+th { color: var(--text-secondary); font-weight: 600; }
+td.n { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+th.n { text-align: right; }
+.wrap { overflow-x: auto; }
+ol.changes li { margin: 4px 0; }
+.who { font-size: 11.5px; font-weight: 600; color: var(--text-primary); }
+.notes li { margin: 6px 0; }
+details summary { cursor: pointer; color: var(--text-secondary); font-size: 13px; margin-top: 10px; }
+.toggle { float: right; font: inherit; font-size: 12px; background: none; border: 1px solid var(--border); color: var(--text-secondary); border-radius: 4px; padding: 2px 8px; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <button class="toggle" id="theme" type="button">Toggle theme</button>
+  <span class="draft">Draft · not published · owner review</span>
+  <h1>hex-agent results</h1>
+  <p>Muse Spark Open drives the live Hex Cluster configurator through its public browser API. Code checks grade every finished build. Nothing was trained: the changes below are to the agent's tools, prompt and guards, and to the configurator (One Thousand Drones' work, credited to it). Every number names its suite folder, and all of them are graded by one grader (<code id="grader"></code>).</p>
+
+  <h2>Pass rate and overclaim rate on the 36 fixed briefs</h2>
+  <p>Muse Spark Open only, reasoning effort low, the default agent. One point per batch: ×5 means each of the 36 briefs ran five times. Whiskers are 95% Wilson intervals: they show spread, not a significance test. Numbered marks show what changed between batches.</p>
+  <div class="card" id="chartCard">
+    <div class="legend" id="legend"></div>
+    <div class="scroller"><svg id="chart" role="img" aria-labelledby="chartDesc"><desc id="chartDesc">Pass rate, strict pass rate and overclaim rate per batch; the table below lists every value.</desc></svg></div>
+    <div class="tip" id="tip"></div>
+    <details><summary>Table view of the chart</summary><div class="wrap"><table id="pointTable"></table></div></details>
+  </div>
+  <ol class="changes" id="changes"></ol>
+
+  <h2>Table 1. Reasoning effort, low against high</h2>
+  <p>Descriptive. The Modal rows share one host, one site version and one brief set. The Baseten rows are an earlier ablation on 20 briefs with older agent code, so compare within a block, not across.</p>
+  <div class="card wrap"><table id="effort"></table></div>
+
+  <h2>Table 2. Why runs failed (Modal window)</h2>
+  <p>Every failed trace from the 12 Modal suites (875 completed runs) read by hand and given one cause: MODEL (the model's choice), AGENT (this entry's tools or prompt), CONFIGURATOR (the product's rules or answers), GRADER (our check was wrong) or ENDPOINT (the host). Classes overlap in a few runs, so the column does not sum exactly to 66.</p>
+  <div class="card wrap"><table id="fails"></table></div>
+
+  <h2>Table 3. One model, three hosts</h2>
+  <p>Descriptive: the brief sets, run counts, site versions and agent versions differ between hosts, so this is not a ranking. Cost is what the host bills for.</p>
+  <div class="card wrap"><table id="hosts"></table></div>
+
+  <h2>Notes</h2>
+  <ul class="notes" id="notes"></ul>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const el = (tag, attrs = {}, text) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); if (text != null) e.textContent = text; return e; };
+const h = (tag, text, cls) => { const e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; };
+const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+$('theme').onclick = () => { const r = document.documentElement; const dark = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; r.dataset.theme = dark ? 'light' : 'dark'; };
+
+Promise.all([fetch('presentation.json').then((r) => r.json()), fetch('suite-index.json').then((r) => r.json())]).then(([D, I]) => {
+  const idx = Object.fromEntries(I.suites.map((r) => [r.suite, r]));
+  const commitOf = (p) => [...new Set(p.suites.flatMap((s) => idx[s]?.agentCommit ?? []))].join(', ');
+  $('grader').textContent = D.points[0].graders.join(', ');
+  const P = D.points;
+
+  // ---- chart: two stacked panels on one shared x ----
+  const W = 1000, padL = 46, padR = 16, top = 44, gap = 78, hA = 230, hB = 120, xLab = 64;
+  const H = top + hA + gap + hB + xLab;
+  const svg = $('chart'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const step = (W - padL - padR) / P.length;
+  const x = (i) => padL + step * (i + 0.5);
+  const yA = (v) => top + hA - ((v - 75) / 25) * hA;          // 75..100 %
+  const yB = (v) => top + hA + gap + hB - (v / 12) * hB;      // 0..12 %
+  // host bands
+  const hosts = []; P.forEach((p, i) => { const last = hosts.at(-1); if (last && last.host === p.host) last.to = i; else hosts.push({ host: p.host, from: i, to: i }); });
+  hosts.forEach((b, k) => {
+    if (k % 2 === 0) svg.append(el('rect', { x: padL + step * b.from, y: top - 18, width: step * (b.to - b.from + 1), height: hA + gap + hB + 18, fill: 'var(--band)' }));
+    svg.append(el('text', { x: padL + step * (b.from + b.to + 1) / 2, y: top - 6, 'text-anchor': 'middle', class: 'lab' }, b.host));
+  });
+  // grids + axes
+  for (const v of [75, 80, 85, 90, 95, 100]) { svg.append(el('line', { x1: padL, x2: W - padR, y1: yA(v), y2: yA(v), stroke: 'var(--grid)' })); svg.append(el('text', { x: padL - 6, y: yA(v) + 4, 'text-anchor': 'end' }, v + '%')); }
+  for (const v of [0, 4, 8, 12]) { svg.append(el('line', { x1: padL, x2: W - padR, y1: yB(v), y2: yB(v), stroke: v ? 'var(--grid)' : 'var(--axis)' })); svg.append(el('text', { x: padL - 6, y: yB(v) + 4, 'text-anchor': 'end' }, v + '%')); }
+  svg.append(el('text', { x: padL, y: top + hA + gap - 14, class: 'ptitle' }, 'Overclaim rate (a requirement claimed met that the build does not meet)'));
+  svg.prepend(el('text', { x: padL, y: 12, class: 'ptitle' }, 'Passed (every code check) and strict (passed, and the model reported every requirement met)'));
+  // whiskers, lines within a host band, markers
+  const series = [
+    { key: 'pass', v: (p) => p.passRate, ci: (p) => p.passCI, y: yA, color: '--series-pass', name: 'Passed' },
+    { key: 'strict', v: (p) => p.strictRate, y: yA, color: '--series-strict', name: 'Strict' },
+    { key: 'over', v: (p) => p.overclaimRate, ci: (p) => p.overclaimCI, y: yB, color: '--series-over', name: 'Overclaimed' },
+  ];
+  for (const s of series) {
+    for (const b of hosts) {
+      const pts = P.slice(b.from, b.to + 1).map((p, j) => `${x(b.from + j)},${s.y(s.v(p))}`).join(' ');
+      if (b.to > b.from) svg.append(el('polyline', { points: pts, fill: 'none', stroke: `var(${s.color})`, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+    }
+    P.forEach((p, i) => {
+      const off = s.key === 'strict' ? 6 : 0;
+      if (s.ci) { const [lo, hi] = s.ci(p).map((c) => c * 100); svg.append(el('line', { x1: x(i) + off, x2: x(i) + off, y1: s.y(Math.max(lo, s.key === 'over' ? 0 : 75)), y2: s.y(Math.min(hi, s.key === 'over' ? 12 : 100)), stroke: `var(${s.color})`, 'stroke-width': 1, opacity: 0.55 })); }
+      const full = p.briefs === 36 && p.repeat === 5;
+      svg.append(el('circle', { cx: x(i) + off, cy: s.y(s.v(p)), r: 4.5, fill: full ? `var(${s.color})` : 'var(--surface-1)', stroke: full ? 'var(--surface-1)' : `var(${s.color})`, 'stroke-width': 2 }));
+    });
+  }
+  // selective direct labels: the last default-batch point of each panel's lead series
+  const lastFull = P.map((p, i) => [p, i]).filter(([p]) => p.repeat === 5).at(-1);
+  svg.append(el('text', { x: x(lastFull[1]) + 10, y: yA(lastFull[0].passRate) - 8, class: 'val' }, lastFull[0].passRate + '%'));
+  svg.append(el('text', { x: x(lastFull[1]) + 10, y: yB(lastFull[0].overclaimRate) - 8, class: 'val' }, lastFull[0].overclaimRate + '%'));
+  // change marks between points
+  const keyIx = Object.fromEntries(P.map((p, i) => [p.key, i]));
+  D.changes.forEach((c, n) => {
+    if (!c.who.length) return;
+    const cx = (x(keyIx[c.between[0]]) + x(keyIx[c.between[1]])) / 2, cy = top + hA + 22;
+    svg.append(el('circle', { cx, cy, r: 9, fill: 'var(--surface-1)', stroke: 'var(--axis)' }));
+    svg.append(el('text', { x: cx, y: cy + 4, 'text-anchor': 'middle', class: 'lab' }, String(n + 1)));
+  });
+  // x labels
+  P.forEach((p, i) => {
+    svg.append(el('text', { x: x(i), y: top + hA + gap + hB + 18, 'text-anchor': 'middle', class: 'lab' }, p.label));
+    svg.append(el('text', { x: x(i), y: top + hA + gap + hB + 33, 'text-anchor': 'middle' }, `×${p.repeat}${p.briefs !== 36 ? ` · ${p.briefs} briefs` : ''}`));
+    svg.append(el('text', { x: x(i), y: top + hA + gap + hB + 48, 'text-anchor': 'middle' }, `n=${p.completed}`));
+  });
+  // legend (line keys + filled/hollow note)
+  for (const s of series) { const sp = h('span'); const k = h('i', null, 'key'); k.style.borderColor = `var(${s.color})`; sp.append(k, document.createTextNode(s.name)); $('legend').append(sp); }
+  { const sp = h('span'); const k = h('i', null, 'key dot'); k.style.border = '2px solid var(--text-muted)'; k.style.background = 'var(--surface-1)'; sp.append(k, document.createTextNode('hollow: one run per brief, or not all 36 briefs')); $('legend').append(sp); }
+  // hover: crosshair on the x slot, one tooltip for every series
+  const cross = el('line', { y1: top - 18, y2: top + hA + gap + hB, stroke: 'var(--axis)', visibility: 'hidden' }); svg.append(cross);
+  const tip = $('tip');
+  const show = (i, evt) => {
+    const p = P[i]; cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.setAttribute('visibility', 'visible');
+    tip.replaceChildren();
+    tip.append(h('div', `${p.label} · ${p.host} · ${p.site}`, 'm'));
+    for (const s of series) {
+      const r = h('div', null, 'r'); const k = h('i', null, 'key'); k.style.borderColor = `var(${s.color})`;
+      const raw = s.key === 'pass' ? `${p.passed}/${p.completed}` : s.key === 'strict' ? `${p.strict}/${p.completed}` : `${p.overclaimed}/${p.completed}`;
+      r.append(k, h('b', `${s.v(p)}%`), document.createTextNode(` ${s.name.toLowerCase()} (${raw})`)); tip.append(r);
+    }
+    tip.append(h('div', `agent ${commitOf(p)} · contract ${(p.contract.length ? p.contract : (idx[p.suites[0]]?.contract ?? [])).join(', ')}`, 'm'));
+    tip.append(h('div', `first scored ${p.firstScored}/${p.completed}; without two-clusters ${p.withoutTwoClusters.passRate}%`, 'm'));
+    if (p.note) tip.append(h('div', p.note, 'm'));
+    const card = $('chartCard').getBoundingClientRect(), sv = svg.getBoundingClientRect();
+    const px = sv.left - card.left + (x(i) / W) * sv.width;
+    tip.style.display = 'block'; tip.style.top = '40px';
+    tip.style.left = Math.min(Math.max(8, px + 14), card.width - tip.offsetWidth - 8) + 'px';
+  };
+  P.forEach((p, i) => {
+    const hit = el('rect', { x: padL + step * i, y: top - 18, width: step, height: hA + gap + hB + 18, fill: 'transparent', tabindex: 0 });
+    hit.addEventListener('pointermove', () => show(i)); hit.addEventListener('focus', () => show(i));
+    hit.addEventListener('pointerleave', () => { tip.style.display = 'none'; cross.setAttribute('visibility', 'hidden'); });
+    hit.addEventListener('blur', () => { tip.style.display = 'none'; cross.setAttribute('visibility', 'hidden'); });
+    svg.append(hit);
+  });
+
+  // ---- table view of the chart ----
+  const table = (t, head, rows, numCols = []) => {
+    const tr = h('tr'); head.forEach((c, j) => { const th = h('th', c); if (numCols.includes(j)) th.className = 'n'; tr.append(th); }); t.append(tr);
+    for (const r of rows) { const row = h('tr'); r.forEach((c, j) => { const td = h('td', c); if (numCols.includes(j)) td.className = 'n'; row.append(td); }); t.append(row); }
+  };
+  const ci = (c) => `${(c[0] * 100).toFixed(1)}–${(c[1] * 100).toFixed(1)}`;
+  table($('pointTable'), ['batch', 'host', 'site', 'agent', 'runs', 'passed', '95% CI', 'strict', 'overclaimed', 'first scored', 'w/o two-clusters', 'suites'],
+    P.map((p) => [p.label, p.host, p.site, commitOf(p), `${p.completed}${p.hostCut ? ` (+${p.hostCut} host-cut)` : ''}`, `${p.passed} (${p.passRate}%)`, ci(p.passCI), `${p.strict} (${p.strictRate}%)`, `${p.overclaimed} (${p.overclaimRate}%)`, String(p.firstScored), `${p.withoutTwoClusters.passed}/${p.withoutTwoClusters.completed} (${p.withoutTwoClusters.passRate}%)`, p.suites.map((s) => 'runs/' + s).join(' ')]), [4, 5, 6, 7, 8, 9, 10]);
+
+  // ---- change list ----
+  D.changes.forEach((c, n) => {
+    const li = h('li'); if (!c.who.length) li.style.color = 'var(--text-muted)';
+    li.append(h('span', `${c.who.length ? c.who.join(' + ') : 'no change'}: `, 'who'));
+    li.append(document.createTextNode(`Agent: ${c.agent}. Configurator: ${c.configurator}. (${c.source})`));
+    $('changes').append(li);
+  });
+
+  // ---- table 1: effort ----
+  const money = (v) => (v == null ? 'not measured' : '$' + v.toFixed(3));
+  table($('effort'), ['arm', 'runs', 'passed', 'strict', 'overclaimed', 'calls / run', 'token-equivalent $ / run', 'GPU $ / run (billed basis)'],
+    D.effort.map((e) => [e.arm, String(e.completed), `${e.passed} (${e.passRate}%)`, `${e.strictRate}%`, String(e.overclaimed), String(e.callsPerRun), money(e.tokenCostPerRun), e.arm.startsWith('Modal') ? (e.arm.includes('S2, S3a, SB') ? '$0.060–0.068 (S3a, SB; S2 not measured)' : money(e.gpuCostPerRun)) : 'n/a (token billed)']), [1, 2, 3, 4, 5, 6]);
+
+  // ---- table 2: failure classes (Modal review section 1, read by hand) ----
+  table($('fails'), ['class', 'failed runs', 'cause', 'what happened'], [
+    ['two-clusters topology', '18', 'MODEL', 'connectors on most walls, so no pairs; 17 of the 18 claimed the pairs met (overclaims)'],
+    ['e/w half-base drawer dead end', '16', 'AGENT', 'drawer sockets on east/west half bases need the slide style; the agent never asked for it (Modal review fix 1, now on, unmeasured)'],
+    ['same-corner-conflict', '10', 'MODEL', 'a drawer and a spike "at the same corner" claimed met; the configurator does not allow it'],
+    ['rolled-back batch misread', '~6', 'AGENT, CONFIGURATOR', 'a refused op rolled the batch back and the agent read the rest as placed (fix 2 + deploy 15)'],
+    ['A58 abstention briefs', '6', 'MODEL and GRADER', 'moving-clock ×5, petrol-caddy ×1; part grader regexes since corrected (G0)'],
+    ['pipe-planter', '2', 'MODEL', 'route not completed'],
+    ['decline graded as a fail', '1', 'GRADER', 'an honest decline the gate did not count (G0)'],
+    ['singletons', '3', 'MODEL', 'one-off misses'],
+    ['S1-c9 model errors', '2', 'ENDPOINT, AGENT bug', 'endpoint outage 00:35–01:05 UTC; harness errors'],
+    ['Fireworks F1 (not in the 66)', '5', 'ENDPOINT', 'three calls in a row hung to the 120 s timeout; runs left out of the rate'],
+  ], [1]);
+
+  // ---- table 3: hosts (provider page facts + call timing from traces) ----
+  const Hs = D.hosts, s = (v) => (v == null ? 'n/a' : (v / 1000).toFixed(1) + ' s');
+  table($('hosts'), ['host', 'served as', 'runs', 'model calls', 'cost', 'call latency p50 / p95', 'calls the host did not answer', 'runs lost to the host'], [
+    ['Baseten', 'Model API, token billed', '1,690', '26,214', '$94.32 (ledger)', `${s(Hs['Baseten (deploy 14 control only)'].p50Ms)} / ${s(Hs['Baseten (deploy 14 control only)'].p95Ms)} (deploy-14 control; older traces carry no timing)`, '0 recorded', '0'],
+    ['Modal', 'Dedicated endpoint, 4×B300, ≤1 replica, GPU billed', '876', '12,332', '$105.01 (billed)', `${s(Hs.Modal.p50Ms)} / ${s(Hs.Modal.p95Ms)}`, '0 in eval suites; no call succeeded 00:35–01:05 UTC (S1-c9)', '2 (S1-c9)'],
+    ['Fireworks AI', 'Serverless, token billed', '39', '460', '$1.75 (ledger; bill may be higher)', `${s(Hs.Fireworks.p50Ms)} / ${s(Hs.Fireworks.p95Ms)}`, `${Hs.Fireworks.failedCalls.calls} (${Hs.Fireworks.failedCalls.timeouts} hung to 120 s, ${Hs.Fireworks.failedCalls.http5xx} × 503)`, String(Hs.Fireworks.hostCutRuns)],
+    ['Meta', 'Model API', '0', '0', '$0 (kept for the demo and judging)', '—', '—', '—'],
+  ], [2, 3]);
+
+  // ---- notes ----
+  for (const t of [
+    'One grader throughout. Every suite was rescored from its traces with the current checks; the first score is kept beside it (table view). Where a check was ours and wrong, it was fixed and every suite rescored, never the other way round.',
+    'two-clusters: the brief was reworded on 2026-11-02 (G0, 3abc0c6) because the old wording was ambiguous, and its check was tightened. Runs that saw the old wording are graded by the new check, so part of the drop from first score in the early batches is the grader, not the model. The table view gives every batch without two-clusters.',
+    'Runs the model host cut short (no answer after the retries) are left out of the rate and counted in the table view: 5 in Fireworks F1.',
+    'Claude (Anthropic) drove 1,325 development runs of the same agent. Those are development only and are not shown here as results.',
+    'Modal review fixes 1-4 are on (deploy 15 and the agent at 1e98dbf+) but have no before/after measure of their own: Fireworks F1 is the only batch after them, n=31, one run per brief.',
+    'The 18 held-out briefs have not been run.',
+  ]) $('notes').append(h('li', t));
+});
+</script>
+</body>
+</html>

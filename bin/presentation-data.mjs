@@ -9,6 +9,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { budgetCut, infraCut, rescoreFiles, armOf } from '../src/runkey.mjs';
 import { critOrNull } from './stats.mjs';
+import { outcomeOf } from '../src/checks.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
@@ -92,6 +93,8 @@ function score(suites) {
       : { intervalMethod: 'Wilson over runs (one run per brief)' }),
     passAllRepeats: passAll(done),
     firstScored: k((r) => r.first),
+    // What the passes were: builds, compromises (some requirement reported not met), declines.
+    passedBy: Object.fromEntries(['built', 'compromise', 'declined'].map((o) => [o, k((r) => r.pass && outcomeOf(r.t?.finish, r.t?.verdict?.nodes ?? 0) === o)])),
     twoClusters: { completed: tc.length, passed: tc.filter((r) => r.pass).length },
     withoutTwoClusters: { completed: n - tc.length, passed: passed - tc.filter((r) => r.pass).length, passRate: pct((passed - tc.filter((r) => r.pass).length) / (n - tc.length)) },
     callsPerRun: +(done.reduce((a, r) => a + (r.row.calls ?? 0), 0) / n).toFixed(1),

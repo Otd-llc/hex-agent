@@ -78,9 +78,10 @@ parts. See [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).
 
 ## License
 
-The code in this repository: to be decided by the owner before publication.
-Hex Cluster, its configurator and the API are not covered by it; their use is
-governed by the [API terms](https://academy.onethousanddrones.com/hex/api).
+The code in this repository is licensed under the [Apache License 2.0](LICENSE)
+(see [NOTICE](NOTICE)). Hex Cluster, its configurator, the API and the vendored
+API description in `contract/` are not covered by it; their use is governed by
+the [API terms](https://academy.onethousanddrones.com/hex/api).
 
 ## Credit guard
 

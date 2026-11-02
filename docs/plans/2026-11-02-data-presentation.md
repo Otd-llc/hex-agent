@@ -33,6 +33,15 @@ fill the data slots of the submission drafts.
 - `bin/tally.mjs`, `bin/rescore.mjs`, `bin/compare.mjs`, `bin/call-report.mjs`.
 - `docs/submission/WRITEUP.md` and `docs/submission/VIDEO_SCRIPT.md`: drafts with `________` slots.
 - `HACKATHON_DELTA.md`: what pre-existed and what is new.
+- Lane 1's draft "Compute used, by provider" page (2026-11-02, local only, outside this repo, not
+  committed or published): `C:/zzz/_premades/provider-page/OTD-ComputeByProvider-Page-2026-11-02-public.md`
+  and its facts file `C:/zzz/_premades/provider-page/facts-compute-2026-11-02.yaml` (source + date per
+  number, 14-row claims table, owner attestation line). Provider table: Baseten 1,690 runs / 26,214
+  calls / $94.32 ledger; Modal 876 / 12,332 / $105.01 billed; Fireworks 39 / 460 / $1.75 ledger (bill
+  may be higher); Meta 0. Claude listed as development tooling only (1,326 runs). This IS the provider
+  table of step 4: reuse it and its facts file, do not rebuild it. Lane 3 checked the Fireworks row
+  against `.spend/fireworks.jsonl` (460 calls, 39 distinct runs with a billed call, $1.7541; the 40th
+  suite row, smoke three-storey, made 0 successful calls). Neither file holds an endpoint host.
 
 ## Steps
 
@@ -60,6 +69,10 @@ tables in draft), before anything is published.
 
 - The judging criteria (paste them; the presentation is weighted to them).
 - The Meta Model API demo runs (`________` in WRITEUP.md) are still to be recorded on the final site.
+- The provider page: the owner ticks the 14 claims and signs the attestation line before it goes
+  out. Claim 13 (credit amounts: Baseten $100, Modal $100 + $30, Fireworks $100, Meta $150) rests on
+  the owner's records only: back it with a sponsor email or console screenshot, or drop the line.
+  The Meta row reads 0 until the demo runs; the page's review-by date is 2026-11-04.
 
 ## Backlog (after 2026-11-04)
 

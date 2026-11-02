@@ -859,3 +859,25 @@ Traces read:
 
 Descriptive: one run per brief, a different host, model, site release and agent commit from every
 other batch, so no comparison is attributed to any of them. Ledger: Meta $1.92 of $150.
+
+### Effort medium on the same briefs (2026-11-02)
+
+Same model, site release and briefs; agent code identical (56ef72c and ab0bfe4 differ only in docs
+and generators). `runs/suite-2026-11-02T12-05-09-842Z`, plus magnetic-lid rerun at the same settings
+(`runs/suite-2026-11-02T12-28-45-889Z`) after its page did not load within 90 s (a harness error,
+left out of every rate; the generators now count harness errors apart from host failures).
+
+| | low | medium |
+|---|---|---|
+| passed | 35/36 | 35/36 |
+| strict | 35 | 34 |
+| overclaimed | 1 (gap-drawer) | 0 |
+| calls per run | 12.6 | 15.6 |
+| token cost per run | $0.052 | $0.075 |
+| reasoning tokens per call | 144 | 307 |
+
+Paired by brief, medium minus low is 0.0 points (95% CI -7.8 to 7.8, 36 briefs): not
+distinguishable. The two arms fail on different briefs: low overclaimed gap-drawer (a notch tray
+called a drawer), medium passed it; medium failed pipe-planter honestly (29 calls, the route refused
+by ROUTE_NO_PATH and PIPE_THROUGH_CELL, the pipe reported unmet), low passed it. Low stays the
+default: same pass count at about 70% of the cost. Meta ledger $4.66 of $150.

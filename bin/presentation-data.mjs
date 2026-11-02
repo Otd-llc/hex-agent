@@ -52,7 +52,8 @@ function rows(suites) {
       const t = tp && existsSync(tp) ? readJson(tp) : null;
       const r = by.get(`${row.id}#${row.attempt}`);
       out.push({ suite: id, grader: re?.graderCommit?.slice(0, 7) ?? 'as run', id: row.id, row, t,
-        cut: budgetCut(row, t) ? 'budget' : infraCut(row, t) ? 'host' : null,
+        // A harness error (the page never answered, the run never started) is not a result either.
+        cut: budgetCut(row, t) ? 'budget' : row.infra === 'harness' || row.error ? 'harness' : infraCut(row, t) ? 'host' : null,
         pass: r ? r.after : row.pass, strict: r ? r.strict : row.strict, overclaimed: r?.overclaimed ?? row.overclaimed, first: row.pass });
     }
   }
@@ -70,7 +71,7 @@ function score(suites) {
   return {
     suites, graders: uniq(all.map((r) => r.grader)),
     briefs: new Set(all.map((r) => r.id)).size,
-    attempted: all.length, completed: n, hostCut: all.filter((r) => r.cut === 'host').length, budgetCut: all.filter((r) => r.cut === 'budget').length,
+    attempted: all.length, completed: n, hostCut: all.filter((r) => r.cut === 'host').length, budgetCut: all.filter((r) => r.cut === 'budget').length, harnessCut: all.filter((r) => r.cut === 'harness').length,
     passed, passRate: pct(passed / n), passCI: wilson(passed, n),
     strict, strictRate: pct(strict / n),
     overclaimed: over, overclaimRate: pct(over / n), overclaimCI: wilson(over, n),
@@ -151,6 +152,11 @@ const effort = [
   { arm: 'Baseten low, 20 briefs x3 (10-27 ablation)', ...score(S('10-27T19-05-33-370Z', '10-27T19-12-30-903Z')) },
   { arm: 'Baseten medium, 20 briefs x3 (10-27 ablation)', ...score(S('10-27T18-36-16-484Z', '10-27T18-44-52-272Z')) },
   { arm: 'Baseten high, 20 briefs x3 (10-27 ablation)', ...score(S('10-27T19-17-51-239Z', '10-27T19-28-29-596Z')) },
+  // Meta Model API, muse-spark-1.3, deploy 15b; agent code identical in both arms (56ef72c and
+  // ab0bfe4 differ only in docs and generators). The medium arm's magnetic-lid lost its page to a
+  // harness error and was rerun at the same settings.
+  { arm: 'Meta Model API low, 36 briefs x1', ...score(S('11-02T11-31-12-330Z')) },
+  { arm: 'Meta Model API medium, 36 briefs x1', ...score(S('11-02T12-05-09-842Z', '11-02T12-28-45-889Z')) },
 ];
 // Low against high on the same briefs: the per-brief difference in pass rate, its SE over
 // briefs and 95% CI, and how correlated the two arms' brief scores are.
@@ -171,6 +177,7 @@ const effortPaired = {
   // Variant only: the low arm pools S2, S3a, SB across three agent commits (guards only),
   // which breaks the comparison key; shown so the difference is visible, not as a result.
   modalHighMinusLowPooledLowVariant: paired(S('11-02T01-04-53-972Z', '11-02T01-43-22-121Z', '11-02T02-54-22-767Z'), S('11-02T02-09-20-221Z')),
+  metaMediumMinusLow: paired(S('11-02T11-31-12-330Z'), S('11-02T12-05-09-842Z', '11-02T12-28-45-889Z')),
   basetenHighMinusLow: paired(S('10-27T19-05-33-370Z', '10-27T19-12-30-903Z'), S('10-27T19-17-51-239Z', '10-27T19-28-29-596Z')),
 };
 

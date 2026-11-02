@@ -20,6 +20,23 @@ function wilson(k, n) {
   return [+(c - h).toFixed(4), +(c + h).toFixed(4)];
 }
 const pct = (x) => Math.round(x * 1000) / 10;
+
+// Repeats of one brief are not independent (Miller 2024, "Adding Error Bars to Evals"):
+// average within each brief first, then a standard error over briefs.
+function byBrief(done, f) {
+  const m = new Map();
+  for (const r of done) { const a = m.get(r.id) ?? []; a.push(f(r) ? 1 : 0); m.set(r.id, a); }
+  return m;
+}
+const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+function clustered(done, f) {
+  const items = [...byBrief(done, f).values()].map(mean);
+  const B = items.length, mu = mean(items);
+  const se = B > 1 ? Math.sqrt(items.reduce((a, x) => a + (x - mu) ** 2, 0) / (B - 1) / B) : null;
+  return { briefs: B, mean: pct(mu), se: se == null ? null : pct(se), ci: se == null ? null : [+Math.max(0, mu - 1.96 * se).toFixed(4), +Math.min(1, mu + 1.96 * se).toFixed(4)] };
+}
+// pass^k: the share of briefs whose every repeat passed (consistency, tau-bench).
+const passAll = (done) => { const v = [...byBrief(done, (r) => r.pass).values()]; return { briefs: v.length, k: Math.min(...v.map((a) => a.length)), allPassed: v.filter((a) => a.every(Boolean)).length }; };
 const q = (xs, f) => { const v = xs.filter(Number.isFinite).sort((a, b) => a - b); return v.length ? v[Math.min(v.length - 1, Math.floor(v.length * f))] : null; };
 
 // Every row of the named suites, scored by the newest rescore.
@@ -57,6 +74,9 @@ function score(suites) {
     passed, passRate: pct(passed / n), passCI: wilson(passed, n),
     strict, strictRate: pct(strict / n),
     overclaimed: over, overclaimRate: pct(over / n), overclaimCI: wilson(over, n),
+    // The interval to show: clustered by brief when a brief ran more than once, else Wilson.
+    passClustered: clustered(done, (r) => r.pass), overclaimClustered: clustered(done, (r) => r.overclaimed),
+    passAllRepeats: passAll(done),
     firstScored: k((r) => r.first),
     twoClusters: { completed: tc.length, passed: tc.filter((r) => r.pass).length },
     withoutTwoClusters: { completed: n - tc.length, passed: passed - tc.filter((r) => r.pass).length, passRate: pct((passed - tc.filter((r) => r.pass).length) / (n - tc.length)) },
@@ -126,6 +146,24 @@ const effort = [
   { arm: 'Baseten medium, 20 briefs x3 (10-27 ablation)', ...score(S('10-27T18-36-16-484Z', '10-27T18-44-52-272Z')) },
   { arm: 'Baseten high, 20 briefs x3 (10-27 ablation)', ...score(S('10-27T19-17-51-239Z', '10-27T19-28-29-596Z')) },
 ];
+// Low against high on the same briefs: the per-brief difference in pass rate, its SE over
+// briefs and 95% CI, and how correlated the two arms' brief scores are.
+function paired(a, b, f = (r) => r.pass) {
+  const A = byBrief(rows(a).filter((r) => !r.cut), f), Bm = byBrief(rows(b).filter((r) => !r.cut), f);
+  const ids = [...A.keys()].filter((k) => Bm.has(k));
+  const xa = ids.map((k) => mean(A.get(k))), xb = ids.map((k) => mean(Bm.get(k)));
+  const d = ids.map((_, i) => xb[i] - xa[i]), md = mean(d);
+  const se = Math.sqrt(d.reduce((s, x) => s + (x - md) ** 2, 0) / (d.length - 1) / d.length);
+  const ma = mean(xa), mb = mean(xb);
+  const cov = ids.reduce((s, _, i) => s + (xa[i] - ma) * (xb[i] - mb), 0);
+  const sd = (xs, m) => Math.sqrt(xs.reduce((s, x) => s + (x - m) ** 2, 0));
+  return { briefs: ids.length, diffPoints: pct(md), sePoints: pct(se), ci95Points: [pct(md - 1.96 * se), pct(md + 1.96 * se)], correlation: +(cov / (sd(xa, ma) * sd(xb, mb) || 1)).toFixed(2) };
+}
+const effortPaired = {
+  modalHighMinusLow: paired(S('11-02T01-04-53-972Z', '11-02T01-43-22-121Z', '11-02T02-54-22-767Z'), S('11-02T02-09-20-221Z')),
+  basetenHighMinusLow: paired(S('10-27T19-05-33-370Z', '10-27T19-12-30-903Z'), S('10-27T19-17-51-239Z', '10-27T19-28-29-596Z')),
+};
+
 // GPU cost per run from the Modal review's efficiency lens (suite wall x rate x 4 GPUs / runs).
 const gpuSource = 'docs/plans/2026-11-02-modal-review.md section 1 (S3a $0.068, SB $0.060, SA $0.100, SC $0.044 / $0.077; S2 not measured)';
 
@@ -140,8 +178,10 @@ const hosts = {
   Fireworks: { ...calls(hostSuites('fireworks')), latencyFrom: 'eval + smoke suites' },
 };
 
-const data = { generatedAt: new Date().toISOString(), method: 'newest rescore per suite (one grader); host- and budget-cut runs left out of rates; 95% Wilson intervals describe spread, not a test', points, changes, effort, gpuSource, hosts };
+const data = { generatedAt: new Date().toISOString(), method: 'newest rescore per suite (one grader); host- and budget-cut runs left out of rates; 95% Wilson intervals describe spread, not a test', points, changes, effort, effortPaired, gpuSource, hosts };
 if (process.argv.includes('--write')) writeFileSync(join(root, 'docs/data/presentation.json'), JSON.stringify(data, null, 2) + '\n');
 for (const p of points) console.log(`${p.key} ${p.label.padEnd(9)} ${p.host.padEnd(9)} ${p.passed}/${p.completed} (${p.passRate}%, CI ${p.passCI.map(pct).join('-')}) strict ${p.strictRate}% over ${p.overclaimed} (${p.overclaimRate}%) first ${p.firstScored} hostCut ${p.hostCut} w/o 2c ${p.withoutTwoClusters.passRate}% graders ${p.graders} agent ${p.agentCommit.join(',')} contract ${p.contract.join(',')}`);
 for (const e of effort) console.log(`${e.arm.padEnd(46)} ${e.passed}/${e.completed} (${e.passRate}%) strict ${e.strictRate}% over ${e.overclaimed} calls/run ${e.callsPerRun} tok$/run ${e.tokenCostPerRun}`);
 for (const [h, c] of Object.entries(hosts)) console.log(h.padEnd(34), JSON.stringify(c));
+for (const p of points) console.log(`${p.key} clustered pass ${p.passClustered.mean}% SE ${p.passClustered.se} CI ${p.passClustered.ci?.map(pct).join('-')} | over ${p.overclaimClustered.mean}% CI ${p.overclaimClustered.ci?.map(pct).join('-')} | pass^${p.passAllRepeats.k} ${p.passAllRepeats.allPassed}/${p.passAllRepeats.briefs}`);
+console.log(JSON.stringify(effortPaired));

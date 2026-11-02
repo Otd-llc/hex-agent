@@ -15,6 +15,8 @@ export function loadEnv(path = '.env') {
       heldFromEnvFile.add(m[1]);
       continue;
     }
-    if (!(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2');
+    // An empty template line (KEY=) sets nothing, so a filled line below it still loads.
+    const value = m[2].replace(/^(['"])(.*)\1$/, '$2');
+    if (value !== '' && !(m[1] in process.env)) process.env[m[1]] = value;
   }
 }

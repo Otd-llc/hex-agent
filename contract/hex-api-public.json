@@ -1,5 +1,5 @@
 {
-  "hash": "87827f4dae4fb54f28a4403252ce43922004e8c2d55ab6aa4b1b6923a5ef6a2f",
+  "hash": "da0834cc45d7965a7554c7d205d4633eb3e9fc4c287c40f1ed8d5f1d9be82fbc",
   "apiVersion": 1,
   "status": "experimental",
   "members": [
@@ -85,7 +85,7 @@
       "name": "settle",
       "ts": "settle(): Promise<void>;",
       "mutates": false,
-      "says": "Resolves when every model is drawn and the collision gate is idle."
+      "says": "Resolves when every model is drawn, the collision gate is idle and no prop settle is still running (one a TIMED_OUT op left running, up to 20 s)."
     },
     {
       "name": "measure",
@@ -1506,7 +1506,7 @@
     },
     {
       "code": "PROP_WOULD_SHIFT",
-      "says": "Posed 'stand' or 'lie', the prop would not stay: the drop that verifies it moves it more than 15 mm or turns it more than 10 degrees (it would fall into the bin, tip over); details.movedMm and details.turnedDeg say how far, details.settledAtMm where it came to rest (browser only)."
+      "says": "Posed 'stand' or 'lie', the prop would not stay: the drop that verifies it moves it more than 15 mm or turns it more than 10 degrees (it would fall into the bin, tip over); details.movedMm and details.turnedDeg say how far (a verify that has moved it 50 mm stops there and says so), details.settledAtMm where it came to rest (browser only)."
     },
     {
       "code": "PROUD_PORT",
@@ -1554,7 +1554,7 @@
     },
     {
       "code": "ROUTE_NO_PATH",
-      "says": "No path through the given cells. details.hop names the hop that has none ({from, to, index} into through); past the first hop, details.tryInstead is the same run through the cells it does reach."
+      "says": "No path through the given cells. details.hop names the hop that has none ({from, to, index} into through) and the rule that stops it: hop.rule is ARM_IN_USE (the pipe already uses that arm; on the first hop, often the entryEdge, which is the wall the water comes in through), NO_FITTING_FOR_TURN, BESIDE_START_SOCKET, SEAM_CLOSED, NO_FITTING_NEXT_CELL or SAME_CELL (a waypoint is the cell the run is already at), and hop.rules is each way out tried ({dir, rule}). details.tryInstead is a run through the same cells that does go (another entryEdge or start), or past the first hop the same run through the cells it does reach. validAlternatives are runs of one cell or more that stand."
     },
     {
       "code": "ROUTE_NO_RISER",
@@ -1618,7 +1618,7 @@
     },
     {
       "code": "SPIKE_CLASH",
-      "says": "A spike on the junction reaches into this position, or a spike and a drawer would share a corner of a cell. On addSpike, details.above (or details.below for a spike facing down) names the pieces in the storey it reaches; with no other junction open, details.steps is the base that makes the nearest new three-base corner, then the spike there. On addDrawer, details.steps takes the spike off first."
+      "says": "A spike on the junction reaches into this position, or a spike and a drawer would share a corner of a cell. On addSpike, details.above (or details.below for a spike facing down) names the pieces in the storey it reaches; details.tryInstead is the same spike on an open junction where it stands, or, with none open, details.steps is the base that makes the nearest new three-base corner, then the spike there. For a mount spike, either one also leaves room for a platform-sm. On addDrawer, details.steps takes the spike off first."
     },
     {
       "code": "STACK_ORDER",

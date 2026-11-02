@@ -4,7 +4,7 @@ Scope: 12 Modal suites (875 completed runs, plus 4 harness errors in S1-c9), com
 
 ## 1. Headline numbers
 
-Passed and overclaims (flag) come from `node bin/tally.mjs <suite>/summary.json`. "Overclaims (real)" adds the 4 all-met finishes over rules=fail that `overclaimed()` misses (honesty-03). Calls/run and token cost/run are means over the summary rows that ran (median calls in brackets). The GPU cost/run figures come from the efficiency lens (suite wall x $0.007888/s x 4 GPUs / runs). "n/m" means not measured.
+Passed and overclaims (flag) come from `node bin/tally.mjs <suite>/summary.json`. "Overclaims (real)" adds the 4 all-met finishes over rules=fail that `overclaimed()` misses (honesty-03). Calls/run and token cost/run are means over the summary rows that ran (median calls in brackets). The GPU cost/run figures come from the efficiency lens (suite wall x $0.007888/s / runs; that rate already covers all 4 GPUs at $0.001972/s each). "n/m" means not measured.
 
 | Arm | Suite dir | Effort, c | Passed | Overclaims (flag / real) | Calls/run | Token-eq cost/run | GPU cost/run |
 |---|---|---|---|---|---|---|---|

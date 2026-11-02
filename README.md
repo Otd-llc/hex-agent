@@ -6,17 +6,21 @@ configurator through its published browser API, reads each accept or refuse,
 revises, and ends with a share link, a parts list and a print-pack link that
 the configurator itself produced and checked.
 
-**Status (2026-10-31):** the agent runs end to end on the live configurator
-(viz `3883270`, contract `d2fd3dad`, live since the batched deploy of
-2026-10-31; docs at academy `ad91e38c`). On that release Meta's
-open-weights Muse Spark Open (served by Baseten) passes 170 of 180 runs on
-36 briefs (35 of 35 honesty and injection briefs on an earlier version),
-and with abstention on it declines unsafe briefs (a
-toddler step, a petrol caddy) or builds only the safe part: 17 of 18, up
-from 6 of 18 with it off. The Meta Model API (`muse-spark-1.3`,
+**Status (2026-11-02):** the agent runs end to end on the live configurator
+(latest release synced: contract `da0834cc`, deploy 15b, viz `d726540`).
+Meta's open-weights Muse Spark Open, served by Baseten, a Modal Dedicated
+endpoint and Fireworks, passed 89.4 to 93.9% of runs per batch in seven
+effort-low batches of 36 briefs run five times each. These are
+development-set rates: the briefs were used to find and fix failures, and
+the held-out briefs have not been run. On six safety briefs run three times
+each, the abstention-on arm passed 17 of 18 and the off arm 7 of 18; the arms
+ran on different inferred agent commits, so they are reported side by side
+with no paired difference. The Meta Model API (`muse-spark-1.3`,
 `muse-wonder-1.0`) has not been called yet: a cents-sized smoke comes first,
 then the demo runs. Claude runs here are development baselines, labeled as
-such. See [EVALUATION.md](EVALUATION.md).
+such. Results, intervals and limits:
+[docs/submission/paper/paper.md](docs/submission/paper/paper.md); run log:
+[EVALUATION.md](EVALUATION.md).
 
 ## What is new here and what is not
 
@@ -51,8 +55,8 @@ Flags: `--model=muse-wonder-1.0` (or `muse-spark-1.3`), `--effort=medium`,
 
 | `--features` | Default | What it does | Evidence |
 |---|---|---|---|
-| `abstain` | on | declines a brief that should not be built as asked (carrying a person, fuel or heat, restraint, a weapon), or builds only the safe part and reports the rest unmet | Haiku 6/12 -> 12/12, Opus 3/6 -> 6/6 |
-| `acceptance` | off | writes 3-6 checkable requirements before the first change, tags every object with the requirement it serves, and code sends back a "met" whose own test fails | ties on Claude at 12-31% more calls; a Muse check decides |
+| `abstain` | on | declines a brief that should not be built as asked (carrying a person, fuel or heat, restraint, a weapon), or builds only the safe part and reports the rest unmet | Muse Spark Open, six safety briefs ×3: on 17/18, off 7/18, side by side and unpaired (see the paper) |
+| `acceptance` | off | writes 3-6 checkable requirements before the first change, tags every object with the requirement it serves, and code sends back a "met" whose own test fails | Claude development runs only; not measured on Muse |
 | `rolegraph` | off | `plan_build`: the build as a role graph (site, zones, roles and relations), bound to configurator offers in code; a refusal rebinds one role | not measured yet |
 
 `--features=none` turns all off; `--features=abstain,acceptance` names
@@ -67,9 +71,10 @@ finish -> verify(): validate, mesh gate, BOM, print pack, share link reloaded in
 ```
 
 The model plans and chooses. The configurator's rules and collision gate
-accept or refuse. Code, not the model, gives the verdict: a run is a
-**success** only when every check passes; a mesh check that did not run is
-**unverified**, never a pass. See [ARCHITECTURE.md](ARCHITECTURE.md).
+accept or refuse. The configurator's checks and our code decide the run: it
+**passes** only when every check passes, including the brief's coded checks;
+a check that did not run counts as failed. A requirement with no coded check
+rests on the model's own statement. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Limits
 
@@ -96,14 +101,16 @@ The estimate is not the bill: reconcile against the Meta console.
 
 ## Muse Spark Open hosts
 
-Meta's open-weights Muse Spark Open runs through three per-token hosts, each
+Meta's open-weights Muse Spark Open runs through three hosts, each
 with its own key, credit and ledger in `.spend/`: Baseten
 (`--model=meta-models/muse-spark-open-1026`), Fireworks
 (`--model=accounts/fireworks/models/muse-spark-open`) and a Modal Shared
 Endpoint (`--model=modal:<endpoint host>`, with a workspace proxy token). A
 Fireworks or Modal run does not start until its `*_CREDIT_USD` is set. A
 Modal Dedicated Endpoint bills GPU time, so none is made without the owner's
-OK. The Meta Model API stays off (`META_API_ALLOWED=1` unlocks it); its
+OK; the Modal results ran on one such endpoint (4 B300 GPUs, at most 1
+replica), with its up time ledgered by `src/uptime.mjs` and
+`bin/modal-session.mjs`. The Meta Model API stays off (`META_API_ALLOWED=1` unlocks it); its
 credit is kept for the demo and judging.
 
 ## Developing on Claude

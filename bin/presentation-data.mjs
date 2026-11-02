@@ -84,7 +84,8 @@ function score(suites) {
     twoClusters: { completed: tc.length, passed: tc.filter((r) => r.pass).length },
     withoutTwoClusters: { completed: n - tc.length, passed: passed - tc.filter((r) => r.pass).length, passRate: pct((passed - tc.filter((r) => r.pass).length) / (n - tc.length)) },
     callsPerRun: +(done.reduce((a, r) => a + (r.row.calls ?? 0), 0) / n).toFixed(1),
-    tokenCostPerRun: +(done.reduce((a, r) => a + (r.row.costUsd ?? 0), 0) / n).toFixed(4),
+    // 6 dp, so a table cell rounds once (to 3 dp) from the mean and ratios use the mean itself.
+    tokenCostPerRun: +(done.reduce((a, r) => a + (r.row.costUsd ?? 0), 0) / n).toFixed(6),
     contract: uniq(all.map((r) => r.t?.contractHash?.slice(0, 8))),
     pageBuild: uniq(all.map((r) => r.t?.pageBuild?.replace(/^\/assets\/hex-|\.js$/g, ''))),
     agentCommit: uniq(all.map((r) => r.t?.agent?.commit?.slice(0, 7))),
@@ -171,8 +172,10 @@ const effortPaired = {
   basetenHighMinusLow: paired(S('10-27T19-05-33-370Z', '10-27T19-12-30-903Z'), S('10-27T19-17-51-239Z', '10-27T19-28-29-596Z')),
 };
 
-// GPU cost per run from the Modal review's efficiency lens (suite wall x rate x 4 GPUs / runs).
-const gpuSource = 'docs/plans/2026-11-02-modal-review.md section 1 (S3a $0.068, SB $0.060, SA $0.100, SC $0.044 / $0.077; S2 not measured)';
+// GPU cost per run from the Modal review's efficiency lens: suite wall x $0.007888/s / runs.
+// $0.007888/s is already the whole endpoint (4 B300 GPUs x $0.001972, src/uptime.mjs), so there
+// is no further x 4; it is the list rate from the ledger, not the bill, and an estimate.
+const gpuSource = 'docs/plans/2026-11-02-modal-review.md section 1 (S3a $0.068, SB $0.060, SA $0.100, SC $0.044 / $0.077; S2 not measured); hand-tabulated as suite wall x $0.007888/s (the 4-GPU endpoint rate) / runs, an estimate at list rate';
 
 // Per host: every eval and smoke suite on that host (from the class file).
 const classes = readJson(join(root, 'docs/data/suite-classes.json')).suites;
@@ -185,7 +188,7 @@ const hosts = {
   Fireworks: { ...calls(hostSuites('fireworks')), latencyFrom: 'eval + smoke suites' },
 };
 
-const data = { generatedAt: new Date().toISOString(), method: 'newest rescore per suite (one grader); host- and budget-cut runs left out of rates; 95% Wilson intervals describe spread, not a test', points, changes, effort, effortPaired, gpuSource, hosts };
+const data = { generatedAt: new Date().toISOString(), method: 'newest rescore per suite (one grader); host- and budget-cut runs left out of rates; the interval to report is passClustered / overclaimClustered (95%, clustered by brief) when a brief ran more than once, else Wilson over runs (intervalMethod names which); passCI and overclaimCI are Wilson over runs for every point and are too narrow when briefs repeat; tokenCostPerRun is a token-equivalent mean, unrounded to 6 dp', points, changes, effort, effortPaired, gpuSource, hosts };
 if (process.argv.includes('--write')) writeFileSync(join(root, 'docs/data/presentation.json'), JSON.stringify(data, null, 2) + '\n');
 for (const p of points) console.log(`${p.key} ${p.label.padEnd(9)} ${p.host.padEnd(9)} ${p.passed}/${p.completed} (${p.passRate}%, CI ${p.passCI.map(pct).join('-')}) strict ${p.strictRate}% over ${p.overclaimed} (${p.overclaimRate}%) first ${p.firstScored} hostCut ${p.hostCut} w/o 2c ${p.withoutTwoClusters.passRate}% graders ${p.graders} agent ${p.agentCommit.join(',')} contract ${p.contract.join(',')}`);
 for (const e of effort) console.log(`${e.arm.padEnd(46)} ${e.passed}/${e.completed} (${e.passRate}%) strict ${e.strictRate}% over ${e.overclaimed} calls/run ${e.callsPerRun} tok$/run ${e.tokenCostPerRun}`);

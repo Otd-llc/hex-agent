@@ -8,7 +8,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { loadEnv } from '../src/env.mjs';
 import { modelFor, runSession } from '../src/session.mjs';
-import { overclaimed, outcomeOf, strictPass } from '../src/checks.mjs';
+import { overclaimed, outcomeOf, strictPass, configuratorPass } from '../src/checks.mjs';
 import { parseFeatures } from '../src/agent.mjs';
 import { publicModelId } from '../src/hosted.mjs';
 import { baselineOf, tripped } from '../src/tripwires.mjs';
@@ -98,11 +98,8 @@ async function runJob({ b, attempt }) {
       }
     }
     const c = trace.verdict.checks;
-    // A decline leaves nothing to print or reload: it needs a finish and no broken rules.
     const outcome = outcomeOf(trace.finish, trace.verdict.nodes);
-    const configurator = outcome === 'declined' && trace.counters.applied === 0
-      ? c.agentFinished === 'pass' && c.rules === 'pass'
-      : ['agentFinished', 'rules', 'mesh', 'printPack', 'roundTrip'].every((k2) => c[k2] === 'pass');
+    const configurator = configuratorPass(outcome, trace);
     const over = overclaimed(trace);
     const metButFails = (trace.acceptance?.checks ?? []).filter((x) => x.metButFails).map((x) => `${x.id}: ${x.why}`);
     row = {
@@ -132,7 +129,8 @@ async function runJob({ b, attempt }) {
   } catch (e) {
     const error = String(e.message ?? e).slice(0, 300);
     // Refused for budget before it began: not a result, and scores leave it out.
-    row = { id: b.id, attempt, pass: false, error, ...(/^no \w+ budget left/.test(error) ? { budget: 'refused' } : {}) };
+    // Refused for budget, or the browser/page failed (a harness error, not the model's result).
+    row = { id: b.id, attempt, pass: false, error, ...(/^no \w+ budget left/.test(error) ? { budget: 'refused' } : { infra: 'harness' }) };
   }
   // Stopped part-way by the budget: kept, but not scored as the model's result.
   if (row.stop && /^(cost budget|\w+ credit budget)$/.test(row.stop)) row.budget = 'stopped';

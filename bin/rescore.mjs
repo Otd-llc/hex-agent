@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { agentCommit } from '../src/provenance.mjs';
-import { checkBrief, overclaimed, strictPass, NEEDS_CELLS } from '../src/checks.mjs';
+import { checkBrief, overclaimed, strictPass, configuratorPass, outcomeOf, NEEDS_CELLS } from '../src/checks.mjs';
 import { outOfScopeClaims } from '../src/agent.mjs';
 
 const args = process.argv.slice(2);
@@ -61,7 +61,9 @@ for (const row of summary.rows) {
   const t2 = { ...trace, briefChecks: fresh };
   // The scope check as it is now, from the trace's own finish (the suite's pass needs it too).
   const scope = trace.finish ? (outOfScopeClaims(trace.finish).length ? 'fail' : 'pass') : 'unverified';
-  const after = row.configurator && fresh.pass && !overclaimed(t2) && scope !== 'fail' && !(trace.acceptance?.checks ?? []).some((x) => x.metButFails);
+  // The configurator verdict recomputed with the current rule (G0: the decline gate changed).
+  const configurator = configuratorPass(outcomeOf(trace.finish, trace.verdict.nodes), trace);
+  const after = configurator && fresh.pass && !overclaimed(t2) && scope !== 'fail' && !(trace.acceptance?.checks ?? []).some((x) => x.metButFails);
   out.push({ id: row.id, attempt: row.attempt, before: row.pass, after, strict: strictPass(after, trace.finish, found.brief), changed: before(row) !== after, brief: found.brief.file, briefMatch: found.match, ...(fresh.pass ? {} : { failed: fresh.results.filter((x) => !x.pass).map((x) => `${JSON.stringify(x.expect)}=${x.saw}`) }) });
 }
 function before(row) { return row.pass; }

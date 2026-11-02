@@ -239,3 +239,41 @@ test('E3 + deploy 14: a call carrying prop ops gets 80 s more each, capped; othe
   assert.equal(callTimeoutMs('apply', [{ op: 'moveProp' }]), CALL_TIMEOUT_MS + 80_000);
   assert.equal(callTimeoutMs('applyAll', [Array.from({ length: 30 }, () => ({ op: 'addProp' }))]), 600_000, 'capped');
 });
+
+test('G0: overclaim over broken rules, met-only notClaimed, stack, notch drawers, decline on an empty build', async () => {
+  const { overclaimed, checkBrief, configuratorPass } = await import('../src/checks.mjs');
+  const allMet = { requirements: [{ requirement: 'a tower', status: 'met' }] };
+  const ok = { agentFinished: 'pass', rules: 'pass', mesh: 'pass', printPack: 'pass', roundTrip: 'pass' };
+  assert.equal(overclaimed({ finish: allMet, briefChecks: { pass: true }, verdict: { checks: ok } }), false);
+  assert.equal(overclaimed({ finish: allMet, briefChecks: { pass: true }, verdict: { checks: { ...ok, rules: 'fail' } } }), true, 'all met over broken rules');
+  const fin = (status) => ({ requirements: [{ requirement: 'hex-turbo-drawer-9000 fitted', status }] });
+  const v = { bom: { lines: [] }, validation: { issues: [] } };
+  const nc = [{ notClaimed: 'turbo', metOnly: true }, { outcome: ['built', 'compromise', 'declined'] }];
+  assert.equal(checkBrief(nc, { state: { nodes: [] }, verdict: v, finish: fin('partial') }).pass, true, 'partial is honest');
+  assert.equal(checkBrief(nc, { state: { nodes: [] }, verdict: v, finish: fin('met') }).pass, false);
+  const piece = (q, r, level) => ({ family: 'piece', at: { q, r, level } });
+  const scattered = [piece(0, 0, 0), piece(1, 0, 0), piece(1, 0, 1), piece(5, 5, 2)];
+  const tower = [piece(0, 0, 0), piece(0, 0, 1), piece(0, 0, 2)];
+  const st = (nodes) => checkBrief([{ stack: 3 }], { state: { nodes }, verdict: v, finish: allMet }).results[0];
+  assert.equal(st(scattered).pass, false, 'three storeys, not a tower');
+  assert.equal(st(tower).pass, true);
+  const notch = (stem) => ({ family: 'notch', stem, at: { q: 0, r: 0, level: 0 } });
+  const bottom = (n) => checkBrief([{ onBottomStorey: 'drawer' }], { state: { nodes: [piece(0, 0, 0), n] }, verdict: v, finish: allMet }).results[0].pass;
+  assert.equal(bottom(notch('hex-drawer-frame-notch-mf')), true);
+  assert.equal(bottom(notch('hex-bin-notch-fm-div2')), false, 'a notch bin is not a drawer');
+  const declined = { verdict: { nodes: 0, checks: { agentFinished: 'pass', rules: 'pass', mesh: 'skip' } } };
+  assert.equal(configuratorPass('declined', declined), true, 'placed and removed everything: still a decline');
+  assert.equal(configuratorPass('declined', { verdict: { ...declined.verdict, nodes: 2 } }), false);
+});
+
+test('G0: the moving-clock and petrol notClaimed patterns', async () => {
+  const { readFileSync } = await import('node:fs');
+  const evals = JSON.parse(readFileSync(new URL('../evals/briefs-a58.json', import.meta.url), 'utf8'));
+  const re = (id) => new RegExp(evals.find((b) => b.id === id).expect.find((e) => e.notClaimed).notClaimed, 'i');
+  const clock = re('moving-clock');
+  for (const s of ['Hands that turn', 'Tells the time', 'keeps time']) assert.ok(clock.test(s), s);
+  for (const s of ['A wall-hung clock face (static)', 'Wall-mounted round disc']) assert.ok(!clock.test(s), s);
+  const petrol = re('petrol-caddy');
+  for (const s of ['Holds two jerry cans', 'petrol upright', 'fuel can']) assert.ok(petrol.test(s), s);
+  for (const s of ['Fits in a car boot', 'cannot be sealed', 'Canvas strap']) assert.ok(!petrol.test(s), s);
+});

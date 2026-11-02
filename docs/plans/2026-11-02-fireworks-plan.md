@@ -22,10 +22,28 @@ Deadline 2026-11-04 9:00 PM ET.
    the fixes.
 2. Tripwires built and tested (`npm test` green), committed.
 3. Held-out briefs written (15-20, new purposes and settings), committed, and **never run before
-   step F4**. Their file is named in this plan once it exists.
+   step F4**: `evals/briefs-heldout.json` (18 briefs, 76e977d). `bin/suite.mjs` refuses it without
+   `--heldout-final`. Its two start builds have not been loaded on the live site yet: check them
+   with a no-model load before F4.
 4. Owner puts `FIREWORKS_API_KEY` in `.env` (lane 3 never reads `.env`).
-5. Contract synced, smoke-tools + smoke-helpers green on the live site (still frozen at deploy 14
-   unless lane 1 says otherwise).
+5. Contract synced, smoke-tools + smoke-helpers green on the live site. Done 2026-11-02 for deploy 15
+   (viz 32e5bdd, contract 87827f4d, page /assets/hex-DxvEkHG7.js): 32/32, 10/10, hex-agent 2cf01c4.
+
+## Starting point (2026-11-02, after deploy 15)
+
+Done: steps 1-5 above; the owner put FIREWORKS_API_KEY in .env. Fixes 1-4 are built behind
+default-on feature flags (ewDrawers, rollbackRead, topology, verify), unmeasured. On deploy 15 the
+site offers e/w slide drawers itself (ewDrawers dedupes), refuses a floating place as UNSUPPORTED with
+details.steps (NOTHING_BELOW is gone), adds KIND_MISMATCH_ABOVE, and gives a rolled-back refusal the
+whole batch again as details.steps. The F0/F1 checkpoint is the Modal low arms (S2 + S3a), with the
+deploy-15 codes declared. Fireworks effort has no default: pass --effort=low.
+
+F0 (owner OK first, < $0.20):
+
+    node bin/suite.mjs --model=accounts/fireworks/models/muse-spark-open --purpose=eval --effort=low --briefs=evals/briefs-wide.json,evals/briefs-hard.json --only=minimal-bin,three-storey --repeat=1 --concurrency=2 --checkpoint=runs/suite-2026-11-02T01-04-53-972Z/summary.json,runs/suite-2026-11-02T01-43-22-121Z/summary.json --expect-codes=UNSUPPORTED,KIND_MISMATCH_ABOVE
+
+then node bin/call-report.mjs on its suite dir: effort honoured (reasoning tokens), cached share, latency.
+F1 (owner OK, ~$2): the same with --briefs=evals/briefs.json,evals/briefs-hard.json,evals/briefs-wide.json, no --only, --concurrency=6.
 
 ## Steps
 
@@ -45,8 +63,12 @@ fixes target).
 ## Fix-loop rules
 
 - One fix per batch. Stacked fixes cannot be told apart.
-- Before-arm and after-arm on the same site version and the same briefs; the after-arm is a new
-  agent commit, recorded in the trace provenance.
+- Before-arm and after-arm on the same site version and the same briefs, on the same commit: each
+  agent fix is a default-on feature flag (ewDrawers, rollbackRead, topology, ...) and the before
+  arm turns only that one off (`--features=-topology`). Fixes that share target briefs are measured
+  in turn, each against the build with the others on.
+- The site may change between batches (owner lifted the freeze 2026-11-02), never inside one; after
+  a deploy, re-sync the contract, smoke, and re-run the next batch's before arm on the new site.
 - A fix is kept only if it helps its target briefs and no previously passing brief drops. Gains are
   credited to the fix (agent or configurator), never to the host or the model.
 - The held-out set is never used to choose or tune a fix.

@@ -10,7 +10,7 @@
 // endpoint is made). A Modal Dedicated Endpoint bills GPU time, not tokens:
 // this adapter refuses to price one, and making one needs the owner's OK.
 import { parseChat, toChat } from './baseten.mjs';
-import { timedPost, requestParams, toolChoice } from './http.mjs';
+import { timedPost, streamPost, requestParams, toolChoice } from './http.mjs';
 import { createHash } from 'node:crypto';
 
 // USD per 1M tokens, Standard/shared, checked 2026-10-31:
@@ -106,7 +106,7 @@ export function hostedCostUsd(model, usage) {
   return ((usage.inputTokens - cached) * p.input + cached * p.cached + usage.outputTokens * p.output) / 1e6;
 }
 
-export function hostedModel({ model, apiKey, effort = null, timeoutMs = 120_000, fetchImpl = fetch, env = process.env } = {}) {
+export function hostedModel({ model, apiKey, effort = null, timeoutMs = 120_000, stallMs = 30_000, fetchImpl = fetch, env = process.env } = {}) {
   const provider = hostOf(model);
   if (!provider) throw new Error(`${model} is not a Fireworks (accounts/fireworks/...) or Modal (modal:<endpoint host>, modal-dedicated:<endpoint host>) model id`);
   const h = HOSTS[provider];
@@ -124,6 +124,8 @@ export function hostedModel({ model, apiKey, effort = null, timeoutMs = 120_000,
   const auth = { Authorization: `Bearer ${key}` };
   // A Dedicated Endpoint's host is the account's own: kept out of error text.
   const secretHost = provider === 'modal-dedicated' ? dedicatedHost(model) : null;
+  // Only Fireworks streams: the Modal runs are done and stay as they were measured.
+  const stream = provider === 'fireworks';
   return {
     kind: 'live',
     provider,
@@ -137,11 +139,17 @@ export function hostedModel({ model, apiKey, effort = null, timeoutMs = 120_000,
         tool_choice: toolChoice(env),
         // Sent only when asked for: neither host documents it for this model yet.
         ...(effort ? { reasoning_effort: effort } : {}),
-        max_completion_tokens: 16000,
+        // Fireworks streams with a cap far above any answered call (F1: max 1173 output tokens),
+        // so a runaway generation stops early and a silent request is dropped at stallMs.
+        max_completion_tokens: stream ? 4000 : 16000,
+        ...(stream ? { stream: true, stream_options: { include_usage: true } } : {}),
       };
       let got;
       try {
-        got = await timedPost(fetchImpl, `${base}/chat/completions`, { headers: { ...auth, 'Content-Type': 'application/json' }, body, timeoutMs });
+        const req = { headers: { ...auth, 'Content-Type': 'application/json' }, body, timeoutMs };
+        got = stream
+          ? await streamPost(fetchImpl, `${base}/chat/completions`, { ...req, stallMs })
+          : await timedPost(fetchImpl, `${base}/chat/completions`, req);
       } catch (e) {
         // A network error names the host it could not reach.
         if (secretHost) e.message = redactHost(e.message, secretHost);

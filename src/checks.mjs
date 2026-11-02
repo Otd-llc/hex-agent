@@ -119,6 +119,40 @@ function baseGroups(nodes, level = 0, apart = new Set()) {
   return { count: g, group, sizes: Object.values(sizes) };
 }
 
+// Fix 3 (Modal review): the agent sees the base groups the clusters check sees. Per storey with two
+// or more bases: the groups once connector walls are taken out (bases touching across a bare or
+// bolted wall are one body), and each touching wall with what is on it.
+const WALL_REF = /^(connector|jointBolt):(-?\d+)#(-?\d+,-?\d+)\|(-?\d+,-?\d+)/;
+export function topology(nodes, { maxWalls = 24 } = {}) {
+  const on = new Map();
+  for (const n of nodes) {
+    const m = WALL_REF.exec(n.ref ?? '');
+    if (m) on.set(`${m[2]}#${[m[3], m[4]].sort().join('|')}`, m[1]);
+  }
+  const levels = [...new Set(nodes.filter((n) => n.family === 'piece' && n.at).map((n) => n.at.level ?? 0))].sort((a, b) => a - b);
+  const out = [];
+  for (const level of levels) {
+    const cells = nodes.filter((n) => n.family === 'piece' && n.at && (n.at.level ?? 0) === level).map((n) => `${n.at.q},${n.at.r}`);
+    if (cells.length < 2) continue;
+    const have = new Set(cells);
+    const walls = [];
+    for (const c of cells) {
+      const [q, r] = c.split(',').map(Number);
+      for (const [dq, dr] of NEIGHBOURS) {
+        const nk = `${q + dq},${r + dr}`;
+        if (!have.has(nk) || nk < c) continue;
+        const wall = [c, nk].sort().join('|');
+        walls.push(`${wall} ${on.get(`${level}#${wall}`) ?? 'bare'}`);
+      }
+    }
+    const apart = new Set(walls.filter((w) => w.endsWith(' connector')).map((w) => w.split(' ')[0]));
+    const { group } = baseGroups(nodes, level, apart);
+    const groups = Object.values([...group].reduce((m, [cell, g]) => ((m[g] ??= []).push(cell), m), {}));
+    out.push({ storey: level, groups, ...(walls.length <= maxWalls ? { walls } : { wallsShown: `${walls.length} walls, too many to list` }) });
+  }
+  return out.length ? out : null;
+}
+
 export function checkBrief(expect, { state, verdict, finish, events = [] }) {
   const nodes = state.nodes;
   const props = state.staging?.props ?? [];

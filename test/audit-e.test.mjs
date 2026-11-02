@@ -343,3 +343,26 @@ test('fix 2: the grader ignores spikes and open drawers from rolled-back batches
   assert.equal(seen(ev(false)), true);
   assert.equal(seen(ev(true)), false);
 });
+
+test('fix 3: topology shows the groups the clusters check sees, and each touching wall', async () => {
+  const { topology, checkBrief } = await import('../src/checks.mjs');
+  const piece = (q, r) => ({ ref: `piece:${q},${r},0;full`, family: 'piece', at: { q, r, level: 0 } });
+  const conn = (a, b) => ({ ref: `connector:0#${a}|${b}`, family: 'connector', at: null });
+  const line = [piece(0, 0), piece(1, 0), piece(2, 0), piece(3, 0)];
+  // The failing two-clusters run (SB): a connector on every wall, four groups of one.
+  const allWalls = topology([...line, conn('0,0', '1,0'), conn('1,0', '2,0'), conn('2,0', '3,0')])[0];
+  assert.equal(allWalls.groups.length, 4);
+  assert.deepEqual(allWalls.walls.map((w) => w.split(' ')[1]), ['connector', 'connector', 'connector']);
+  // Right: one connector between the pairs.
+  const pairs = [...line, conn('1,0', '2,0')];
+  const t = topology(pairs)[0];
+  assert.deepEqual(t.groups.map((g) => g.length), [2, 2]);
+  assert.ok(t.walls.includes('1,0|2,0 connector'));
+  const v = { bom: { lines: [] }, validation: { issues: [] } };
+  assert.equal(checkBrief([{ clusters: 2, joinedBy: 'connector', size: 2 }], { state: { nodes: pairs }, verdict: v, finish: { requirements: [] } }).results[0].pass, true, 'topology and grader agree');
+  // The rhombus: 0,0 1,0 0,1 1,-1... the central wall 0,1|1,0 is the one the failing runs never connected.
+  const rhombus = [piece(0, 0), piece(1, 0), piece(0, 1), piece(1, -1)];
+  const walls = topology(rhombus)[0].walls.map((w) => w.split(' ')[0]);
+  assert.ok(walls.includes('0,0|1,0'));
+  assert.equal(topology([piece(0, 0)]), null, 'one base: nothing to report');
+});

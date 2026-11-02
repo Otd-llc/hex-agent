@@ -4,7 +4,7 @@
 // The model never gets load(), so it cannot replace the build.
 
 import { CONTRACT, checkerFor, refKinds } from './contract.mjs';
-import { BUILD_TESTS } from './checks.mjs';
+import { BUILD_TESTS, topology } from './checks.mjs';
 import { runPlan, rebind, planLookup, ZONE_KINDS } from './plan.mjs';
 
 // Fields each op takes, [required, optional], from the vendored public contract
@@ -32,7 +32,7 @@ export const NEEDS = {
   notch: 'A notch drawer stands in an empty cell beside two bases that touch each other: leave that cell empty, with two touching bases beside it.',
   bay: 'A bay stands in an empty cell with three bases around it.',
   spike: 'A spike stands where three bases meet at a corner: place three bases around one junction first.',
-  connector: 'A side connector joins two bases that stand side by side on the same storey.',
+  connector: 'A side connector joins two bases that stand side by side on the same storey. Bases that touch with no connector on the wall between them are one body (joint bolts); every wall between two groups needs a connector, walls inside a group stay bare. get_build lists each touching wall and the groups.',
   jointBolt: 'A joint bolt fastens the wall between two touching bases.',
   bin: 'A bin drops into a cell of a base with no lid, bin or stacked base in it.',
   cover: 'A cover goes on an open top or side face of a base.',
@@ -221,6 +221,7 @@ export const TOOL_SPECS = [
       'refuse bins with PIPE_THROUGH_CELL, and a run is refused ROUTE_BIN_IN_WAY where a bin is in its way, so lay the run ' +
       'first and take bin offers after it, or keep the run straight; -pvc bins are for a vertical riser through the floor. ' +
       'A handle needs a cover on its face; spikes stand where three cells meet. ' +
+      'Bases that touch with no connector on the wall between them are one body; a side connector on a wall keeps two groups apart and joins them, so every wall between two groups needs one (get_build lists the walls and groups). ' +
       'A spool axle (family axle) seats in a rod socket (a hex-acc-rod accessory) that faces another rod socket across an ' +
       'empty cell; it is refused NO_PARTNER without one. A filament spool then HANGS on it: addProp {id:"filament-spool", ' +
       'on:"axle:..."} with the axle ref from get_build, no atMm (hang_spools does every axle at once). ' +
@@ -726,10 +727,13 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
       const s = await hex.call('getState');
       const counts = {};
       for (const n of s.nodes) counts[n.family] = (counts[n.family] ?? 0) + 1;
+      const topo = topology(s.nodes);
       return {
         nodes: s.nodes.slice(0, LIMITS.nodesShown).map((n) => ({ ref: n.ref, family: n.family, at: n.at, stem: n.stem, ...roleOf(n.ref) })),
         total: s.nodes.length,
         counts,
+        // Fix 3: the base groups and touching walls ("0,0|1,0 connector"); the rule is in the connector text.
+        ...(topo ? { topology: topo } : {}),
         props: (s.staging?.props ?? []).map((p) => ({
           // atMm as addProp and moveProp take it ({x, z}), the height apart: a copied pose is a valid one.
           ref: p.ref, id: p.id, label: p.label, atMm: { x: mm(p.posMm[0]), z: mm(p.posMm[2]) }, yMm: mm(p.posMm[1]), yawDeg: mm(p.yawDeg), ...(p.pot ? { pot: p.pot } : {}), ...roleOf(p.ref),
@@ -1023,9 +1027,12 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false } = {}
     async check_build() {
       const v = await hex.call('validate');
       const props = v.issues.filter((i) => PROP_CODES.has(i.code)).map(propFlag);
+      const topo = topology((await hex.call('getState')).nodes ?? []);
       return {
         ok: v.ok,
         meshClash: v.meshClash,
+        // Groups only: the walls are in get_build.
+        ...(topo ? { groups: topo.map((t) => ({ storey: t.storey, groups: t.groups })) } : {}),
         issues: v.issues.filter((i) => !PROP_CODES.has(i.code)).map((i) => ({ severity: i.severity, code: i.code, refs: i.refs, message: i.message })),
         ...(props.length ? { props } : {}),
         note: 'ok covers rule errors only. meshClash must read "clear" for the meshes to be checked and clear.' +

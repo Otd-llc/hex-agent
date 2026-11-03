@@ -46,16 +46,19 @@ export function pairedRows(ra, rb, f = (r) => r.pass, keep = () => true) {
   const sd = (xs, m) => Math.sqrt(xs.reduce((s, x) => s + (x - m) ** 2, 0));
   const c = critOrNull(ids.length);
   return { briefs: ids.length, aPct: pct(ma), bPct: pct(mb), diffPoints: pct(md), sePoints: pct(se), crit: c?.name ?? null, ci95Points: c ? [pct(md - c.value * se), pct(md + c.value * se)] : null,
-    correlation: +(cov / (sd(xa, ma) * sd(xb, mb) || 1)).toFixed(2), minDetectablePoints: c ? pct((c.value + 0.842) * se) : null,
+    // Undefined when an arm has no variance across briefs.
+    correlation: sd(xa, ma) * sd(xb, mb) ? +(cov / (sd(xa, ma) * sd(xb, mb))).toFixed(2) : null, minDetectablePoints: c ? pct((c.value + 0.842) * se) : null,
     perBrief: Object.fromEntries(ids.map((k, i) => [k, { a: A.get(k), b: B.get(k), diff: +d[i].toFixed(2) }])) };
 }
-// Pass rate with a clustered-by-brief interval (the paper's rule).
+// Pass rate clustered by brief, the paper's estimator (bin/presentation-data.mjs clustered):
+// the mean of per-brief means, SE = sd of those means / sqrt(briefs). pooledPct is passed/runs,
+// which differs when briefs have unequal runs. No interval when every brief mean is equal
+// (a zero-width interval is not reported, statistics.md section 2).
 export function clustered(rs, f = (r) => r.pass) {
-  const B = byBrief(rs, f);
-  const ids = [...B.keys()];
-  const n = rs.length, k = rs.filter(f).length, p = k / n;
-  const sums = ids.map((id) => B.get(id).reduce((a, b) => a + b, 0) - p * B.get(id).length);
-  const se = Math.sqrt(sums.reduce((s, x) => s + x * x, 0)) / n * Math.sqrt(ids.length / (ids.length - 1));
-  const c = critOrNull(ids.length);
-  return { runs: n, passed: k, pct: pct(p), briefs: ids.length, ci95Pct: c ? [pct(Math.max(0, p - c.value * se)), pct(Math.min(1, p + c.value * se))] : null, crit: c?.name ?? null };
+  const items = [...byBrief(rs, f).values()].map(mean);
+  const B = items.length, mu = mean(items);
+  const n = rs.length, k = rs.filter(f).length;
+  const se = B > 1 ? Math.sqrt(items.reduce((a, x) => a + (x - mu) ** 2, 0) / (B - 1) / B) : null;
+  const c = se ? critOrNull(B) : null;
+  return { runs: n, passed: k, pct: pct(mu), pooledPct: pct(k / n), briefs: B, ci95Pct: c ? [pct(Math.max(0, mu - c.value * se)), pct(Math.min(1, mu + c.value * se))] : null, crit: c?.name ?? null };
 }

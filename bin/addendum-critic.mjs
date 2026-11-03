@@ -52,6 +52,12 @@ const out = {
   addendum: 'after the paper gate; not part of the submitted numbers',
   ownerVerdicts: { file: PICKS, sha256: createHash('sha256').update(picksRaw).digest('hex'), round: 'round2' },
   comparisonSet: { sheets: 'runs/sheets-round2', builds: names.size },
+  // For scale: a critic that flags nothing agrees on every keep and no fix.
+  flagNothing: (() => {
+    const v = [...names].map((n) => owner.get(n)).filter(Boolean);
+    const keeps = v.filter((x) => x.verdict === 'keep').length;
+    return { builds: v.length, keeps, fixes: v.length - keeps, agreement: +(keeps / v.length * 100).toFixed(1) };
+  })(),
   judges: {},
 };
 for (const c of claude) out.judges[`${c.model} (${c.file.replace(/^runs\/|\.json$/g, '')})`] = { provider: 'anthropic', file: c.file, spentUsd: +c.spentUsd.toFixed(2), ...score(c.results) };

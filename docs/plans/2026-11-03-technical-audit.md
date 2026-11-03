@@ -100,3 +100,35 @@ C9: paper 8 "the model's own statement of which requirements it met, checked in 
 - Meta AI contribution: well documented (three Muse models, API usage, cost, errors, effort) and not overstated; what the model decides versus the tool layer and configurator should be stated (C6).
 - Novelty positioning: no overclaim to retract; a sourced related-work paragraph (C5) would place it against Configuration Copilot and the CAD agents.
 - Remaining submission blockers: repo private (flip after the video, decided); placeholders (video link, public URL); the replay end card in the video (finding 2); A7 rebuild (finding 3, before the flip).
+
+## Validation round 1 (2026-11-03): five fresh read-only lenses on the corrections
+
+Lenses: related-work necessity (all seven citations opened), code accuracy at eval-final
+0c840bc, statistics wording, trace facts and demo, reproducibility fixes (A7 inline rebuild
+simulated byte-identical in a clean archive clone). Verdicts:
+
+| Item | Verdict | Change |
+|---|---|---|
+| C5 related work | DROP the paragraph | Not necessary: paper.md makes no novelty claim; as drafted it repeated finding 8's attribution error ("reads the refusals and suggested alternatives"). Optional one-sentence form citing only Kogler et al. (verified): "Closest prior work is the Configuration Copilot of Kogler et al. [1], in which a language model turns natural-language requirements into constraints that a solver resolves over a product line; here the model instead places parts in a spatial build through tool calls, and the configurator's rules accept or refuse each placement." |
+| C1 boundary | MODIFY | "A pass of a build" (declines need only a finish and no broken rule); "no error-severity configurator issue"; reload compares "the same number of parts of each family and the same parts list"; full list of brief checks; "do not test where a prop sits (beyond resting on something), which way a part faces in plan, or whether one part reaches or serves another (beyond a connector joining two groups)"; "a finish reporting any requirement unmet, core or not, still passes unless the brief checks for it; strict pass does not" |
+| C2 headline caveat | MODIFY | New sentence after "...written to be refused.": "Those passes were not audited; audits of the same checks on the development briefs (D7) and on a second held-out set (A8) found passing builds that miss a requirement no check tests, so this rate likely overstates success." Themes clause dropped from the opening (already at 48 and 60) |
+| C3 15/18 | KEEP, Low | as drafted |
+| C4 baseline | MODIFY | "...The frozen-agent ablations switch off fixes 1 to 4 (13 briefs, the fixes-on arm at ceiling) or abstention, and the addendum adds six tool-layer fixes (A7); none removes the layer, so what the tool layer as a whole adds beyond the model and the configurator is not measured." |
+| C6 table | MODIFY | name verifyFinish's five faults; plants "or the configurator's pick"; add the tool layer's re-run of a rolled-back batch; last row "facing in plan, visibility, and most of what rests on what"; per-run cost cap $3 in suites |
+| C6 multimeter | MODIFY | "In all five drone runs the multimeter was refused for overlapping the turned quad; the dress helper then re-sent the configurator's suggested fix on its own, which stood it on end (src/tools.mjs). The model did not choose that orientation; it kept it and reported the row met." |
+| C7 briefs | MODIFY | add "chooses only within a cell (where a rod has a gap beside it, which heap fills which compartment)" |
+| C8 rods, kale | MODIFY | rods "two of its 10 rods, all listed in its report, stand where the brief asks for none"; kale "by our eye" (label as one look) |
+| C9 | MODIFY | paper 8 add "and by a keyword check on out-of-scope claims"; paper 22 add "and its mesh check"; paper 18 KEEP |
+| F14 abstract | MODIFY | "a keyword check on met claims about strength, load, heat, water, UV, food safety or material" |
+| F20 dev label | KEEP, Low | "as a development-set rate, 173 of 180 runs" |
+| F2 video end card | MODIFY | printing checks card without the word VERIFIED, requirementsClaimedMet glossed as the model's own report; also crop the overlay finish line ("finishes: met, met, ...") on the three runs |
+| F10, F11, F22 | KEEP | as drafted |
+| F3 A7 rebuild | KEEP, inline suite ids in bin/addendum-arms.mjs (simulated byte-identical); do not force-add logs |
+| F15 A3 inputs | MODIFY: state it only (owner verdicts file, sha256 recorded, and the Meta ledger); publish nothing |
+| F16 D4 | KEEP wording; guard: exit 2 before writing if any .spend ledger is missing |
+| F17 link | KEEP: absolute GitHub URL in paper.md, re-render, check after the flip |
+| F21 A2 | KEEP |
+| F23 Modal fixture | MODIFY, optional: 19-character placeholder and rewritten redaction regexes, mutation-checked |
+| F24 empty suite | footnote only |
+
+No proposed fix touches src/, bin/run.mjs, bin/suite.mjs or the package files: the video pre-flight stays clean.

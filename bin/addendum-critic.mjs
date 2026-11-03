@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ownerVerdicts, calibrate } from '../src/critic.mjs';
 import { ROOT } from '../src/ledger.mjs';
+import { wilson } from './addendum-lib.mjs';
 
 const PICKS = 'C:/zzz/_premades/picks-round2.json';
 const picksRaw = readFileSync(PICKS);
@@ -31,7 +32,8 @@ const SUBSETS = { purpose: ['purpose'], 'purpose+rests+pose': ['purpose', 'rests
 const view = (results, qs) => results.filter((r) => names.has(r.name)).map((r) => ({ ...r, answers: Object.fromEntries(Object.entries(r.answers).filter(([q]) => qs.includes(q))) }));
 const score = (results) => Object.fromEntries(Object.entries(SUBSETS).map(([k, qs]) => {
   const c = calibrate(view(results, qs), owner);
-  return [k, { n: c.n, fixesCaught: c.fixFlagged, fixes: c.fixFlagged + c.fixMissed, keepsFlagged: c.keepFlagged, keeps: c.keepFlagged + c.keepPassed, agreement: c.agreement == null ? null : +(c.agreement * 100).toFixed(1) }];
+  return [k, { n: c.n, fixesCaught: c.fixFlagged, fixes: c.fixFlagged + c.fixMissed, keepsFlagged: c.keepFlagged, keeps: c.keepFlagged + c.keepPassed, agreement: c.agreement == null ? null : +(c.agreement * 100).toFixed(1),
+    agreementWilson95: c.n ? wilson(c.agree, c.n) : null }];
 }));
 // Pass-to-pass stability: the share of (build, question) answers two passes give alike.
 const stability = (a, b) => {

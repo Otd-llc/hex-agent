@@ -6,16 +6,11 @@
 //   node bin/addendum-wonder.mjs [--write]   (--write: docs/data/addendum/wonder.json)
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { root, rows, clustered, pct } from './addendum-lib.mjs';
+import { root, rows, clustered, pct, wilson, byBrief } from './addendum-lib.mjs';
 
 const HELDOUT = 'suite-2026-11-03T07-14-56-211Z';
 const PAPER_DEV = 'suite-2026-11-02T17-48-59-000Z';
 const NEW_DEV = 'suite-2026-11-03T07-37-42-191Z';
-
-function wilson(k, n, z = 1.96) {
-  const p = k / n, d = 1 + z * z / n, c = (p + z * z / (2 * n)) / d, h = (z / d) * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n));
-  return [pct(c - h), pct(c + h)];
-}
 const prov = (rs) => ({ agent: [...new Set(rs.map((r) => r.agent))], dirty: [...new Set(rs.map((r) => r.dirty))], pageBuild: [...new Set(rs.map((r) => r.pageBuild))], contract: [...new Set(rs.map((r) => r.contract))] });
 const ho = rows([HELDOUT], { rescore: false });
 const hoPass = ho.filter((r) => r.pass).length;
@@ -37,6 +32,8 @@ const out = {
     paperSuite: PAPER_DEV, newSuite: NEW_DEV,
     paperX1: clustered(paperDev), newX4: clustered(newDev), allX5: clustered([...paperDev, ...newDev]),
     overclaimsX5: [...paperDev, ...newDev].filter((r) => r.over).length,
+    // pass^k: briefs whose every one of the five runs passed.
+    passAll5: (() => { const v = [...byBrief([...paperDev, ...newDev], (r) => r.pass).values()]; return { briefs: v.length, allPassed: v.filter((a) => a.length === 5 && a.every(Boolean)).length }; })(),
     fails: [...paperDev, ...newDev].filter((r) => !r.pass).map((r) => `${r.id}#${r.attempt}`),
     samePage: JSON.stringify(prov(paperDev).pageBuild) === JSON.stringify(prov(newDev).pageBuild),
     provenance: { paper: prov(paperDev), new: prov(newDev) },

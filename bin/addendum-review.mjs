@@ -8,6 +8,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT } from '../src/ledger.mjs';
+import { wilson } from './addendum-lib.mjs';
 
 const d8 = JSON.parse(readFileSync(join(ROOT, 'docs/data/demo-review.json'), 'utf8'));
 const PASSES = {
@@ -58,6 +59,7 @@ for (const [model, passes] of Object.entries(PASSES)) {
       m.faultsMentioned[f] = { runs: runs.length, contradicted: runs.filter(hit).length, ids: runs.filter(hit) };
     }
     m.dropAgreement = m.answered ? +((m.dropCaught + m.keepKept) / m.answered * 100).toFixed(1) : null;
+    m.dropAgreementWilson95 = m.answered ? wilson(m.dropCaught + m.keepKept, m.answered) : null;
     return m;
   });
 }

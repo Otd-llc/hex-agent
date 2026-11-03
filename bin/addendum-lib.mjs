@@ -50,6 +50,11 @@ export function pairedRows(ra, rb, f = (r) => r.pass, keep = () => true) {
     correlation: sd(xa, ma) * sd(xb, mb) ? +(cov / (sd(xa, ma) * sd(xb, mb))).toFixed(2) : null, minDetectablePoints: c ? pct((c.value + 0.842) * se) : null,
     perBrief: Object.fromEntries(ids.map((k, i) => [k, { a: A.get(k), b: B.get(k), diff: +d[i].toFixed(2) }])) };
 }
+// Wilson 95% interval for k of n, in percent.
+export function wilson(k, n, z = 1.96) {
+  const p = k / n, d = 1 + z * z / n, c = (p + z * z / (2 * n)) / d, h = (z / d) * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n));
+  return [pct(c - h), pct(c + h)];
+}
 // Pass rate clustered by brief, the paper's estimator (bin/presentation-data.mjs clustered):
 // the mean of per-brief means, SE = sd of those means / sqrt(briefs). pooledPct is passed/runs,
 // which differs when briefs have unequal runs. No interval when every brief mean is equal

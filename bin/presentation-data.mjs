@@ -150,7 +150,7 @@ const points = [
 
 // The demo set (evals/briefs-demo.json, purpose demo, written for the video, not an evaluation):
 // per brief, every run of every demo suite, so the video's "chosen from N runs" traces here.
-const DEMO = S('11-02T18-42-02-972Z', '11-02T20-53-43-549Z', '11-02T21-45-05-881Z');
+const DEMO = S('11-02T18-42-02-972Z', '11-02T20-53-43-549Z', '11-02T21-45-05-881Z', '11-02T22-33-45-897Z', '11-02T22-47-11-764Z', '11-02T23-06-39-286Z', '11-02T23-20-02-838Z', '11-03T02-49-48-989Z', '11-03T03-09-01-712Z', '11-03T03-25-07-282Z');
 const demo = (() => {
   const all = rows(DEMO);
   const by = {};

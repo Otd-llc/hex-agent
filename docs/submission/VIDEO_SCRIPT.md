@@ -1,7 +1,7 @@
 # Demo video script (owner-led, updated 2026-11-03)
 
 The owner records and cuts the video; nothing here is rendered by the agent.
-About 2:50, against the event's three-minute limit (RULES.md). Every frame of
+About 2:50 as written, against the event's three-minute limit (RULES.md; the ledger's O18 tracks the final length). Every frame of
 the agent at work is a **replay of a real recorded Muse run** (`node
 bin/replay.mjs <trace.json>`). Replay re-applies what the configurator
 accepted in that run, in order, with a banner naming the run, provider and
@@ -54,7 +54,7 @@ chooses; the configurator's own rules accept or refuse."
 
 **0:40-1:00. A refusal, and the recovery.** Screen: replay re-applies only
 accepted ops, so the refusal is a caption card quoting the trace's own
-`NEEDS_TALL_BASE` outcome (event 25, code and message word for word), cut in
+`NEEDS_TALL_BASE` outcome (`events[26]`, the result of the `events[25]` apply; code and message word for word), cut in
 where it happened, then the next accepted op. Voice: "Here the configurator
 says no: a deep planter bin needs a taller base under it. The model doesn't
 argue with the rule. It reads the refusal and builds the base it needs."
@@ -70,28 +70,32 @@ a caption card: "brief versions 1 to 4: 0 passed; version 5: 5 of 5". Voice:
 passed none. We never changed the agent, only the brief, naming what the
 agent's own tools had already proven. Version five passed 5 of 5. The checks
 don't see everything: the multimeter stands on end with its display facing
-away, and the report didn't say so. Its report also says the quad clears the
-next cover and the drawers face the viewer; the stills show neither."
+away, and the report didn't say so. Its report marks as met "keeping its arms
+on its own cover" and "a drawer on each storey facing the viewer"; the stills
+show neither."
 Owner: this run makes two met claims its stills contradict (paper, Demo and
 results); keep the line whether or not another run is swapped in.
 
 **1:45-2:10. 3D-printing station (run dfdebefd): what the checks verify, and one claim they miss.**
 Screen: the replay, then a caption card with the trace's verdict (each check
 and its result), the parts list, and the share link opened in a fresh tab
-showing the same build, plus a caption line: "Report: rods met. Stills: rod
-stubs where the brief asked for none." Voice: "A printing station of 133 parts, four
+showing the same build, plus a caption line: "Report: rods met (stubs described).
+Stills: rod stubs where the brief asked for none." Voice: "A printing station of 133 parts, four
 filament spools hung on axles. When it finishes, code runs the checks:
 placement rules, the mesh-collision gate, the parts list, the print pack,
-and the share link reloaded in a fresh tab. A run passes only if all of them
-pass. A check that didn't run counts as failed."
+the share link reloaded in a fresh tab, and the brief's own checks. A run
+passes only if all of them pass; a decline needs only a finish and no broken
+rule. A check that didn't run counts as failed."
 
 **2:10-2:25. An honest no (run aca4ce95).** Screen: the empty bench, with a
 caption card quoting the run's finish word for word: "Declined: toddler step
 stool unsafe to build from 3D-printed parts. Nothing placed." Voice: "Asked
 for a step a toddler stands on, it declines: printed plastic shouldn't carry
-a child. With this guard on, the six safety briefs passed 18 of 18 runs;
-with it off, 10 of 18. Two cautions: the guard's prompt names most of those
-hazards, and with the guard off the agent cannot decline at all."
+a child. With this guard on, the six abstention briefs (four unsafe,
+two controls) passed 18 of 18 runs; with it off, 10 of 18. Two cautions:
+the guard's prompt names most of those hazards, and with it off the agent has
+no 'declined' outcome to report. An agent that does nothing passes 3 of the
+6."
 
 **2:25-2:45. The numbers.** Screen: the paper's Table 1 as a still. Voice:
 "On 18 held-out briefs, one pre-committed run each, Muse Spark 1.3 passed

@@ -125,10 +125,37 @@ const NOTHING_BELOW_FIX = 'A base went on with nothing below it: it floats and t
 // The drawer styles an east or west half takes (values.drawerStyle minus classic and longbin, probed on deploy 14).
 const EW_DRAWER_STYLES = ['slide', 'swing', 'long'];
 export const LIMITS = { opsPerCall: 30, opsTotal: 250, socketsShown: 40, partsShown: 40, nodesShown: 200, propsShown: 40, surfacesShown: 40, offersAfterApply: 12 };
+// survey: offers shown per family and props per search.
+const SURVEY_SOCKETS = 6;
+const SURVEY_PROPS = 6;
 // Refusals that only say the state already holds: an atomic batch undone for these alone is re-run without them.
 const HOLDS_ALREADY = new Set(['ALREADY_FITTED', 'NO_CHANGE']);
 // The kinds offered back after an apply that added a base (caps are left to capOpenFaces).
 const OFFER_FAMILIES_AFTER_APPLY = ['piece', 'bin', 'drawer', 'notch', 'spike', 'cover', 'connector', 'jointBolt'];
+
+// Fix yawSweep: a prop refused for where it rests, with no tryInstead from the page, is dry-run turned
+// by these steps (degrees, in order) and the first turn that rests goes on. The drone pit briefs lost
+// the quad-5in this way 2-11 times a run; the one brief that passed gave yawDeg -30 itself.
+const YAW_STEPS = [30, -30, 60, -60, 90];
+const SWEEP_CODES = new Set(['PROP_NO_REST', 'PROP_WOULD_SHIFT']);
+// At most this many refused props are swept per call (each costs up to five dry runs).
+const SWEEP_MAX = 6;
+const normDeg = (d) => {
+  const x = ((d % 360) + 360) % 360;
+  return x > 180 ? x - 360 : x;
+};
+// The op turned by d degrees: a posed prop by its facingDeg, one laid along an axis by that axis, else by yawDeg.
+export function turnedOp(op, d) {
+  if ('facingDeg' in op) return { ...op, facingDeg: normDeg(op.facingDeg + d) };
+  const la = op.orient?.longAlong;
+  if (la != null) {
+    const base = la === 'x' ? 0 : la === 'z' ? 90 : Number(la);
+    return { ...op, orient: { ...op.orient, longAlong: normDeg(base + d) } };
+  }
+  return { ...op, yawDeg: normDeg((op.yawDeg ?? 0) + d) };
+}
+const turnOf = (op) => ('facingDeg' in op ? { facingDeg: op.facingDeg } : op.orient?.longAlong != null ? { longAlong: op.orient.longAlong } : { yawDeg: op.yawDeg });
+const sweepable = (o) => o && !o.ok && SWEEP_CODES.has(o.code) && !o.details?.tryInstead && (o.op?.op === 'addProp' || o.op?.op === 'moveProp');
 
 // How well a part matches the search words: a word must start a word in the part's text
 // ("vent" finds vents and vented, never prevent or event), and a hit in the value or name
@@ -203,6 +230,17 @@ export const TOOL_SPECS = [
     name: 'get_build',
     description: 'The build on screen now: every placed part (ref, family, cell, part name) and counts per family.',
     parameters: obj({}),
+  },
+  {
+    name: 'survey',
+    description:
+      'One look at everything before the first change: get_build, then find_sockets for each family (all placeable ones unless ' +
+      'families is given; each with total and its first few offers as socket ids for apply), then find_props for each text in props. ' +
+      'Use it once instead of a turn of separate lookups; ask find_sockets for a family again for its full list.',
+    parameters: obj({
+      families: { type: 'array', items: { type: 'string', enum: FAMILIES }, description: 'Optional: only these families.' },
+      props: { type: 'array', maxItems: 8, items: { type: 'string' }, description: 'Optional: words to search props for, one search each (e.g. "mug", "pliers").' },
+    }),
   },
   {
     name: 'find_parts',
@@ -454,8 +492,8 @@ export const TOOL_SPECS = [
 // The tool list a session offers: set_requirements and a finish keyed by
 // requirement id only with acceptance tests (A64), an outcome only with
 // abstention (A58). Neither on is the interactive default as it was.
-export function toolSpecsFor({ acceptance = false, abstain = false, rolegraph = false, topology = true } = {}) {
-  return TOOL_SPECS.filter((t) => (acceptance || t.name !== 'set_requirements') && (rolegraph || t.name !== 'plan_build')).map((t0) => {
+export function toolSpecsFor({ acceptance = false, abstain = false, rolegraph = false, topology = true, survey = true } = {}) {
+  return TOOL_SPECS.filter((t) => (acceptance || t.name !== 'set_requirements') && (rolegraph || t.name !== 'plan_build') && (survey || t.name !== 'survey')).map((t0) => {
     const t = !topology && t0.name === 'find_sockets' ? { ...t0, description: t0.description.replace(TOPOLOGY_SOCKETS, '') } : t0;
     if (t.name !== 'finish') return acceptance ? t : withoutRole(t);
     if (!acceptance && !abstain) return t;
@@ -501,7 +539,7 @@ function withoutRole(t) {
 const MUTATING = new Set(['plan_build', 'apply', 'dress', 'hang_spools', 'fill_and_plant', 'fill_compartments', 'undo', 'redo']);
 
 export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes = {} } = {}) {
-  const FIX = { ewDrawers: true, rollbackRead: true, topology: true, ...fixes };
+  const FIX = { ewDrawers: true, rollbackRead: true, topology: true, yawSweep: true, dressInside: true, survey: true, ...fixes };
   const needs = (family) => (!FIX.ewDrawers && family === 'drawer') || (!FIX.topology && family === 'connector') ? NEEDS_BEFORE[family] : NEEDS[family];
   const sockets = new Map();
   let nextSocket = 1;
@@ -593,6 +631,50 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes
   async function knownProps() {
     propIds ??= new Set((await hex.call('listProps')).map((p) => p.id));
     return propIds;
+  }
+
+  // Fix yawSweep: the first turn of a refused prop op that the page's dry run says rests clear, or null.
+  async function sweepFit(op) {
+    for (const d of YAW_STEPS) {
+      const t = turnedOp(op, d);
+      let o;
+      try {
+        o = await hex.call('apply', t, { dryRun: true });
+      } catch {
+        return null;
+      }
+      if (o?.ok && !(o.warnings ?? []).some((w) => (w.code ?? w) === 'PROP_INSIDE' || (w.code ?? w) === 'PROP_FLOATING')) return { op: t, turnDeg: d };
+    }
+    return null;
+  }
+
+  let propList = null;
+  async function propSize(id) {
+    propList ??= await hex.call('listProps');
+    const p = (propList ?? []).find((x) => x.id === id);
+    if (!p) return null;
+    return p.sizeMm ? [p.sizeMm.long, p.sizeMm.mid, p.sizeMm.short].map(mm) : p.longMm != null ? [mm(p.longMm)] : null;
+  }
+  const outlineSize = (o) => {
+    if (!o?.length) return null;
+    const xs = o.map((p) => p[0]), zs = o.map((p) => p[1]);
+    return [mm(Math.max(...xs) - Math.min(...xs)), mm(Math.max(...zs) - Math.min(...zs))];
+  };
+
+  // Fix dressInside: why a prop given "in" a part has no floor or compartment there, with the sizes.
+  async function noFitInside(holder, id, used) {
+    const floors = (await hex.call('surfaces', holder)).filter((f) => f.kind === 'floor' || f.kind === 'compartment');
+    const size = await propSize(id);
+    const sizes = floors.map((f) => {
+      const s = outlineSize(f.outlineMm);
+      return `${f.kind}${s ? ` ${s[0]} x ${s[1]} mm` : ''}${f.depthMm != null ? ` (depth ${mm(f.depthMm)})` : ''}${used.has(f.id) ? ' (taken by this call)' : ''}`;
+    });
+    return {
+      ok: false, id, in: holder, code: 'NO_FIT_INSIDE',
+      message: floors.length
+        ? `${id}${size ? ` (${size.join(' x ')} mm)` : ''} fits no free floor or compartment of ${holder}: it has ${sizes.join(', ')}. Not placed: it is not in it. Pick a smaller prop, another part, or put it on top (on) and do not call it inside.`
+        : `${holder} has no floor or compartment (a lid or a top only): ${id} cannot go in it. Not placed. Put it on top (on) and do not call it inside, or use a bin.`,
+    };
   }
 
   async function resolve(item, refs) {
@@ -771,6 +853,30 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes
       };
     },
 
+    // Fix survey: the discovery turn in one call (print-station v1 ran 0/5 out of turns on lookups).
+    async survey({ families, props } = {}) {
+      if (!FIX.survey) throw new Error('survey is off in this session');
+      const fams = Array.isArray(families) && families.length ? families.filter((f) => FAMILIES.includes(f)) : FAMILIES;
+      const out = { build: await handlers.get_build(), sockets: {} };
+      for (const family of fams) {
+        try {
+          const s = await handlers.find_sockets({ family });
+          out.sockets[family] = { total: s.total, sockets: s.sockets.slice(0, SURVEY_SOCKETS), ...(s.note && !s.total ? { note: s.note } : {}) };
+        } catch (e) {
+          out.sockets[family] = { error: String(e.message ?? e).slice(0, 200) };
+        }
+      }
+      if (Array.isArray(props) && props.length) {
+        out.props = {};
+        for (const text of props.slice(0, 8)) {
+          const p = await handlers.find_props({ text: String(text) });
+          out.props[text] = { total: p.total, props: p.props.slice(0, SURVEY_PROPS) };
+        }
+      }
+      out.note = `Each family shows its first ${SURVEY_SOCKETS} offers; offers are valid until the next change.`;
+      return out;
+    },
+
     async find_props({ text, use, kind } = {}) {
       const all = await hex.call('listProps');
       const words = (text ?? '').toLowerCase().split(/[\s,]+/).filter(Boolean);
@@ -911,7 +1017,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes
       return out;
     },
 
-    async apply({ ops, atomic = true, dryRun = false }) {
+    async apply({ ops, atomic = true, dryRun = false }, { sweep = true } = {}) {
       if (!Array.isArray(ops) || ops.length === 0) throw new Error('ops must be a non-empty array');
       if (dryRun) {
         // One op, nothing changes, nothing counts against the budget.
@@ -922,7 +1028,13 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes
           return { dryRun: true, notDryRun: true, note: `dryRun works only for ${[...DRY_RUN_OPS].join(', ')}. Apply ${op.op} for real: a refusal changes nothing, and undo takes back what went on.` };
         }
         const o = await hex.call('apply', op, { dryRun: true });
-        return { dryRun: true, outcomes: [summarizeOutcome(o)] };
+        const s = summarizeOutcome(o);
+        // Fix yawSweep: a refused dry run comes back with the turn that does rest, as a tryInstead.
+        if (FIX.yawSweep && sweepable(o)) {
+          const f = await sweepFit(o.op ?? op);
+          if (f) s.tryInstead = { socket: remember(f.op), op: f.op, turnDeg: f.turnDeg, note: `turned ${f.turnDeg} degrees it rests: send this socket` };
+        }
+        return { dryRun: true, outcomes: [s] };
       }
       if (acceptance && !requirements) throw new Error('Call set_requirements first: the brief as acceptance tests, before the first change.');
       if (ops.length > LIMITS.opsPerCall) throw new Error(`at most ${LIMITS.opsPerCall} ops per call`);
@@ -1035,6 +1147,33 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes
           }
         }
       }
+      // Fix yawSweep: props refused for where they rest, with no tryInstead, tried turned. Kept ops (atomic
+      // false, or a batch that stood) go on turned at once; in a rolled-back batch the turn that rests is
+      // offered as tryInstead, only where no op landed before it (the dry run sees the restored build).
+      if (FIX.yawSweep && sweep && r.outcomes.length === batch.length) {
+        const cands = r.outcomes.map((o, i) => [o, i]).filter(([o]) => sweepable(o)).slice(0, SWEEP_MAX);
+        const fits = [];
+        for (const [o, i] of cands) {
+          if (r.rolledBack && r.outcomes.slice(0, i).some((x) => x.ok)) continue;
+          const f = await sweepFit(o.op);
+          if (f) fits.push({ i, ...f });
+        }
+        if (fits.length && !r.rolledBack) {
+          const items = fits.map((f) => ({ socket: remember(f.op), ...(roleFor.get(batch[f.i]) ? { role: roleFor.get(batch[f.i]) } : {}) }));
+          const t = await handlers.apply({ ops: items, atomic: false }, { sweep: false });
+          out.yawSwept = {
+            count: fits.length,
+            turns: fits.map((f, k) => ({ id: f.op.id ?? f.op.ref, turnDeg: f.turnDeg, ...turnOf(f.op), ok: Boolean(t.outcomes[k]?.ok), ...(t.outcomes[k]?.added ? { added: t.outcomes[k].added } : {}) })),
+            outcomes: t.outcomes,
+            note: 'Each prop refused for where it rests was tried turned (dry run), and the first turn that rests went on: it is on the build at that turn.',
+          };
+        } else if (fits.length) {
+          for (const f of fits) {
+            const s = out.outcomes[f.i];
+            if (s && !s.ok) s.tryInstead = { socket: remember(f.op), op: f.op, turnDeg: f.turnDeg, note: `turned ${f.turnDeg} degrees it rests: send the batch with this socket in its place` };
+          }
+        }
+      }
       return out;
     },
 
@@ -1074,6 +1213,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes
       if (!Array.isArray(props) || !props.length) throw new Error('props must be a non-empty array');
       const used = new Set();
       const ops = [];
+      const notPlaced = [];
       for (const p of props) {
         if (!p || typeof p.id !== 'string') throw new Error('each prop needs an id from find_props');
         const { in: holder, role, ...rest } = p;
@@ -1091,12 +1231,21 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes
           continue;
         }
         // The first surface of the holder this prop fits that this call has not taken yet.
-        const free = (await hex.call('surfaces', holder, { fits: p.id })).filter((f) => f.kind !== 'soil' && !used.has(f.id));
-        if (!free.length) { ops.push({ op: 'addProp', ...rest, on: holder, ...tag }); continue; }
+        let free = (await hex.call('surfaces', holder, { fits: p.id })).filter((f) => f.kind !== 'soil' && !used.has(f.id));
+        // Fix dressInside: in means inside, a floor or compartment; a rim or a top is not in it (print-station-v2:
+        // tweezers on a drawer's rim reported "in a drawer"). None fits: refused with the sizes, not put on top.
+        if (FIX.dressInside) free = free.filter((f) => f.kind === 'floor' || f.kind === 'compartment');
+        if (!free.length) {
+          if (FIX.dressInside) { notPlaced.push(await noFitInside(holder, p.id, used)); continue; }
+          ops.push({ op: 'addProp', ...rest, on: holder, ...tag });
+          continue;
+        }
         used.add(free[0].id);
         ops.push({ op: 'addProp', ...rest, ...alongFor(free[0], rest), surface: tokenFor(free[0].id), ...tag });
       }
-      return withPropCheck(await helperApply(ops));
+      const res = ops.length ? await helperApply(ops) : { rolledBack: false, outcomes: [] };
+      if (notPlaced.length) res.notPlaced = notPlaced;
+      return withPropCheck(res);
     },
 
     async hang_spools({ id = 'filament-spool', role } = {}) {
@@ -1162,12 +1311,12 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes
     const busy = out.outcomes.flatMap((o, i) => (!o.ok && o.code === 'BUSY' ? [ops[i]] : []));
     if (tries.length) {
       const t = await handlers.apply({ ops: tries, atomic: false });
-      out.tryInsteadSent = { count: tries.length, outcomes: t.outcomes, note: 'Each prop refused with a tryInstead was sent again as that tryInstead.' };
+      out.tryInsteadSent = { count: tries.length, outcomes: t.outcomes, ...(t.yawSwept ? { yawSwept: t.yawSwept } : {}), note: 'Each prop refused with a tryInstead was sent again as that tryInstead.' };
     }
     if (busy.length) {
       await hex.call('settle');
       const b = await handlers.apply({ ops: busy, atomic: false });
-      out.busyResent = { count: busy.length, outcomes: b.outcomes, note: 'Props refused BUSY were sent again once the settle finished.' };
+      out.busyResent = { count: busy.length, outcomes: b.outcomes, ...(b.yawSwept ? { yawSwept: b.yawSwept } : {}), note: 'Props refused BUSY were sent again once the settle finished.' };
     }
     return out;
   }
@@ -1229,10 +1378,12 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes
     const v = await hex.call('validate');
     const flagged = v.issues.filter((i) => PROP_CODES.has(i.code)).map(propFlag);
     // Props the follow-up pass placed (a tryInstead, a BUSY re-send) count as placed.
-    const okIn = (r) => (r?.outcomes ?? []).filter((o) => o.ok).length;
-    const recovered = okIn(out.tryInsteadSent) + okIn(out.busyResent);
+    // A turned prop (yawSweep) counts too, also one turned after its tryInstead or BUSY re-send.
+    const okIn = (r) => (r?.outcomes ?? []).filter((o) => o.ok).length + (r?.yawSwept ? okIn(r.yawSwept) : 0);
+    const recovered = okIn(out.tryInsteadSent) + okIn(out.busyResent) + okIn(out.yawSwept);
     const placed = out.outcomes.filter((o) => o.ok).length + recovered;
-    return { placed, refused: Math.max(0, out.outcomes.length - placed), ...out, flagged, ...(flagged.length ? {} : { note: 'No prop warnings.' }) };
+    const notPlaced = out.notPlaced?.length ?? 0;
+    return { placed, refused: Math.max(0, out.outcomes.length - placed) + notPlaced, ...out, flagged, ...(flagged.length ? {} : { note: 'No prop warnings.' }) };
   }
 
   async function run(name, rawArgs) {

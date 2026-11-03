@@ -79,7 +79,9 @@ Working method for this session: plan, then batch. First survey with get_build, 
 // passes, all 3 citing a wrong ref; off until a live A/B.
 // ewDrawers, rollbackRead, topology and verify are the Modal-review fixes 1-4 (default on): a batch turns one
 // off (--features=-topology) for its before arm on the same commit, so each gain keeps a known cause.
-export const DEFAULT_FEATURES = { acceptance: false, abstain: true, rolegraph: false, cites: false, ewDrawers: true, rollbackRead: true, topology: true, verify: true };
+// yawSweep, dressInside, uncheckablePushback, claimChecks, viewGuard and survey are the tool-layer fixes of
+// 2026-11-03 (default on, each ablated by --features=-name).
+export const DEFAULT_FEATURES = { acceptance: false, abstain: true, rolegraph: false, cites: false, ewDrawers: true, rollbackRead: true, topology: true, verify: true, yawSweep: true, dressInside: true, uncheckablePushback: true, claimChecks: true, viewGuard: true, survey: true };
 
 // Parse --features: a list of names turns exactly those on; 'none' turns all off; absent keeps the defaults;
 // -name / +name (every entry signed) turn one default off or on.
@@ -98,20 +100,23 @@ export function parseFeatures(arg) {
   // so an older command line (--features=abstain) does not quietly run the pre-fix agent.
   return Object.fromEntries(Object.keys(DEFAULT_FEATURES).map((f) => [f, FIXES.includes(f) ? (on.includes(f) || DEFAULT_FEATURES[f]) : on.includes(f)]));
 }
-const FIXES = ['ewDrawers', 'rollbackRead', 'topology', 'verify'];
+const FIXES = ['ewDrawers', 'rollbackRead', 'topology', 'verify', 'yawSweep', 'dressInside', 'uncheckablePushback', 'claimChecks', 'viewGuard', 'survey'];
 
 // Pushbacks on a finish whose own tests disagree with it, before it is taken as it is.
 const PUSHBACKS = 2;
 
 export async function runAgent({ hex, model, brief, budget = {}, ledger = null, purpose = 'dev', runId = null, strategy = 'interactive', features = {}, onEvent = () => {} }) {
   if (!(strategy in STRATEGIES)) throw new Error(`unknown strategy ${strategy}: ${Object.keys(STRATEGIES).join(', ')}`);
-  const { acceptance, abstain, rolegraph, cites, ewDrawers, rollbackRead, topology, verify } = { ...DEFAULT_FEATURES, ...features };
+  const { acceptance, abstain, rolegraph, cites, ewDrawers, rollbackRead, topology, verify, yawSweep, dressInside, uncheckablePushback, claimChecks, viewGuard, survey } = { ...DEFAULT_FEATURES, ...features };
   const instructions = INSTRUCTIONS + (acceptance ? ACCEPTANCE : '') + (abstain ? ABSTAIN : '') + (rolegraph ? ROLEGRAPH : '') + STRATEGIES[strategy];
-  const specs = toolSpecsFor({ acceptance, abstain, rolegraph, topology });
+  const specs = toolSpecsFor({ acceptance, abstain, rolegraph, topology, survey });
   const offered = new Set(specs.map((t) => t.name));
   let pushbacks = 0;
   // Fix 4: the build-side check of an all-met finish sends it back once at most.
   let verified = false;
+  // uncheckablePushback and viewGuard: each sends a finish back once at most.
+  let unchecked = false;
+  let viewed = false;
   const maxTurns = budget.maxTurns ?? 30;
   const maxMs = budget.maxMs ?? 10 * 60_000;
   const maxUsd = budget.maxUsd ?? 2.0;
@@ -130,7 +135,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     events.push(ev);
     onEvent(ev);
   };
-  const tools = createTools(hex, { onEvent: emit, acceptance, fixes: { ewDrawers, rollbackRead, topology } });
+  const tools = createTools(hex, { onEvent: emit, acceptance, fixes: { ewDrawers, rollbackRead, topology, yawSweep, dressInside, survey } });
   const usage = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, calls: 0 };
   const items = [{ role: 'user', content: brief }];
   let finish = null;
@@ -177,6 +182,14 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
         if (open && !back && verify && !verified) {
           back = await verifyFinish(parsed.finish);
           if (back) verified = true;
+        }
+        if (open && !back && uncheckablePushback && !unchecked) {
+          back = uncheckableClaims(parsed.finish);
+          if (back) unchecked = true;
+        }
+        if (open && !back && viewGuard && !viewed) {
+          back = await hiddenFromView(parsed.finish);
+          if (back) viewed = true;
         }
         if (parsed.error) result = { error: parsed.error };
         else if (unset) {
@@ -235,7 +248,27 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
       emit({ type: 'harness_note', message: `finish verify skipped: ${String(e.message ?? e).slice(0, 200)}` });
       return null;
     }
-    return verifyIssues(f, state, v, tools.floating());
+    return verifyIssues(f, state, v, tools.floating(), { claimChecks, brief });
+  }
+
+  // Fix viewGuard: a met requirement about what faces or shows, while the default view hides props,
+  // goes back once (kitchen terrace: 5 of 5 faced away from the default camera). One still, taken
+  // through the look tool as the model would.
+  async function hiddenFromView(f) {
+    const about = (f?.requirements ?? []).filter((r) => r.status === 'met' && VIEW_WORDS.test(r.requirement));
+    if (!about.length) return null;
+    let seen;
+    try {
+      seen = await tools.run('look', {});
+    } catch (e) {
+      seen = { error: String(e.message ?? e) };
+    }
+    if (!seen || seen.error) {
+      emit({ type: 'harness_note', message: `view guard skipped: ${String(seen?.error ?? 'no view').slice(0, 200)}` });
+      return null;
+    }
+    emit({ type: 'view_guard', hidden: seen.hidden ?? [] });
+    return viewIssues(f, seen);
   }
 
   // L19: a requirement called met whose evidence names a part ref that is not on the build.
@@ -473,7 +506,7 @@ export function staleCitations(finish, state) {
 // Fix 4: what plainly disagrees with an all-met finish, from validate(), the build and the floating
 // bases the run placed. Null when nothing does.
 const CLOSED = /\b(closed|enclosed|capped|sealed|lidded|covered on all|all edges capped)\b/i;
-export function verifyIssues(finish, state, v, floating = []) {
+export function verifyIssues(finish, state, v, floating = [], { claimChecks = true, brief = '' } = {}) {
   const reqs = finish?.requirements ?? [];
   if (!reqs.length || !reqs.every((r) => r.status === 'met')) return null;
   const out = [];
@@ -491,7 +524,73 @@ export function verifyIssues(finish, state, v, floating = []) {
   out.push(...staleCitations(finish, state));
   const openCap = (v?.issues ?? []).some((i) => i.code === 'OPEN_CAP_FACE');
   for (const r of finish.requirements) if (openCap && CLOSED.test(r.requirement)) out.push({ id: r.id ?? r.requirement, why: 'called met, but validate reports OPEN_CAP_FACE: an edge or face is still open' });
+  if (claimChecks) out.push(...claimIssues(finish, state, brief));
   return out.length ? out : null;
+}
+
+// Fix claimChecks: (a) a met requirement about drawers on a build with none; (b) a part limit the brief
+// states ("at most 12 parts", "under 20 pieces") against the part count (nodes, as the maxParts test counts).
+const DRAWER_WORD = /\bdrawers?\b/i;
+const NO_DRAWER = /\b(?:no|without|zero|not? any)\s+(?:\w+\s+)?drawers?\b/i;
+const PART_LIMIT = /\b(at most|no more than|not more than|a maximum of|maximum of|max(?:imum)?|up to|under|fewer than|less than|below)\s+(\d+)\s+(?:printed\s+|hex\s+)?(?:parts?|pieces?)\b/i;
+export function drawerCount(state) {
+  return (state?.nodes ?? []).filter((n) => n.family === 'drawer' || (n.family === 'notch' && /drawer/i.test(`${n.stem ?? ''} ${n.ref ?? ''}`))).length;
+}
+export function partLimit(brief) {
+  const m = PART_LIMIT.exec(String(brief ?? ''));
+  if (!m) return null;
+  const n = Number(m[2]);
+  return /under|fewer|less|below/i.test(m[1]) ? n - 1 : n;
+}
+export function claimIssues(finish, state, brief = '') {
+  const out = [];
+  const reqs = finish?.requirements ?? [];
+  if (!drawerCount(state)) {
+    for (const r of reqs) {
+      if (r.status === 'met' && DRAWER_WORD.test(r.requirement) && !NO_DRAWER.test(r.requirement)) {
+        out.push({ id: r.id ?? r.requirement, why: 'called met, but the build has no drawers (get_build lists no drawer): add one, or mark it unmet' });
+      }
+    }
+  }
+  const limit = partLimit(brief);
+  const parts = (state?.nodes ?? []).length;
+  if (limit != null && parts > limit) out.push({ id: 'partLimit', why: `the brief allows at most ${limit} parts and the build has ${parts}: take parts off, or mark that requirement unmet` });
+  return out;
+}
+
+// Fix uncheckablePushback: properties fit and collision checks cannot see. A met requirement that asserts
+// one comes back once, to be marked unverified or unmet. Its own list (the grader's is not touched).
+const UNCHECKABLE = /\b(looks? (?:good|great|nice|clean|tidy|neat)|good[- ]looking|pretty|beautiful|attractive|elegant|aesthetic(?:ally)?|stylish|gorgeous|quiet(?:ly)?|silent(?:ly)?|noiseless|sturdy|sturdily|strong|robust|rigid|(?:pet|child|kid|baby|toddler)[- ]?(?:safe|proof|friendly)|safe (?:for|around) (?:pets?|cats?|dogs?|child(?:ren)?|kids?|bab(?:y|ies)|toddlers?)|durable|durability|long[- ]lasting|hard[- ]wearing)\b/i;
+// "pretty" as an adverb ("pretty close") is not a looks claim.
+const PRETTY_ADVERB = /\bpretty\s+(?:much|close|well|good|small|big|large|tight|full|near|sure|far)\b/i;
+const UNCHECKED_SAID = /\b(?:not|no|nothing|never|cannot|can't|unverified|unchecked|untested|unknown|depends on)\b/i;
+function uncheckableIn(text) {
+  const m = UNCHECKABLE.exec(text);
+  if (!m) return null;
+  if (/^pretty$/i.test(m[0]) && PRETTY_ADVERB.test(text)) return null;
+  return m;
+}
+export function uncheckableClaims(finish) {
+  const out = [];
+  for (const r of finish?.requirements ?? []) {
+    if (r.status !== 'met') continue;
+    const inReq = uncheckableIn(String(r.requirement ?? ''));
+    // In the evidence, a clause that says it is not checked is not a claim.
+    const inEv = String(r.evidence ?? '').split(/(?<=[.;!?])\s+|,\s*/).map((c) => [c, uncheckableIn(c)]).find(([c, m]) => m && !UNCHECKED_SAID.test(c));
+    const m = inReq ?? inEv?.[1];
+    if (m) out.push({ id: r.id ?? r.requirement, why: `called met, but "${m[0]}" is not something the configurator checks (fit and collisions only): mark it unverified or unmet, and say what the build does show` });
+  }
+  return out.length ? out : null;
+}
+
+// Fix viewGuard: words of a requirement about what a person sees or faces.
+const VIEW_WORDS = /\b(front|fronts|facing|faces? (?:out|outward|forward|front|the (?:user|viewer|camera|room))|visible|view|viewed|display(?:s|ed|ing)?|on show|shows?|showing|showcases?)\b/i;
+export function viewIssues(finish, seen) {
+  const hidden = seen?.hidden ?? [];
+  if (!hidden.length) return null;
+  const about = (finish?.requirements ?? []).filter((r) => r.status === 'met' && VIEW_WORDS.test(r.requirement));
+  if (!about.length) return null;
+  return about.map((r) => ({ id: r.id ?? r.requirement, why: `called met, but from the default view (look with no arguments) ${hidden.length} prop(s) are hidden: ${hidden.slice(0, 8).join(', ')}. Turn or move them to face the view (yawDeg, facingDeg, moveProp), or mark it partial` }));
 }
 
 // Provider hiccups (rate limit, overload, 5xx, dropped connection, timeout) are

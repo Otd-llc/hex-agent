@@ -191,7 +191,7 @@ test('set_requirements refuses a test that can name nothing, and notes an unknow
 
 test('features: abstention on by default, acceptance off; none turns all off', async () => {
   const { parseFeatures, DEFAULT_FEATURES } = await import('../src/agent.mjs');
-  const fixes = { ewDrawers: true, rollbackRead: true, topology: true, verify: true };
+  const fixes = { ewDrawers: true, rollbackRead: true, topology: true, verify: true, yawSweep: true, dressInside: true, uncheckablePushback: true, claimChecks: true, viewGuard: true, survey: true };
   assert.deepEqual(DEFAULT_FEATURES, { acceptance: false, abstain: true, rolegraph: false, cites: false, ...fixes });
   assert.deepEqual(parseFeatures(null), DEFAULT_FEATURES);
   assert.deepEqual(parseFeatures('none'), { acceptance: false, abstain: false, rolegraph: false, cites: false, ...fixes }, 'none leaves the fixes on');

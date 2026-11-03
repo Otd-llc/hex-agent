@@ -50,7 +50,8 @@ messages and the configurator. Voice: "We built the agent for this event:
 the loop, its tools, its checks. The configurator is One Thousand Drones'
 existing product. The agent reads the build, asks the configurator where
 parts fit, and places them through its public browser API. The model
-chooses; the configurator's own rules accept or refuse."
+chooses; the configurator's own rules accept or refuse, and some helper
+tools re-send the configurator's own suggested fix."
 
 **0:40-1:00. A refusal, and the recovery.** Screen: replay re-applies only
 accepted ops, so the refusal is a caption card quoting the trace's own
@@ -60,24 +61,35 @@ says no: a deep planter bin needs a taller base under it. The model doesn't
 argue with the rule. It reads the refusal and builds the base it needs."
 
 **1:00-1:20. Kitchen garden terrace (run a1530f79).** Screen: the replay,
-then the finished terrace turning. Voice: "A kitchen garden terrace: 12
+then the finished terrace turning, with the caption "chosen by the owner from
+its brief's runs; every run counted in the paper". Crop the replay's end card
+and the overlay's finish line ("finishes: met, met, ...") and its "All twelve
+plantings are in and visible" line. Voice: "A kitchen garden terrace: 12
 planters and 11 species in three tiers. This brief passed 3 of 5 runs; the
 two failures ran out of turns."
 
 **1:20-1:45. FPV drone pit station (run f24f0f99).** Screen: the replay, then
-a caption card: "brief versions 1 to 4: 0 passed; version 5: 5 of 5". Voice:
+a caption card: "brief versions 1 to 4: 0 passed; version 5: 5 of 5" and the
+caption "chosen by the owner from its brief's runs; every run counted in the
+paper". Crop the replay's end card and the overlay's finish line ("finishes:
+met, met, ..."). Voice:
 "A drone pit station of 108 parts. The first four versions of this brief
-passed none. We never changed the agent, only the brief, naming what the
-agent's own tools had already proven. Version five passed 5 of 5."
+passed none. We never changed the agent, only the brief.
+Version five spells out the layout cell by cell; the model builds it.
+Version five passed 5 of 5."
 Owner decision (2026-11-03): the flaws are not narrated in the video. Do not
 show this run's report lines for the quad cover or the drawers facing the
 viewer (both marked met; the stills contradict them, paper Demo and results):
 keep the replay overlay off the report card, or crop those two lines.
 
 **1:45-2:10. 3D-printing station (run dfdebefd): what the checks verify.**
-Screen: the replay, then a caption card with the trace's verdict (each check
-and its result), the parts list, and the share link opened in a fresh tab
-showing the same build. Do not show the report's rods line (marked met; the
+Screen: the replay, then a caption card with the trace's checks (each check
+and its result, without the word VERIFIED; requirementsClaimedMet glossed as
+"the model's own report"), the parts list, and the share link opened in a
+fresh tab showing the same build; a caption "chosen by the owner from its
+brief's runs; every run counted in the paper" and a card "brief v1: 0 of 5;
+v2, v3: 3 of 3 completed each". Crop the replay's end card and the overlay's
+finish line ("finishes: met, met, ..."). Do not show the report's rods line (marked met; the
 stills contradict it, paper Demo and results). Voice: "A printing station of 133 parts, four
 filament spools hung on axles. When it finishes, code runs the checks:
 placement rules, the mesh-collision gate, the parts list, the print pack,

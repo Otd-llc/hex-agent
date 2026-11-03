@@ -11,7 +11,7 @@ An agent on Meta Muse models that turns one sentence into a checked Hex Cluster 
 
 ## What it does
 
-You give it a brief such as "a strawberry tower for a small balcony". A Meta model reads the build, asks the configurator where parts fit, places them through the public [`window.hexAPI`](https://academy.onethousanddrones.com/hex/api), reads each accept or refusal and the alternatives it offers, and revises. It ends with a share link, a parts list, a print pack the configurator made, and a statement of which requirements were met, partly met or not met. The configurator's checks and our code then decide whether the run passed.
+You give it a brief such as "a strawberry tower for a small balcony". A Meta model reads the build, asks the configurator where parts fit, places them through the public [`window.hexAPI`](https://academy.onethousanddrones.com/hex/api), reads each accept or refusal and the alternatives it offers, and revises. It ends with a share link, a parts list, a print pack the configurator made, and the model's own statement of which requirements were met, partly met or not met. The configurator's checks and our code then decide whether the run passed.
 
 ## What was built during the hackathon
 

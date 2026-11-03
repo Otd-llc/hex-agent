@@ -41,7 +41,7 @@ docs/submission/paper/paper.md.
 **0:00-0:15. Cold open: the strawberry tower (run 9329ae20).** Screen: the
 configurator, empty bench; the brief appears in the overlay. Voice: "A
 strawberry tower for a small balcony: one tall planter in the middle, ringed
-by six shorter ones, all planted. That's the whole brief. Meta's Muse Spark
+by six shorter ones, all planted. That's the brief, in short. Meta's Muse Spark
 1.3 builds it in the live Hex Cluster configurator."
 
 **0:15-0:40. What is happening.** Screen: parts appear as the replay applies
@@ -90,7 +90,8 @@ fresh tab showing the same build; a caption "chosen by the owner from its
 brief's runs; every run counted in the paper" and a card "brief v1: 0 of 5;
 v2, v3: 3 of 3 completed each". Crop the replay's closing verdict lines (bin/replay.mjs; the overlay was added after the tag) and the overlay's
 finish line ("finishes: met, met, ..."). Do not show the report's rods line (marked met; the
-stills contradict it, paper Demo and results). Voice: "A printing station of 133 parts, four
+stills contradict it, paper Demo and results). Voice: "Version three spells out the layout cell by cell; the model builds it.
+A printing station of 133 parts, four
 filament spools hung on axles. When it finishes, code runs the checks:
 placement rules, the mesh-collision gate, the parts list, the print pack,
 the share link reloaded in a fresh tab, and the brief's own checks. A run

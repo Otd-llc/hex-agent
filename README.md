@@ -17,6 +17,12 @@ You give it a brief such as "a strawberry tower for a small balcony". A Meta mod
 
 Hex Cluster, its configurator, placement rules, collision check, `window.hexAPI`, print packs and part catalog existed before the event and belong to One Thousand Drones; none of that source is here. One Thousand Drones also shipped configurator releases during the event, some prompted by the agent's runs; they are product changes, not claimed here, and every result ran on one of them (each identified by its API-contract hash). This repository, from its first commit (`fb78560`, 2026-10-27), is the event work: the agent loop, browser bridge, checked tool layer, Meta model adapters, verification, honesty check, abstention, grader and rescoring, spend ledgers, evaluation suites, baselines, the replay tool and a vision judge on Meta models. Nothing was trained. [HACKATHON_DELTA.md](HACKATHON_DELTA.md) names each pre-existing version.
 
+Pre-existing things the agent and its demo use, and their setup:
+
+- **The Hex Cluster configurator** at [hex.onethousanddrones.com](https://hex.onethousanddrones.com) (One Thousand Drones, proprietary). Hosted and public: nothing to install, `npm start` opens it in Chrome. Its API description is vendored in [`contract/`](contract/) so the tool layer can check calls offline.
+- **The agent crystal** shown in the configurator during the demo, from [Otd-llc/emotive-hex-agent](https://github.com/Otd-llc/emotive-hex-agent) (MIT; the Emotive Engine by Joshua Tollette, imported at its pre-event commit `56e0bcaf`). It is served by the hosted configurator; hex-agent does not import it, and it is not entered for judging.
+- **Meta's models**: the Meta Model API (a key in `MODEL_API_KEY`, see [Run it](#run-it)) and, for the open-weights development batches, Muse Spark Open ([Built with Muse Spark Open](https://huggingface.co/meta-models/Muse-Spark-Open-816B-A42B)) on Baseten, Fireworks or a Modal Dedicated endpoint, each with its own key.
+
 ## Run it
 
 Needs Node 22 or later (`npm test` passes a glob to `node --test`, which needs Node 21 or later), Google Chrome, and, for live runs only, a Meta Model API key in `MODEL_API_KEY`.
@@ -121,7 +127,7 @@ The 14 of 18 likely overstates success. Its passes were not audited, and audits 
 
 A pass means the build is valid in the configurator (placement rules, mesh collision check, print pack, share link reloaded with the same parts list) and passes the brief's coded checks. A decline that leaves the build empty needs a finish and no broken rule, and the brief's checks still apply; warning-level issues pass; a requirement reported unmet passes unless the brief checks for it. Where a prop sits, which way a part faces in plan and whether one part reaches another are not tested, and nothing was printed.
 
-A development build cost about $0.057 of Muse Spark 1.3 tokens on average per run (the pictured demo run cost more), a list-price estimate with no bill behind it. After the paper's first review gate, Muse Wonder 1.0 passed 17 of 18 held-out briefs on its one run (Wilson 74.2 to 99.0%). Earlier, Meta's open-weights Muse Spark Open passed 89.4 to 93.9% of development runs per batch in seven effort-low batches on Baseten and a Modal Dedicated endpoint. The models are reported apart and never pooled or compared. The grader is ours, on one product, reviewed by no third party. Details, intervals and every caveat: the [paper](docs/submission/paper/paper.md).
+A development build cost about $0.057 of Muse Spark 1.3 tokens on average per run (the pictured demo run cost more), a list-price estimate with no bill behind it. After the paper's first review gate, Muse Wonder 1.0 passed 17 of 18 held-out briefs on its one run (Wilson 74.2 to 99.0%). Earlier, Meta's open-weights Muse Spark Open ([Built with Muse Spark Open](https://huggingface.co/meta-models/Muse-Spark-Open-816B-A42B), under the Muse Model License) passed 89.4 to 93.9% of development runs per batch in seven effort-low batches on Baseten and a Modal Dedicated endpoint. The models are reported apart and never pooled or compared. The grader is ours, on one product, reviewed by no third party. Details, intervals and every caveat: the [paper](docs/submission/paper/paper.md).
 
 ## Notable engineering
 
@@ -137,7 +143,7 @@ A development build cost about $0.057 of Muse Spark 1.3 tokens on average per ru
 - The Meta Model API and Modal Dedicated open from the command line only. `.env` cannot switch them on; the code refuses it.
 - Spend is ledgered per call in `.spend/`; by default dev and eval runs stop before a $50 demo reserve ([`src/ledger.mjs`](src/ledger.mjs), `SPEND_*` overrides), and after the paper's review gate the owner raised the caps on the command line. The estimate is not the bill; reconcile with the provider console.
 - `src/` is frozen at `eval-final`. Tools added after the gate live in `bin/`. After a configurator deploy, run `node bin/smoke-tools.mjs`, then `node bin/sync-contract.mjs <path-or-url>` if the contract changed.
-- A replay is never a live run. `bin/replay.mjs` re-applies only what the configurator accepted, with REPLAY on screen. Every agent frame in the demo video is an accelerated replay of a recorded trace; no model runs during it.
+- A replay is never a live run. `bin/replay.mjs` re-applies only what the configurator accepted, with REPLAY on screen. The demo video's four builds are accelerated replays of recorded traces; one segment is a live run on the Meta Model API, labelled LIVE, and it enters no reported number.
 
 ## Docs
 

@@ -15,9 +15,16 @@ below names a commit or a file a judge can open.
 | `window.hexAPI` browser API, placement rules, collision gate, part catalog, print packs | One Thousand Drones, proprietary | contract `9bb662c8dab613bd4eae8a8677e5ddefa727d8ac8bad408614134efb1d0f0e4f` (Academy PR #578) | `git show fb78560:ARCHITECTURE.md`; suite index rows marked `~9bb662c8` |
 | Published API contract and its docs page | One Thousand Drones, under the API terms (see NOTICE) | as above; vendored here from `9c6a079`, synced by `bin/sync-contract.mjs` | `contract/hex-api-public.json`, [academy /hex/api](https://academy.onethousanddrones.com/hex/api) |
 | Hex Cluster printable parts | One Thousand Drones; some under CC BY 4.0 | parts release 2026-10-14 (the `printable-pack?release=` link the API returns in the 10-27 traces) | e.g. `runs/suite-2026-10-27T21-16-46-607Z/*/trace.json` |
-| Emotive Engine | Joshua Tollette, MIT | npm 3.5.0 | not used by this repository |
+| Emotive Engine | Joshua Tollette, MIT | engine commit `56e0bcaf` (2026-10-23) | not used by this repository; see below |
 
-None of that source is in this repository. hex-agent calls the configurator
+None of that source is in this repository.
+
+The agent's on-screen crystal in the hosted configurator, seen in the demo
+video, comes from [Otd-llc/emotive-hex-agent](https://github.com/Otd-llc/emotive-hex-agent)
+(public, MIT): a repository made during the event whose first commit,
+`5c14213` (2026-11-02), imports the Emotive Engine source at `56e0bcaf`
+with no history. It is a dependency of the demo, not code entered for
+judging, and hex-agent does not import it. hex-agent calls the configurator
 only through the public, documented browser API, as its terms allow ("your
 own scripts and automated browsers").
 

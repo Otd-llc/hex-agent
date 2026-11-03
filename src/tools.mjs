@@ -1302,7 +1302,34 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes
   // once: each prop refused with a tryInstead is sent as its tryInstead (Muse followed one only
   // about a quarter of the time), and the props refused BUSY (a settle still running) are sent
   // again after the settle. Both are said in the result.
-  async function helperApply(ops) {
+  async function helperApply(given) {
+    // Fix yawSweep: the biggest props first, so a small one placed earlier in the call does not take the room a
+    // big one needs (drone pit v3 dev runs: the quad-5in refused "Overlaps the multimeter" set just before it).
+    // Outcomes come back in the order given.
+    const order = await biggestFirst(given);
+    const ops = order.map((i) => given[i]);
+    const out = await helperApplyInOrder(ops);
+    if (order.some((v, k) => v !== k) && out.outcomes?.length === ops.length) {
+      const back = new Array(ops.length);
+      order.forEach((orig, k) => { back[orig] = out.outcomes[k]; });
+      out.outcomes = back;
+    }
+    return out;
+  }
+
+  // The order to send helper ops in: as given, or (yawSweep, every op an addProp) biggest footprint first.
+  async function biggestFirst(ops) {
+    const idx = ops.map((_, i) => i);
+    if (!FIX.yawSweep || ops.length < 2 || !ops.every((o) => o?.op === 'addProp')) return idx;
+    const area = [];
+    for (const o of ops) {
+      const s = await propSize(o.id);
+      area.push(s && s.length >= 2 ? s[0] * s[1] : s ? s[0] * s[0] : 0);
+    }
+    return idx.sort((a, b) => area[b] - area[a] || a - b);
+  }
+
+  async function helperApplyInOrder(ops) {
     const out = await handlers.apply({ ops, atomic: false });
     const aligned = out.outcomes.length === ops.length;
     if (!aligned || out.rolledBack) return out;

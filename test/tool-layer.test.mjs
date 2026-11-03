@@ -192,6 +192,25 @@ test('viewGuard: hidden props from the default view send back a met requirement 
   assert.equal(viewIssues({ requirements: [met('mugs on display')] }, { hidden: [] }), null);
 });
 
+test('viewGuard: a requirement about parts is held only to the hidden props it names', () => {
+  const seen = { hidden: ['prop:1', 'prop:7'] };
+  const props = [{ ref: 'prop:1', id: 'heap-nuts-div2', label: 'Heap of nuts' }, { ref: 'prop:7', id: 'goggles', label: 'FPV goggles' }];
+  assert.equal(viewIssues({ requirements: [met('half-n bases with a drawer on each storey facing the viewer')] }, seen, props), null);
+  const r = viewIssues({ requirements: [met('goggles on the front deck facing the viewer', 'cover:4,1,0')] }, seen, props);
+  assert.match(r[0].why, /1 prop\(s\).*prop:7/);
+  assert.equal(viewIssues({ requirements: [met('tools on display')] }, seen, props).length, 1, 'props in general: all hidden count');
+});
+
+test('yawSweep: helper props go on biggest first, outcomes in the order given', async () => {
+  const hex = fakeHex({ fitsAt: 0 });
+  const r = await createTools(hex).run('dress', { props: [{ id: 'tweezers', on: 'bench' }, { id: 'quad-5in', on: COVER }, { id: 'mug', on: 'bench' }] });
+  assert.deepEqual(applied(hex).map((o) => o.id), ['quad-5in', 'mug', 'tweezers']);
+  assert.deepEqual(r.outcomes.map((o) => o.added[0]), ['prop:tweezers', 'prop:quad-5in', 'prop:mug']);
+  const off = fakeHex({ fitsAt: 0 });
+  await createTools(off, { fixes: { yawSweep: false } }).run('dress', { props: [{ id: 'tweezers', on: 'bench' }, { id: 'quad-5in', on: COVER }] });
+  assert.deepEqual(applied(off).map((o) => o.id), ['tweezers', 'quad-5in']);
+});
+
 // ---- the finish chain, end to end with a scripted model
 
 const finishWith = (requirement, evidence = 'on the build') => ({ name: 'finish', args: { requirements: [{ requirement, status: 'met', evidence }], summary: 's', outcome: 'built' } });

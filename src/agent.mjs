@@ -267,8 +267,14 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
       emit({ type: 'harness_note', message: `view guard skipped: ${String(seen?.error ?? 'no view').slice(0, 200)}` });
       return null;
     }
+    let props = [];
+    try {
+      props = (await hex.call('getState'))?.staging?.props ?? [];
+    } catch {
+      // without the prop list only a requirement about props in general is held to the view
+    }
     emit({ type: 'view_guard', hidden: seen.hidden ?? [] });
-    return viewIssues(f, seen);
+    return viewIssues(f, seen, props);
   }
 
   // L19: a requirement called met whose evidence names a part ref that is not on the build.
@@ -585,12 +591,32 @@ export function uncheckableClaims(finish) {
 
 // Fix viewGuard: words of a requirement about what a person sees or faces.
 const VIEW_WORDS = /\b(front|fronts|facing|faces? (?:out|outward|forward|front|the (?:user|viewer|camera|room))|visible|view|viewed|display(?:s|ed|ing)?|on show|shows?|showing|showcases?)\b/i;
-export function viewIssues(finish, seen) {
+// A requirement is held to the hidden props it is about: one that names a hidden prop (its ref, its id or a
+// word of its id or label), or one about props in general that names no part family (drone pit v3 dev run:
+// "drawers facing the viewer" came back for bin heaps under their rims).
+const PART_WORDS = /\b(drawers?|bins?|bases?|storeys?|caps?|covers?|lids?|connectors?|bolts?|spikes?|bays?|notch(?:es)?|risers?|handles?|columns?|rows?|frames?|walls?|cells?|axles?|trays?)\b/i;
+const STOP = new Set(['prop', 'with', 'from', 'tall', 'small', 'large', 'young', 'full', 'half', 'div2', 'div3', 'heap', 'set']);
+function namesProp(text, p) {
+  const t = String(text ?? '').toLowerCase();
+  if (p.ref && t.includes(p.ref.toLowerCase())) return true;
+  const words = `${p.id ?? ''} ${p.label ?? ''}`.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !STOP.has(w));
+  return words.some((w) => new RegExp(`\\b${w.replace(/s$/, '')}`).test(t));
+}
+export function viewIssues(finish, seen, props = []) {
   const hidden = seen?.hidden ?? [];
   if (!hidden.length) return null;
-  const about = (finish?.requirements ?? []).filter((r) => r.status === 'met' && VIEW_WORDS.test(r.requirement));
-  if (!about.length) return null;
-  return about.map((r) => ({ id: r.id ?? r.requirement, why: `called met, but from the default view (look with no arguments) ${hidden.length} prop(s) are hidden: ${hidden.slice(0, 8).join(', ')}. Turn or move them to face the view (yawDeg, facingDeg, moveProp), or mark it partial` }));
+  const byRef = new Map(props.map((p) => [p.ref, p]));
+  const out = [];
+  for (const r of finish?.requirements ?? []) {
+    if (r.status !== 'met' || !VIEW_WORDS.test(r.requirement)) continue;
+    const text = `${r.requirement} ${r.evidence ?? ''}`;
+    const named = hidden.filter((ref) => namesProp(text, byRef.get(ref) ?? { ref }));
+    const general = !PART_WORDS.test(r.requirement);
+    const held = named.length ? named : general ? hidden : [];
+    if (!held.length) continue;
+    out.push({ id: r.id ?? r.requirement, why: `called met, but from the default view (look with no arguments) ${held.length} prop(s) it is about are hidden: ${held.slice(0, 8).join(', ')}. Turn or move them to face the view (yawDeg, facingDeg, moveProp), or mark it partial` });
+  }
+  return out.length ? out : null;
 }
 
 // Provider hiccups (rate limit, overload, 5xx, dropped connection, timeout) are

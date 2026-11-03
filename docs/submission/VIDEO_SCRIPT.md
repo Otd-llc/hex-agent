@@ -70,9 +70,9 @@ a caption card: "brief versions 1 to 4: 0 passed; version 5: 5 of 5". Voice:
 passed none. We never changed the agent, only the brief, naming what the
 agent's own tools had already proven. Version five passed 5 of 5. The checks
 don't see everything: the multimeter stands on end with its display facing
-away, and the report didn't say so. Its report marks as met "keeping its arms
-on its own cover" and "a drawer on each storey facing the viewer"; the stills
-show neither."
+away, and the report didn't say so. Its report marks the quad on its own
+cover and a drawer on each storey facing the viewer as met; the stills show
+the propellers reaching over the next covers and the drawers opening away."
 Owner: this run makes two met claims its stills contradict (paper, Demo and
 results); keep the line whether or not another run is swapped in.
 

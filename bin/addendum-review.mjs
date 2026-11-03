@@ -9,6 +9,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT } from '../src/ledger.mjs';
 import { wilson } from './addendum-lib.mjs';
+import { critOrNull } from './stats.mjs';
 
 const d8 = JSON.parse(readFileSync(join(ROOT, 'docs/data/demo-review.json'), 'utf8'));
 const PASSES = {
@@ -60,6 +61,13 @@ for (const [model, passes] of Object.entries(PASSES)) {
     }
     m.dropAgreement = m.answered ? +((m.dropCaught + m.keepKept) / m.answered * 100).toFixed(1) : null;
     m.dropAgreementWilson95 = m.answered ? wilson(m.dropCaught + m.keepKept, m.answered) : null;
+    // Paired by run against keeping every run: per run, Muse agrees with D8 (1/0) minus keep-every-run agrees (D8 not DROP).
+    {
+      const d = ids.filter((k) => by.has(k)).map((k) => ((isDrop(d8[k].verdict) === isDrop(by.get(k).verdict)) ? 1 : 0) - (isDrop(d8[k].verdict) ? 0 : 1));
+      const n = d.length, mu = d.reduce((a, b) => a + b, 0) / n, se = Math.sqrt(d.reduce((a, x) => a + (x - mu) ** 2, 0) / (n - 1) / n), c = critOrNull(n);
+      m.minusKeepEveryRun = { runs: n, museOnly: d.filter((x) => x > 0).length, keepOnly: d.filter((x) => x < 0).length, diffPoints: +(mu * 100).toFixed(1),
+        ci95Points: c ? [+((mu - c.value * se) * 100).toFixed(1), +((mu + c.value * se) * 100).toFixed(1)] : null, crit: c?.name ?? null };
+    }
     return m;
   });
 }

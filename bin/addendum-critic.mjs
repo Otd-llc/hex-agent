@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { ownerVerdicts, calibrate } from '../src/critic.mjs';
 import { ROOT } from '../src/ledger.mjs';
 import { wilson } from './addendum-lib.mjs';
+import { critOrNull } from './stats.mjs';
 
 const PICKS = 'C:/zzz/_premades/picks-round2.json';
 const picksRaw = readFileSync(PICKS);
@@ -30,10 +31,22 @@ const SUBSETS = { purpose: ['purpose'], 'purpose+rests+pose': ['purpose', 'rests
 
 // Keep only the subset's answers, on the comparison set.
 const view = (results, qs) => results.filter((r) => names.has(r.name)).map((r) => ({ ...r, answers: Object.fromEntries(Object.entries(r.answers).filter(([q]) => qs.includes(q))) }));
+// Paired by build against flagging nothing (which agrees exactly on the keeps): the judge's
+// agreement minus flag-nothing's, per build, mean and z interval (60 builds). Builds where
+// both agree or both disagree add 0; the difference comes from discordant builds only.
+function vsFlagNothing(results, c) {
+  const wrong = new Set(c.disagreements.map((d) => d.name));
+  const d = results.filter((r) => owner.has(r.name) && r.complete).map((r) => (wrong.has(r.name) ? 0 : 1) - (owner.get(r.name).verdict === 'keep' ? 1 : 0));
+  const n = d.length, m = d.reduce((a, b) => a + b, 0) / n;
+  const se = Math.sqrt(d.reduce((a, x) => a + (x - m) ** 2, 0) / (n - 1) / n);
+  const c95 = critOrNull(n);
+  return { builds: n, judgeOnly: d.filter((x) => x > 0).length, flagNothingOnly: d.filter((x) => x < 0).length, diffPoints: +(m * 100).toFixed(1),
+    ci95Points: c95 ? [+((m - c95.value * se) * 100).toFixed(1), +((m + c95.value * se) * 100).toFixed(1)] : null, crit: c95?.name ?? null };
+}
 const score = (results) => Object.fromEntries(Object.entries(SUBSETS).map(([k, qs]) => {
   const c = calibrate(view(results, qs), owner);
   return [k, { n: c.n, fixesCaught: c.fixFlagged, fixes: c.fixFlagged + c.fixMissed, keepsFlagged: c.keepFlagged, keeps: c.keepFlagged + c.keepPassed, agreement: c.agreement == null ? null : +(c.agreement * 100).toFixed(1),
-    agreementWilson95: c.n ? wilson(c.agree, c.n) : null }];
+    agreementWilson95: c.n ? wilson(c.agree, c.n) : null, minusFlagNothing: vsFlagNothing(view(results, qs), c) }];
 }));
 // Pass-to-pass stability: the share of (build, question) answers two passes give alike.
 const stability = (a, b) => {

@@ -1,6 +1,7 @@
-# Demo video script (draft, updated 2026-11-02)
+# Demo video script (owner-led, updated 2026-11-03)
 
-About 2:45, against the event's three-minute limit (RULES.md). Every frame of
+The owner records and cuts the video; nothing here is rendered by the agent.
+About 2:50, against the event's three-minute limit (RULES.md). Every frame of
 the agent at work is a **replay of a real recorded Muse run** (`node
 bin/replay.mjs <trace.json>`). Replay re-applies what the configurator
 accepted in that run, in order, with a banner naming the run, provider and
@@ -15,9 +16,9 @@ nothing is staged or re-performed by hand.
 | Second build | kitchen garden terrace, 12 planters, 11 species (Muse Spark 1.3, `demo-kitchen-terrace-facing`, 3 of 5 passed) | `runs/suite-2026-11-02T21-45-05-881Z/2026-11-02T21-45-05-939Z-a1530f79/trace.json` (owner: both builds, 2026-11-02; replay rehearsed: 8 steps, none diverged, parts, families and staging match) |
 | Third build | FPV drone pit station, 108 parts (Muse Spark 1.3, `demo-drone-pit-v5`, 5 of 5) | `runs/suite-2026-11-03T02-49-48-989Z/2026-11-03T02-49-49-024Z-f24f0f99/trace.json` (owner pick 2026-11-03; replay rehearsed: 15 steps, none diverged, all match; note: the multimeter stands on end, display away) |
 | Fourth build | 3D-printing station, 133 parts, four filament spools on axles (Muse Spark 1.3, `demo-print-station-v3`, 3 of 3 completed) | `runs/suite-2026-11-03T03-25-07-282Z/2026-11-03T03-25-07-317Z-dfdebefd/trace.json` (owner pick 2026-11-03; replay rehearsed: 9 steps, none diverged, all match; note: two stray rod stubs) |
-| Main build (fallback) | Muse Spark Open via Baseten, pipe-planter: 30 accepted ops, 3 refusals (`ROUTE_NO_PATH` ×2, `ROUTE_BIN_IN_WAY` ×1), all checks pass | `runs/suite-2026-10-27T21-15-15-341Z/2026-10-27T21-15-15-438Z-7f0ee7d5/trace.json` |
-| Honest "no" (abstention) | a Muse run of an `evals/briefs-a58.json` brief (toddler step or petrol caddy), declined | Muse Spark Open, toddler-step declined in 2 calls: a trace in `runs/suite-2026-10-31T23-27-37-267Z` (pick one; nothing is placed, so it is a caption card, not a replay) |
-| Honest "unmet" | Muse Spark Open, dishwasher-safe brief, material claims reported unmet | in `runs/suite-2026-10-27T22-19-09-363Z` (pick one run) |
+| Main build (fallback, not in the current cut) | Muse Spark Open via Baseten, pipe-planter: 30 accepted ops, 3 refusals (`ROUTE_NO_PATH` ×2, `ROUTE_BIN_IN_WAY` ×1), all checks pass | `runs/suite-2026-10-27T21-15-15-341Z/2026-10-27T21-15-15-438Z-7f0ee7d5/trace.json` |
+| Honest "no" (abstention) | Muse Spark 1.3, frozen agent, abstention on (suite `17-16-28-256Z`, the arm that passed 18 of 18), toddler-step, declined and passed | `runs/suite-2026-11-02T17-16-28-256Z/2026-11-02T17-16-28-280Z-aca4ce95/trace.json` (nothing is placed, so it is a caption card, not a replay; finish summary: "Declined: toddler step stool unsafe to build from 3D-printed parts. Nothing placed.") |
+| Honest "unmet" (not in the current cut) | Muse Spark Open, dishwasher-safe brief, material claims reported unmet | in `runs/suite-2026-10-27T22-19-09-363Z` (pick one run) |
 
 Rehearse every replay on the deployed site first. Replay ends by checking the
 parts list matches the original. The fallback trace dates from 2026-10-27
@@ -29,54 +30,74 @@ brief.
 
 ## Script
 
-**0:00-0:15. Cold open.** Screen: the configurator, empty bench; the brief
-appears in the overlay. Voice: "A planter of four cells, with a water pipe
-running through the bases to feed every cell. That's the whole brief.
-Meta's Muse model builds it in the live Hex Cluster configurator."
+Two labels stay in a corner of the frame for the whole video, switching with
+what is on screen: **"Built during the event: the agent, its tools, its
+checks"** over the agent's messages, tool calls and the verdict cards, and
+**"Pre-existing: the Hex Cluster configurator (One Thousand Drones)"** over
+the configurator itself. The replay banner (run, provider, model, no model
+running) stays on as well. Every number spoken or shown below is in
+docs/submission/paper/paper.md.
 
-**0:15-0:40. What is happening.** Screen: the replay banner stays visible;
-parts appear as the replay applies them. Voice: "The agent works the way a
-person would: it reads the build, asks the configurator where parts fit,
-and places them through its public browser API. The model chooses, the
-configurator's own rules accept or refuse, and the configurator's checks
-and our code decide whether the run passes."
+**0:00-0:15. Cold open: the strawberry tower (run 9329ae20).** Screen: the
+configurator, empty bench; the brief appears in the overlay. Voice: "A
+strawberry tower for a small balcony: one tall planter in the middle, ringed
+by six shorter ones, all planted. That's the whole brief. Meta's Muse Spark
+1.3 builds it in the live Hex Cluster configurator."
 
-**0:40-1:20. A refusal, and the recovery.** Screen: replay re-applies only
-accepted ops, so the refusal is a caption card quoting the trace's own event
-(code and message, word for word), cut in where it happened, then the next
-accepted op.
-Voice: "Here the configurator says no: the pipe can't pass where a bin is
-standing. The model doesn't argue with the rule or guess. It reads the
-refusal, takes one of the alternatives the configurator offered, and goes
-on."
+**0:15-0:40. What is happening.** Screen: parts appear as the replay applies
+them; the two corner labels switch as the view moves between the agent's
+messages and the configurator. Voice: "We built the agent for this event:
+the loop, its tools, its checks. The configurator is One Thousand Drones'
+existing product. The agent reads the build, asks the configurator where
+parts fit, and places them through its public browser API. The model
+chooses; the configurator's own rules accept or refuse."
 
-**1:20-1:50. Verified, not claimed.** Screen: a caption card with the trace's
-verdict (each check and its result), the parts list, and the run's share link
-opened in a fresh tab showing the same build.
-Voice: "When it finishes, code runs the configurator's checks: placement
-rules, the mesh-collision gate, the parts list, the print pack, and the
-share link reloaded in a fresh tab. A run passes only if all of them
+**0:40-1:00. A refusal, and the recovery.** Screen: replay re-applies only
+accepted ops, so the refusal is a caption card quoting the trace's own
+`NEEDS_TALL_BASE` outcome (event 25, code and message word for word), cut in
+where it happened, then the next accepted op. Voice: "Here the configurator
+says no: a deep planter bin needs a taller base under it. The model doesn't
+argue with the rule. It reads the refusal and builds the base it needs."
+
+**1:00-1:20. Kitchen garden terrace (run a1530f79).** Screen: the replay,
+then the finished terrace turning. Voice: "A kitchen garden terrace: 12
+planters and 11 species in three tiers. This brief passed 3 of 5 runs; the
+two failures ran out of turns."
+
+**1:20-1:45. FPV drone pit station (run f24f0f99).** Screen: the replay, then
+a caption card: "brief versions 1 to 4: 0 passed; version 5: 5 of 5". Voice:
+"A drone pit station of 108 parts. The first four versions of this brief
+passed none. We never changed the agent, only the brief, naming what the
+agent's own tools had already proven. Version five passed 5 of 5. The checks
+don't see everything: the multimeter stands on end with its display facing
+away, and the report didn't say so."
+
+**1:45-2:10. 3D-printing station (run dfdebefd), verified, not claimed.**
+Screen: the replay, then a caption card with the trace's verdict (each check
+and its result), the parts list, and the share link opened in a fresh tab
+showing the same build. Voice: "A printing station of 133 parts, four
+filament spools hung on axles. When it finishes, code runs the checks:
+placement rules, the mesh-collision gate, the parts list, the print pack,
+and the share link reloaded in a fresh tab. A run passes only if all of them
 pass. A check that didn't run counts as failed."
 
-**1:50-2:20. Honest answers.** Screen: a caption card quoting the
-dishwasher-safe run's finish, with its "unmet" lines; then (if recorded) the declined toddler-step run with
-nothing on the bench. Voice: "It also says what it can't do. The configurator
-checks fit, not materials, so 'dishwasher safe' is reported unmet. A step for
-a toddler to stand on is declined: printed plastic shouldn't carry a child."
-(The declined run places nothing: show its finish as a caption card over the empty bench.)
+**2:10-2:25. An honest no (run aca4ce95).** Screen: the empty bench, with a
+caption card quoting the run's finish word for word: "Declined: toddler step
+stool unsafe to build from 3D-printed parts. Nothing placed." Voice: "Asked
+for a step a toddler stands on, it declines: printed plastic shouldn't carry
+a child. With this guard on, the six safety briefs passed 18 of 18 runs;
+with it off, 10 of 18."
 
-**2:20-2:40. The numbers.** Screen: the paper's Table 1 as a still, one row
-per batch, each host named, with its intervals.
-Voice: "On 36 briefs, five runs each, in seven batches on two hosts,
-Muse Spark Open passed 89 to 94 percent of runs per batch. These are briefs
-we tuned the agent against; the held-out briefs haven't been run yet."
-Add the Meta Model API demo numbers here only once measured, and say which
-model each number comes from.
+**2:25-2:45. The numbers.** Screen: the paper's Table 1 as a still. Voice:
+"On 18 held-out briefs, one pre-committed run each, Muse Spark 1.3 passed
+14, with a 95 percent interval of 54.8 to 91.0 percent. An agent that
+does nothing passes 4 of those 18. On the 36 briefs we tuned against, it
+passed 173 of 180 runs, and that figure is optimistic."
 
-**2:40-2:50. Close.** Screen: the finished build turning, the share link.
-Voice: "Hex Cluster and its configurator are One Thousand Drones' product,
-including the releases it shipped this week. The agent, its tools, its
-checks and its evaluation are what we built for this event."
+**2:45-2:50. Close.** Screen: the finished printing station turning, the
+share link. Voice: "Hex Cluster and its configurator are One Thousand
+Drones' product. The agent, its tools, its checks and its evaluation are
+what we built for this event."
 
 ## Before filming
 - Fill the trace slots; read each trace in full first.

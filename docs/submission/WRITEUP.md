@@ -3,7 +3,8 @@
 Updated 2026-11-02. The results write-up is
 [paper/paper.md](paper/paper.md) (claim ledger beside it, technical report in
 [paper/report.md](paper/report.md)); every figure below is copied from it.
-Slots marked `________` are filled after the Meta Model API demo runs.
+Owner items left open at submission are the bracketed slots in the paper
+(demo video link, public repo URL, full report link).
 
 ## What it does
 
@@ -38,43 +39,51 @@ statement of which requirements it met, partly met or could not meet.
 - **It can say no.** A brief that would carry a child's weight, hold fuel
   or heat, restrain a person or animal, or serve as a weapon is declined,
   or only its safe part is built, with the rest reported unmet.
-- **Spend is guarded.** Every model call is priced and ledgered. Development
-  and evaluation runs stop before they reach the credit kept for the demo
-  and judging.
+- **Spend is guarded.** Every model call is priced and ledgered. On the Meta
+  Model API, development and evaluation runs stop before they reach the
+  reserve kept for the demo recordings.
 
 ## Results
 
-All on the live configurator, Muse Spark Open (Meta open weights) on
-Baseten, Modal or Fireworks. These are development-set rates: the same
-briefs were used to find and fix failures, and the 18 held-out briefs have
-not been run. Intervals are 95%, clustered by brief for five-repeat batches.
-One row per batch is in the paper's Table 1, because batches differ in host,
-configurator release or agent commit; no rate below pools them.
+All on the live configurator. The headline model is Muse Spark 1.3 through
+the Meta Model API, on the frozen agent (git tag `eval-final`), reasoning
+effort low, configurator contract `da0834cc` (paper Table 1). Intervals are
+95%: clustered by brief when briefs repeat, Wilson over runs for one run per
+brief. Models are reported apart and never pooled.
 
-| What | Result |
+| What (Muse Spark 1.3, Meta Model API, `eval-final`) | Result |
+|---|---|
+| 18 held-out briefs, one pre-committed run each | 14/18 (77.8%, Wilson 95% CI 54.8 to 91.0): 11 builds and 3 declines of briefs written to be refused; a do-nothing agent passes 4 of these 18 |
+| Same 18 held-out briefs, four more repeats decided after the 14/18 | 55/72; with the ×1, 69/90 (clustered t17 CI 55.6 to 97.8); the ×1 stays the headline |
+| 36 development briefs ×5 | 173/180 (96.1%, clustered CI 90.7 to 100); all 7 failures overclaims, on two briefs; optimistic, because we fixed failures on these briefs |
+| Fixes 1 to 4 switched off, their 13 briefs ×5 (harm test) | 63/65 against 65/65 with them on: −3.1 points (t12 CI −7.6 to 1.5), not distinguishable; the design can show harm, not gain |
+| Abstention on against off, six safety briefs ×3 | on 18/18, off 10/18, per brief only; the difference is on briefs the prompt names |
+| Muse Wonder 1.0, Meta Model API, 36 development briefs ×1 | 36/36, its own row |
+
+Earlier, Meta's open-weights Muse Spark Open, on Baseten, a Modal Dedicated
+endpoint or Fireworks, on earlier agent commits and releases (paper Table 2).
+These are development-set rates only; the held-out briefs did not run on it.
+
+| What (Muse Spark Open) | Result |
 |---|---|
 | 36 briefs ×5, seven effort-low batches | 89.4 to 93.9% of runs passed per batch; overclaimed (every requirement reported met while a check failed, a lower bound) in 3.3 to 6.1%; 25 to 29 of the 36 briefs passed all five repeats |
-| One of those batches, live release d2fd3dad (Baseten) | 165/180 (91.7%, 95% CI 85.5 to 97.8) |
-| Eight exploratory batch pairs | none distinguishable at this n |
 | Effort high against low (Modal, one agent commit, 36 briefs ×5) | 171/180 against 169/180: +1.1 points (95% CI −2.7 to 4.9, paired), not distinguishable; 2.35 times the token-equivalent cost per run |
-| Abstention, six safety briefs ×3 (Baseten) | on 17/18, off 7/18; side by side, unpaired, because the arms ran on different inferred agent commits; five of the six briefs are named in the prompt |
+| Abstention, six safety briefs ×3 (Baseten) | on 17/18, off 7/18; side by side, unpaired, because the arms ran on different inferred agent commits |
 | One-run batches | Baseten control, 31 briefs: 30/31; Fireworks, 36 briefs: 31/31 of the runs that finished (5 lost to host hangs and left out) |
-| Honesty and injection briefs ×5, dated 2026-10-27 (contract 2b45909b, older agent) | 35/35, an earlier measure |
-| Muse Spark 1.3, Meta Model API, frozen agent `eval-final`: 36 briefs ×5 | 173/180 (clustered 95% CI 90.7 to 100); all 7 failures overclaims |
-| Same, 18 held-out briefs, one pre-committed run each | 14/18 (Wilson 95% CI 55 to 91); four more repeats decided after this result: 69/90 pooled (clustered t17 CI 56 to 98) |
-| Same, fixes 1 to 4 switched off, their 13 briefs ×5 (harm test) | 63/65 against 65/65 with them on: −3.1 points (t12 CI −7.6 to 1.5), not distinguishable; the design can show harm, not gain |
-| Same, abstention on against off, six safety briefs ×3 | on 18/18, off 10/18, per brief only; the difference is on the five briefs the prompt names |
-| Muse Wonder 1.0, Meta Model API, 36 briefs ×1 | 36/36, its own row |
 
 What the evaluation taught us:
 - **Our own checks were wrong several times.** Reading flagged traces
   before counting them found an infeasible brief wording, disclaimers read
   as claims (twice), a missed bolted handle and a search tool that needed
-  every word ("louvre vent grate" found nothing). Each was fixed and every
-  suite rescored from its traces with one grader, first scores kept beside
-  the rescores.
-- **Low effort stays the default because it is cheaper.** High effort was
-  not distinguishable from low on one agent commit (above). An earlier
+  every word ("louvre vent grate" found nothing). Each was fixed and the
+  development suites run before the Meta Model API were rescored from their
+  traces with one grader, first scores kept beside the rescores; the
+  held-out suites are scored as run and never rescored.
+- **Low effort is the reported setting, because it is cheaper.** On Muse
+  Spark Open, high effort was not distinguishable from low on one agent
+  commit (above); on Muse Spark 1.3, medium against low was not
+  distinguishable either. The code's Meta default is medium, so pass
+  `--effort=low` to reproduce. An earlier
   Baseten ablation (20 briefs ×3) gave low 58/60 and high 51/60, on agent
   commits only inferred from git time, so it is reported side by side with
   no paired difference.
@@ -113,7 +122,7 @@ brief match is checked in code only where an eval brief says what to count,
 and some false passes are known (a base over an empty cell, the pipe-planter
 pipe coverage). The role-graph planner and the offline vision critic are
 built and unit-tested, but not yet measured, and stay off by default. The
-checks count parts and plants, not what a viewer sees: in 4 of 15 demo runs
+checks count parts and plants, not what a viewer sees: in 4 of the first 15 demo runs
 the tall row faced the camera and hid the low row. Claude was used for development on
 credit that would otherwise have expired; those runs are labeled in every
 trace and none is reported as Muse. See

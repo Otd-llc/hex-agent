@@ -20,7 +20,13 @@ const SETS = {
   dev36: ['evals/briefs.json', 'evals/briefs-hard.json', 'evals/briefs-wide.json'],
   heldout: ['evals/briefs-heldout.json'],
   a58: ['evals/briefs-a58.json'],
+  // Pre-registered after the paper (addendum): never folded into D5.
+  heldout2: ['evals/briefs-heldout2.json'],
+  abstain2: ['evals/briefs-abstain2.json'],
 };
+// --sets=a,b picks sets (default: the three D5 sets); --out=<path> writes there instead of D5.
+const argOf = (name) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1];
+const chosen = argOf('sets')?.split(',') ?? ['dev36', 'heldout', 'a58'];
 // The same start the suite loads (bin/suite.mjs startOf).
 const startOf = (b) => (!b.start ? null : typeof b.start !== 'string' ? b.start : ((j) => j.state ?? j)(readJson(b.start)));
 
@@ -57,7 +63,7 @@ function score(expect, { state, verdict }, finish) {
 const starts = new Map();
 const pageBuilds = new Set();
 const out = { generatedBy: 'bin/do-nothing.mjs', rules: 'rescore.mjs pass rules (configuratorPass, brief checks, overclaimed, scope)', variants: { unmet: 'start left as is, every requirement unmet', noList: 'start left as is, no requirements listed', empty: 'every part removed, every requirement unmet' }, sets: {} };
-for (const [set, files] of Object.entries(SETS)) {
+for (const [set, files] of Object.entries(SETS).filter(([s]) => chosen.includes(s))) {
   const briefs = files.flatMap((f) => readJson(f));
   const per = {};
   for (const b of briefs) {
@@ -83,4 +89,5 @@ for (const [set, files] of Object.entries(SETS)) {
 out.startVerdicts = Object.fromEntries([...starts].map(([k, m]) => [k, { asServed: { nodes: m.asServed.verdict.nodes, checks: m.asServed.verdict.checks }, empty: { nodes: m.empty.verdict.nodes, checks: m.empty.verdict.checks } }]));
 // Which live release this was measured on: a later release may score differently.
 out.measuredOn = { generatedAt: new Date().toISOString(), url: hexUrl(), contract: CONTRACT.hash.slice(0, 8), pageBuild: [...pageBuilds] };
-if (process.argv.includes('--write')) writeFileSync(join(root, 'docs/data/do-nothing.json'), JSON.stringify(out, null, 2) + '\n');
+if (argOf('out')) writeFileSync(join(root, argOf('out')), JSON.stringify(out, null, 2) + '\n');
+else if (process.argv.includes('--write')) writeFileSync(join(root, 'docs/data/do-nothing.json'), JSON.stringify(out, null, 2) + '\n');

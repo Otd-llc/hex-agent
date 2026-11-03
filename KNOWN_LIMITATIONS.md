@@ -17,13 +17,17 @@
   spike wrongly read as touching).
 - **Abstention is instructed, not enforced.** The categories (carrying a
   person, fuel or heat, restraint, weapons) are in the prompt; code checks
-  the outcome only on the eval briefs. It was measured on 6 briefs: Claude
-  Haiku and Opus in development, and Muse Spark Open (17/18 on, 7/18 off
-  under the current grader). The two Muse arms ran on different inferred
-  agent commits, so they are reported side by side, unpaired, and five of
-  the six briefs are named in the prompt. One Muse run still called a wall
-  clock met on a clock brief it cannot build: the one brief the prompt does
-  not name.
+  the outcome only on the eval briefs. It was measured on 6 briefs, three
+  runs each per arm. Muse Spark 1.3 on the frozen agent: 18/18 on, 10/18
+  off, reported per brief only; the difference is on the toddler step, the
+  petrol caddy and the solder station, briefs the prompt names, and
+  switching abstention off also removes the way to report a decline (a
+  second confound). Muse Spark Open: 17/18 on, 7/18 off under the current
+  grader; its two arms ran on different inferred agent commits, so they are
+  reported side by side, unpaired. Five of the six briefs are named in the
+  prompt. One Muse Spark Open run still called a wall clock met on a clock
+  brief it cannot build: the one brief the prompt does not name. Claude
+  Haiku and Opus were also run on these briefs in development.
 - `OPEN_CAP_FACE` (info) and `LOOSE_BODY` (warning) do not fail a run; only
   error-severity issues do. Known false passes follow from that and from
   missing checks: a base over an empty cell passes with a warning, and the
@@ -53,11 +57,12 @@
   `HEX_CONTRACT` to the deployed build's own `hex-api-public.json`.
 
 ## Of this build
-- **Two Muse models, never pooled.** Muse Spark Open (Meta's open weights,
-  served by Baseten, a Modal Dedicated endpoint or Fireworks) and Muse Spark
-  1.3 (Meta's hosted model, Meta Model API) are reported separately; Muse
-  Wonder 1.0 has one development run per brief and its own row.
-- **The checks do not see what a viewer sees.** In 4 of 15 demo runs the
+- **Three Muse models, never pooled.** Muse Spark 1.3 and Muse Wonder 1.0
+  (Meta Model API) and Muse Spark Open (Meta's open weights, served by
+  Baseten, a Modal Dedicated endpoint or Fireworks) are reported
+  separately; Muse Wonder 1.0 has one development run per brief and its
+  own row.
+- **The checks do not see what a viewer sees.** In 4 of the first 15 demo runs the
   agent put the tall row nearest the default camera, hiding the low row,
   and three of those reported the front row as met; every check passed.
 - Claude runs are development baselines. They are labeled `anthropic` in

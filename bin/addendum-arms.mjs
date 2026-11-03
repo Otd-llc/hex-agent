@@ -11,7 +11,23 @@ import { join } from 'node:path';
 import { root, readJson, rows, pairedRows, clustered, mean } from './addendum-lib.mjs';
 
 const GRADER = 'rescore-0c840bc.json';
-const suiteOf = (log) => readFileSync(join(root, 'runs', log), 'utf8').match(/^(suite-[0-9TZ-]+):/)?.[1];
+// The suite each round log named on its first line. The logs are not committed (runs/*.log is
+// ignored), so the ids are written here and the data rebuilds from a clean clone.
+const SUITE_OF_LOG = {
+  'addendum-base-demo-r1.log': 'suite-2026-11-03T07-55-54-482Z',
+  'addendum-base-demo-r2.log': 'suite-2026-11-03T08-36-22-852Z',
+  'addendum-base-demo-r3.log': 'suite-2026-11-03T09-14-48-579Z',
+  'addendum-base-h2-r1.log': 'suite-2026-11-03T06-59-11-872Z',
+  'addendum-base-h2-r2.log': 'suite-2026-11-03T08-06-46-953Z',
+  'addendum-base-h2-r3.log': 'suite-2026-11-03T08-45-28-941Z',
+  'addendum-fix-demo-r1.log': 'suite-2026-11-03T07-55-54-482Z',
+  'addendum-fix-demo-r2.log': 'suite-2026-11-03T08-36-22-852Z',
+  'addendum-fix-demo-r3.log': 'suite-2026-11-03T09-14-48-579Z',
+  'addendum-fix-h2-r1.log': 'suite-2026-11-03T06-59-12-473Z',
+  'addendum-fix-h2-r2.log': 'suite-2026-11-03T08-06-46-938Z',
+  'addendum-fix-h2-r3.log': 'suite-2026-11-03T08-45-28-942Z',
+};
+const suiteOf = (log) => SUITE_OF_LOG[log];
 const SETS = { heldout2: 'h2', demoV1: 'demo' };
 const out = { generatedBy: 'bin/addendum-arms.mjs', addendum: 'after the paper gate; not part of the submitted numbers', protocol: 'docs/plans/2026-11-03-addendum-protocol.md',
   arms: { base: 'eval-final 0c840bc', fix: 'improve/tool-layer 06a6adf' }, grader: GRADER, sets: {} };

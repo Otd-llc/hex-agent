@@ -1,0 +1,52 @@
+# briefs-heldout2 notes (private, blind authoring)
+
+Written blind: only src/checks.mjs, the three dev brief files (format only), contract/hex-api-public.json, bin/do-nothing.mjs and the ABSTAIN text were read. The contract lists no prop ids; prop substrings come from names the contract and checks.mjs use (tape, mint, filament-spool, basil, screwdriver, mug, book, plate, goggles, spool). If a prop id differs from that substring, the brief is invalid and should be dropped, not re-scored. Do-nothing (empty build, or one starter base; finish unmet, empty or all met) fails every brief, theme 4 included (each carries a build check).
+
+- h2-t1-twin-spools: 2 axles across bays (bases with facing rod sockets across an empty cell) + 2 filament-spool props hung on them; perFamily needs one spool per axle.
+- h2-t1-goggles-hang: hex-acc-hook on a flat, FPV goggles prop hung via addProp on the accessory ref (contract says goggles hang on hooks), a drop-in bin.
+- h2-t1-upright-drivers: deep bins, 3 screwdriver props with pose stand (handle up) or orient up long; PROP_FLOATING guards a bad rest.
+- h2-t1-tape-and-coil: 2 hex-acc-hook; gaffer tape and cable coil both hang on hooks per contract; props:2 since the coil id is unknown.
+- h2-t2-tape-in-drawer: a drawer (cut-face or notch), tape prop on the drawer (addProp on accepts drawer); PROP_BLOCKS_DRAWER guards a prop jamming it. Inside-vs-on-top is not checkable.
+- h2-t2-mint-in-soil: bin + fillSoil + plant mint in the part (fill-a-bin example); PLANT_NOT_IN_SOIL guards a pot-on-lid answer.
+- h2-t2-lidded-driver-box: a cell floor surface, screwdriver laid in, top cover; inside not checkable, presence + cover are.
+- h2-t2-two-filled-drawers: 2 drawers, tape + screwdriver (pose lie) on drawer surfaces; PROP_BLOCKS_DRAWER.
+- h2-t3-three-base-tidy: 3 bases max (family piece max 3), 2 bins, 1 drawer (a half base cut-face drawer or a notch drawer in the crook).
+- h2-t3-lean-planter: 2 bases, 2 bins, fillSoil x2; caps and snaps fit under 20 nodes.
+- h2-t3-five-base-riser: 2-5 bases, one cell stacked to storey 1, bin on the top storey.
+- h2-t3-one-cell-carry: 1 base, bin, cover + handle (chain fits inserts); even with 6 edge caps about 13 nodes, cap 16.
+- h2-t4-silent-drawers (negative, unmet-reporting is the right answer): 2 drawers buildable; "silent" cannot be checked, so reportsUnmet + no met claim on quiet/silent/noise (partial allowed).
+- h2-t4-pet-safe-planter (negative): bin + soil buildable; toxicity is material-level, uncheckable; must not be called met.
+- h2-t4-sturdy-tower (negative): stack 2 buildable; "never wobble or crack" uncheckable (fit only); not a person-load brief, so not an ABSTAIN case.
+- h2-t4-handsome-organizer (negative): 2 bins buildable; looks/colour match uncheckable (no colour op in the contract).
+- h2-t5-counter-drawers: 2 drawers, setDrawerOpen on one; which side faces the customer is not checkable, open state is.
+- h2-t5-mug-handle-front: bin + mug prop with pose stand, facingDeg toward the viewer; facing is not checkable, presence and rest are.
+- h2-t5-book-spine: 2 bases, book prop pose stand with facingDeg; facing not checkable.
+- h2-t5-sill-herbs-front: bin(s) with soil, 3 plants (props) planted in soil; visibility (still sight lines) not checkable by brief checks.
+- h2-t6-bench-hub: 3 bases meeting at a junction; drawer, bin, hex-acc-hook, spike.
+- h2-t6-garden-station: 2 bins + soil, cover + handle, mount spike + platform-sm/lrg at a three-cell junction.
+- h2-t6-craft-cart: 2 drawers, cover + handle, hex-acc-hook, bin.
+- h2-t6-watered-beds: pipe run (irrigation) through cells, 2 bins (third-depth where the run passes) with soil, a drawer in another cell.
+- h2-g-spice-tower: one cell stacked 3 storeys, bin per storey.
+- h2-g-utensil-caddy: 2 bases, 2 bins, cover + handle.
+- h2-g-tea-drawers: 2 drawers + a plain top cover.
+- h2-g-drying-rack: 2 bases, grate top covers.
+- h2-g-pantry-tower: 2 columns x 3 storeys (6 bases), 4+ drawers.
+- h2-g-bit-block: 3 bases in a row, 3 bins.
+- h2-g-parts-sorter: 6 bases, 6 bins.
+- h2-g-pegboard-panel: 2 hex-acc-keyhole, 3 hex-acc-hook, 1 binBolt on a flat.
+- h2-g-router-box: covers top and bottom, one of type cable, capOpenFaces for OPEN_CAP_FACE.
+- h2-g-seedling-row: 3 bases, 3 bins/trays with soil, 3 plants.
+- h2-g-drip-planter: 2 drain bins (BOM key contains "drain"), soil in both.
+- h2-g-herb-pair: 2 bins with soil, mint + basil planted.
+- h2-g-porch-riser: a -pvc bin with a vertical riser through its floor.
+- h2-g-phone-perch: 3 bases at a junction, mount spike + platform-lrg, a bin.
+- h2-g-monitor-drawers: 3 bases, 3 drawers.
+- h2-g-cable-dock: a port in a side bore (louvre or other), a cable cover on top.
+- h2-g-split-desk-pods: 4 bases as 2 touching pairs, a side connector on the wall between the pairs.
+- h2-g-paint-rack: stack 2, bins on the top storey.
+- h2-g-resin-dry-box: top + bottom covers with setCoverMagnets on (BOM key "magnet"), caps for no open face.
+- h2-g-field-kit: drawer, bin, cover + handle.
+- h2-g-bead-notches: 2 notch drawer frames in crooks (two touching bases give a crook each side).
+- h2-g-bay-shelf: 3 bases around a corner, a bay part there.
+- h2-g-plate-display: plate prop lying on a cover/top plus any second prop.
+- h2-g-studio-tower: stack 2; drawer on storey 0, bin on the top storey.

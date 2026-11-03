@@ -62,36 +62,56 @@ for (const [round, v] of Object.entries(owner)) {
 
 const judgeModel = flag('judge', null);
 if (!judgeModel) process.exit(0);
-if (!String(judgeModel).startsWith('claude-')) {
-  console.error('--judge takes a claude-* model (the critic is offline evaluation, never the demo)');
+const isMeta = String(judgeModel).startsWith('muse-');
+if (!String(judgeModel).startsWith('claude-') && !isMeta) {
+  console.error('--judge takes a claude-* or muse-* model (the critic is offline evaluation, never the demo)');
   process.exit(2);
 }
-const { default: Anthropic } = await import('@anthropic-ai/sdk');
 const { loadEnv } = await import('../src/env.mjs');
-const { claudeCostUsd, CLAUDE_PRICES } = await import('../src/claude.mjs');
-// An unpriced model would ledger at $0 and never trip a cap.
-if (!CLAUDE_PRICES[judgeModel]) {
-  console.error(`no price for ${judgeModel}: add it to CLAUDE_PRICES first`);
-  process.exit(2);
-}
 loadEnv();
-const credit = Number(process.env.CLAUDE_CREDIT_USD ?? 100);
-const ledger = openLedger({ path: '.spend/anthropic.jsonl', creditUsd: credit, reserveUsd: 0, caps: { dev: credit, eval: credit } });
 const maxUsd = Number(flag('max-usd', 2));
 let spent = 0;
+let ledger, ask;
+if (isMeta) {
+  // The Meta judge: its switch and its known ids as the agent's (metaGate), the Meta ledger and its caps.
+  const { metaGate } = await import('../src/session.mjs');
+  const { costUsd } = await import('../src/model.mjs');
+  const { metaJudge } = await import('./meta-judge.mjs');
+  metaGate(judgeModel);
+  ledger = openLedger();
+  ask = metaJudge({
+    model: judgeModel,
+    effort: flag('effort', 'low'),
+    onUsage: (usage, { servedBy, http }) => {
+      const c = costUsd(judgeModel, usage);
+      spent += c;
+      ledger.add({ purpose: 'eval', model: judgeModel, provider: 'meta', what: 'critic', costUsd: c, usage, servedBy, ms: http?.ms });
+    },
+  });
+} else {
+  const { default: Anthropic } = await import('@anthropic-ai/sdk');
+  const { claudeCostUsd, CLAUDE_PRICES } = await import('../src/claude.mjs');
+  // An unpriced model would ledger at $0 and never trip a cap.
+  if (!CLAUDE_PRICES[judgeModel]) {
+    console.error(`no price for ${judgeModel}: add it to CLAUDE_PRICES first`);
+    process.exit(2);
+  }
+  const credit = Number(process.env.CLAUDE_CREDIT_USD ?? 100);
+  ledger = openLedger({ path: '.spend/anthropic.jsonl', creditUsd: credit, reserveUsd: 0, caps: { dev: credit, eval: credit } });
+  ask = claudeJudge({
+    client: new Anthropic(),
+    model: judgeModel,
+    onUsage: (u = {}) => {
+      // As src/claude.mjs: input_tokens excludes the cache, so add it back before pricing.
+      const read = u.cache_read_input_tokens ?? 0, write = u.cache_creation_input_tokens ?? 0;
+      const usage = { inputTokens: (u.input_tokens ?? 0) + read + write, outputTokens: u.output_tokens ?? 0, cachedInputTokens: read, cacheWriteTokens: write };
+      const costUsd = claudeCostUsd(judgeModel, usage);
+      spent += costUsd;
+      ledger.add({ purpose: 'eval', model: judgeModel, provider: 'anthropic', what: 'critic', costUsd, usage });
+    },
+  });
+}
 const over = () => spent >= maxUsd || !(ledger.headroom('eval') > 0);
-const ask = claudeJudge({
-  client: new Anthropic(),
-  model: judgeModel,
-  onUsage: (u = {}) => {
-    // As src/claude.mjs: input_tokens excludes the cache, so add it back before pricing.
-    const read = u.cache_read_input_tokens ?? 0, write = u.cache_creation_input_tokens ?? 0;
-    const usage = { inputTokens: (u.input_tokens ?? 0) + read + write, outputTokens: u.output_tokens ?? 0, cachedInputTokens: read, cacheWriteTokens: write };
-    const costUsd = claudeCostUsd(judgeModel, usage);
-    spent += costUsd;
-    ledger.add({ purpose: 'eval', model: judgeModel, provider: 'anthropic', what: 'critic', costUsd, usage });
-  },
-});
 // The cap is checked before every question, not every sheet (three calls each).
 // A dropped connection or an overloaded API is tried again, three times in all.
 const judge = async (q) => {
@@ -110,15 +130,25 @@ const judge = async (q) => {
 const resumed = flag('resume', null) ? JSON.parse(readFileSync(flag('resume'), 'utf8')).results : [];
 const results = [...resumed];
 let stopped = null;
+// --concurrency=<n>: sheets judged at once (questions on one sheet stay in order, sharing its cached prefix).
+const todo = complete.filter((x) => !resumed.some((r) => r.name === x.name));
+const workers = Math.max(1, Number(flag('concurrency', 1)));
 try {
-  for (const s of complete.filter((x) => !resumed.some((r) => r.name === x.name))) {
-    const r = await critique(s, judge);
-    results.push(r);
-    console.log(`${s.name}: ${Object.entries(r.answers).map(([q, a]) => `${q} ${a.answer ?? '?'}`).join(', ')}`);
-  }
-} catch (e) {
-  stopped = e.budget ? `budget: $${spent.toFixed(2)} of --max-usd=${maxUsd}` : String(e.message ?? e);
-  console.log(`stopping: ${stopped}`);
+  // Every worker ends before the file is written: the first error stops new sheets, not ones in flight.
+  const settled = await Promise.allSettled(Array.from({ length: workers }, async () => {
+    while (todo.length && !stopped) {
+      const s = todo.shift();
+      try {
+        const r = await critique(s, judge);
+        results.push(r);
+        console.log(`${s.name}: ${Object.entries(r.answers).map(([q, a]) => `${q} ${a.answer ?? '?'}`).join(', ')}`);
+      } catch (e) {
+        stopped ??= e.budget ? `budget: $${spent.toFixed(2)} of --max-usd=${maxUsd}` : String(e.message ?? e);
+        throw e;
+      }
+    }
+  }));
+  if (settled.some((x) => x.status === 'rejected')) console.log(`stopping: ${stopped}`);
 } finally {
   // Whatever was answered is kept: the spend is in the ledger already.
   mkdirSync(join(ROOT, 'runs'), { recursive: true });

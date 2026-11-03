@@ -1,5 +1,5 @@
 <!-- CLASSIFICATION: public -->
-<!-- Data: A7 docs/data/addendum/arms.json (bin/addendum-arms.mjs), A8 docs/data/addendum/heldout2-audit.json (bin/addendum-audit.mjs; hand-tabulated verdicts), A2 docs/data/addendum/do-nothing-new-sets.json (bin/do-nothing.mjs). Design: docs/plans/2026-11-03-addendum-protocol.md. Claims: ledger.md rows C74 to C79. -->
+<!-- Data: A7 docs/data/addendum/arms.json (bin/addendum-arms.mjs), A8 docs/data/addendum/heldout2-audit.json (bin/addendum-audit.mjs; hand-tabulated verdicts), A2 docs/data/addendum/do-nothing-new-sets.json (bin/do-nothing.mjs). Design: docs/plans/2026-11-03-addendum-protocol.md. Claims: ledger.md rows C74 to C79, C83, C86. -->
 
 # Addendum: six tool-layer fixes are not distinguishable from none on a fresh held-out set
 

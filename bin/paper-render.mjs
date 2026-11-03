@@ -85,7 +85,7 @@ function plate(assets) {
   const meta = `<div><p class="eyebrow">▸ Brief</p><p class="brief">${esc(tr.brief)}</p>`
     + `<p class="eyebrow" style="margin-top:18px">▸ The model's report</p><ul class="leaders">${claims}</ul></div>`
     + `<div><p class="eyebrow">▸ Checked in code</p><ul class="leaders">${checks}${brief}</ul></div>`;
-  const cap = `<figcaption><b>Plate</b>One run from Fireworks F1 (Table 1, last row): Muse Spark Open, effort low, agent ${esc(tr.agent.commit.slice(0, 7))}, contract ${esc(tr.contractHash.slice(0, 8))}, ${tr.usage.calls} model calls. Image: the configurator's own still() of the build reloaded from the run's share link. Checks and claims: the run's trace, runs/${esc(plateRun.suite)}/${esc(plateRun.run)}/trace.json.</figcaption>`;
+  const cap = `<figcaption><b>Plate</b>One run from Fireworks F1 (full report, Table A4): Muse Spark Open, effort low, agent ${esc(tr.agent.commit.slice(0, 7))}, contract ${esc(tr.contractHash.slice(0, 8))}, ${tr.usage.calls} model calls. Image: the configurator's own still() of the build reloaded from the run's share link. Checks and claims: the run's trace, runs/${esc(plateRun.suite)}/${esc(plateRun.run)}/trace.json.</figcaption>`;
   return { view, meta, cap };
 }
 

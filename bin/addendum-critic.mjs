@@ -17,9 +17,12 @@ const load = (f) => ({ file: f, ...JSON.parse(readFileSync(join(ROOT, f), 'utf8'
 const CLAUDE = ['runs/critic-2026-10-31T23-11-50-342Z.json', 'runs/critic-2026-10-31T23-26-07-605Z.json'];
 const META = {
   'muse-spark-1.3': ['runs/critic-2026-11-03T05-34-28-257Z.json', 'runs/critic-2026-11-03T05-49-13-802Z.json'],
-  'muse-wonder-1.0': process.argv.filter((a) => a.startsWith('--wonder=')).map((a) => a.slice(9)),
+  // Both Wonder passes were stopped by Meta errors and resumed (--resume keeps the answers already given).
+  'muse-wonder-1.0': ['runs/critic-2026-11-03T06-17-04-818Z.json', 'runs/critic-2026-11-03T07-02-48-072Z.json'],
 };
 const claude = CLAUDE.map(load);
+const ledgerRows = readFileSync(join(ROOT, '.spend/meta.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+const ledgerSpend = (model) => +ledgerRows.filter((r) => r.what === 'critic' && r.model === model).reduce((a, r) => a + (r.costUsd ?? 0), 0).toFixed(2);
 // The builds the Claude judges answered: the comparison set.
 const names = new Set(claude[0].results.filter((r) => r.complete).map((r) => r.name));
 const SUBSETS = { purpose: ['purpose'], 'purpose+rests+pose': ['purpose', 'rests', 'pose'], rests: ['rests'], all: ['purpose', 'rests', 'pose', 'workZone'] };
@@ -58,7 +61,9 @@ for (const [model, files] of Object.entries(META)) {
   const missing = passes.map((p) => [...names].filter((n) => !p.results.some((r) => r.name === n && r.complete)).length);
   out.judges[model] = {
     provider: 'meta',
-    passes: passes.map((p, i) => ({ file: p.file, spentUsdAllSheets: +p.spentUsd.toFixed(2), unansweredInSet: missing[i], ...score(p.results) })),
+    passes: passes.map((p, i) => ({ file: p.file, unansweredInSet: missing[i], ...score(p.results) })),
+    // From the Meta ledger's critic rows (all 74 sheets, every pass): a resumed pass file records only its last invocation.
+    ledgerSpentUsd: ledgerSpend(model),
     ...(passes.length > 1 ? { stability: stability(passes[0], passes[1]) } : {}),
   };
 }

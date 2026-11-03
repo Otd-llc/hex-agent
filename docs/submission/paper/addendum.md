@@ -7,7 +7,7 @@ hex-agent. Companion to the paper (paper.md) and report (report.md). Accurate as
 
 ## Result
 
-On 48 fresh held-out briefs, the agent with six tool-layer fixes and the frozen agent each passed 126 of 143 runs (per-brief means 88.2% in both arms). Paired by brief, the difference is 0.0 points (95% CI −6.2 to 6.2, 48 briefs, z, arms correlated at 0.69). The fixes are not distinguishable from no fixes at this n. The design had about 80% power only for changes of 9 points or more (smallest resolvable difference 8.8 points), so a smaller effect in either direction would not have been seen. Each arm overclaimed in 3 runs; with three events no interval is given. Cost per run was $0.092 and $0.084 in tokens, with 17.8 and 17.9 calls per run; no interval was computed and no difference is claimed.
+On 48 fresh held-out briefs, the agent with six tool-layer fixes and the frozen agent each passed 126 of 143 runs (per-brief means 88.2% in both arms; 88.1% of pooled runs). Paired by brief, the difference is 0.0 points (95% CI −6.2 to 6.2, 48 briefs, z, arms correlated at 0.69). The fixes are not distinguishable from no fixes at this n. The design had about 80% power only for changes of 9 points or more (smallest resolvable difference 8.8 points), so a smaller effect in either direction would not have been seen. Each arm overclaimed in 3 runs; with three events no interval is given. Cost per run was $0.092 and $0.084 in tokens (estimates, list price × tokens), with 17.8 and 17.9 calls per run; no interval was computed and no difference is claimed.
 
 ## Design
 
@@ -21,25 +21,25 @@ The protocol (docs/plans/2026-11-03-addendum-protocol.md) was committed before e
 
 ## Held-out2 results
 
-**Table B1.** Held-out2, 48 briefs ×3, both arms rescored with the eval-final grader. Passed: runs passed of runs kept, then the mean of per-brief means. 95% CI clustered by brief (z). "All 3": briefs whose three runs all passed. Cost in tokens at list price, no interval. Source: A7 `sets.heldout2.base`, `.fix`, `.fixMinusBase`.
+**Table B1.** Held-out2, 48 briefs ×3, both arms rescored with the eval-final grader; 1 pair dropped (Meta API error). Passed: runs passed of runs kept, then the mean of per-brief means (the pooled run rate is 88.1% in both arms). 95% CI clustered by brief (z). "All 3": briefs whose three runs all passed. Cost in tokens at list price, no interval. Source: A7 `sets.heldout2.base`, `.fix`, `.fixMinusBase`.
 
 | Arm | Passed | 95% CI | All 3 | Overclaimed runs | $/run | Calls/run |
 |---|---|---|---|---|---|---|
-| eval-final (0c840bc) | 126/143 (88.2%) | 80.8 to 95.6 | 37/48 | 3 | 0.092 | 17.8 |
-| tool-layer fixes (06a6adf) | 126/143 (88.2%) | 80.1 to 96.3 | 39/48 | 3 | 0.084 | 17.9 |
+| eval-final (0c840bc) | 126/143; 88.2% per-brief mean | 80.8 to 95.6 | 37/48 | 3 | 0.092 | 17.8 |
+| tool-layer fixes (06a6adf) | 126/143; 88.2% per-brief mean | 80.1 to 96.3 | 39/48 | 3 | 0.084 | 17.9 |
 
-By stratum, exploratory, paired by brief (t23 at 24 briefs): the themed briefs gave −1.4 points (95% CI −14.2 to 11.4; smallest resolvable 18 points) and the general briefs +1.4 points (−1.5 to 4.3; smallest resolvable 4 points). Neither is distinguishable.
+By stratum, exploratory, paired by brief (t23 at 24 briefs): the themed briefs gave −1.4 points (95% CI −14.2 to 11.4; smallest resolvable 18 points) and the general briefs +1.4 points (−1.5 to 4.3; smallest resolvable 4 points), which rests on one brief whose runs changed (h2-g-router-box). Neither is distinguishable.
 
-**Table B2.** Held-out2 themed briefs by theme, four briefs each: pass rate per arm and the difference in points. Exploratory. With four briefs per theme no interval is given (fewer than 10 briefs), and none of these differences is a finding. Source: A7 `sets.heldout2.byTheme`.
+**Table B2.** Held-out2 themed briefs by theme, four briefs each: pass rate per arm. Exploratory. With four briefs per theme no interval and no difference is given (fewer than 10 briefs), and no theme result is a finding. Source: A7 `sets.heldout2.byTheme`.
 
-| Theme | eval-final | fixes | Fixes minus eval-final |
-|---|---|---|---|
-| orient | 66.7% | 50% | −16.7 |
-| inside | 58.3% | 58.3% | 0 |
-| limit | 91.7% | 75% | −16.7 |
-| unverifiable | 83.3% | 100% | +16.7 |
-| front | 91.7% | 100% | +8.3 |
-| multi | 100% | 100% | 0 |
+| Theme | eval-final | fixes |
+|---|---|---|
+| orient | 66.7% | 50% |
+| inside | 58.3% | 58.3% |
+| limit | 91.7% | 75% |
+| unverifiable | 83.3% | 100% |
+| front | 91.7% | 100% |
+| multi | 100% | 100% |
 
 Per brief, the fixes lost runs on five briefs and gained runs on six. Each line gives the three runs of the eval-final arm, then of the fix arm (1 passed, 0 failed; A7 `regressions`, `gains`):
 
@@ -60,4 +60,4 @@ The fixes were designed from the traces of the eight first-version demo briefs, 
 
 ## Reproduce
 
-Each suite is rescored with the eval-final grader from a worktree at `eval-final` (`node C:/zzz/hex-agent-ef/bin/rescore.mjs runs/<suite>/summary.json --briefs=<set> --versioned`), then `node bin/addendum-arms.mjs --write` writes A7. A2 comes from `node bin/do-nothing.mjs --sets=heldout2,abstain2 --out=docs/data/addendum/do-nothing-new-sets.json`, with no model calls. The suites are listed in A7 `sets.*.suites`.
+Each suite is rescored with the eval-final grader from a worktree at tag `eval-final` (`node <worktree>/bin/rescore.mjs runs/<suite>/summary.json --briefs=<set> --versioned`), then `node bin/addendum-arms.mjs --write` writes A7. A2 comes from `node bin/do-nothing.mjs --sets=heldout2,abstain2 --out=docs/data/addendum/do-nothing-new-sets.json`, with no model calls. The suites are listed in A7 `sets.*.suites`.

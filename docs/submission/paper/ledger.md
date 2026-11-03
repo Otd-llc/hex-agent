@@ -43,7 +43,8 @@ node C:/Users/raven/.claude/plugins/cache/otd-skills/otd-skills/1.26.0/skills/ot
   docs/data/grader-audit.json docs/data/demo-review.json \
   docs/data/addendum/abstain2.json docs/data/addendum/do-nothing-new-sets.json docs/data/addendum/critic-meta.json \
   docs/data/addendum/review-meta.json docs/data/addendum/wonder.json \
-  docs/data/addendum/spend.json docs/data/addendum/arms.json docs/data/addendum/heldout2-audit.json \n  docs/data/addendum/prescription.json
+  docs/data/addendum/spend.json docs/data/addendum/arms.json docs/data/addendum/heldout2-audit.json \
+  docs/data/addendum/prescription.json
 ```
 
 Comparison key (step 6): provider, model, effort, contract, page build, agent commit, prompt, feature arm. An inferred (~) value is unknown and matches nothing.
@@ -272,7 +273,7 @@ Round 22 (2026-11-03): second independent review answered; repo public. Applied 
 
 ## Appendix: form answers (drafts)
 
-Drafted from the claims above only (C1 to C93); same number rules as the paper. Revised 2026-11-03 (rounds 13b to 21) for the post-gate results A1 to A8. Bracketed slots are owner items. Replace nothing here with a figure from WRITEUP.md (X1 to X7).
+Drafted from the claims above only (C1 to C93); same number rules as the paper. Revised 2026-11-03 (rounds 13b to 21) for the post-gate results A1 to A9. Bracketed slots are owner items. Replace nothing here with a figure from WRITEUP.md (X1 to X7).
 
 **Project Description.** hex-agent lets a Meta model assemble builds from printable catalog parts in One Thousand Drones' live Hex Cluster configurator, a browser tool for modular 3D-printed hexagonal storage. You type a brief such as "a patio bed for tomatoes and the plants that help them grow"; the model places parts through the configurator's public browser API, reads each refusal and the alternatives offered, and ends with a share link, a parts list, a print pack and a statement of which requirements it met, partly met or could not meet. The configurator's rules and our code decide each run: placement rules, a mesh collision check, a share-link reload in a fresh tab and the brief's coded checks; a requirement with no coded check rests on the model's statement, and the checks do not test where a prop sits (props rest where the configurator lets them), which way a part faces in plan, or whether one part reaches or serves another (beyond a connector joining two groups). On the frozen agent, Muse Spark 1.3 through the Meta Model API passed 14 of 18 held-out briefs on their one pre-committed run (Wilson 95% interval 54.8 to 91.0%; those passes were not audited, and audits of the same checks elsewhere found false passes, so it likely overstates success), and 173 of 180 runs on the 36 development briefs run five times each (clustered 95% interval 90.7 to 100%), a development-set rate. An agent that changes nothing passes 4 of the 18 held-out briefs. Built on One Thousand Drones' existing configurator; the agent, grader and evaluation were built during the event.
 

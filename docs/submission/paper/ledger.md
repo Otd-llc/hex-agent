@@ -185,6 +185,8 @@ Round 10 (2026-11-03): demo expanded to four builds; no lens round yet. report.m
 
 Round 11 (2026-11-03, final-gate review of paper.md 418cb98, one read-only agent). Every number matched D1 to D8. Material, folded: the pipeline paragraph claimed a generated product family "is one the agent can design with"; only operations and value lists come from the (vendored) contract, and the tool layer hard-codes hex axial coordinates and Hex Cluster part hints (src/tools.mjs), so it now states that gap; D8 described as verdicts on 45 of 70 demo runs (D8 summary.coverage), report §3.4 no longer says every run. Low: dirty tree scoped to the first demo suite; stray rods scoped to printing v3; "every brief check passed"; printing v1 0/5 disclosed; report critic spend attributed to D3.
 
+Round 12 (2026-11-03, gate review of paper.md aec66c5, one fresh read-only agent): "no material findings". Every table cell, paired result, demo count, code claim and spend figure matched its data file or the code. Three LOW nits folded: 17 tools on the frozen agent (fewer on the earliest commits); demo 36 of 66 completed runs (D1 demo.completed, new field), 70 attempted; D4 named as suite-index.json with the note that reconcile needs the unpublished ledgers. GATE PASSED (otd-validate-plan / otd-scientific-writing: a fresh round with zero material findings).
+
 ## Appendix: form answers (drafts)
 
 Drafted from the claims above only (C1 to C55); same number rules as the paper. Revised 2026-11-02 (evening) to match paper.md at 613f70a; number_trace run on this appendix alone against D1 to D8 and D3: 0 untraced, 0 dashes. Bracketed slots are owner items. Replace nothing here with a figure from WRITEUP.md (X1 to X7).

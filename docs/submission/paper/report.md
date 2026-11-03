@@ -126,7 +126,7 @@ The arms differ on the toddler step, the petrol caddy and the solder station, al
 
 ### 3.4 Demo set
 
-The demo set is not an evaluation: planter and workbench briefs written for the video, and the revisions of those briefs, five runs each, Muse Spark 1.3 through the Meta Model API at effort low, contract da0834cc, page CvOVnJJh, in ten suites classed demo (D4). It passed 36 of 70 runs (D1 `demo`). The host-cut runs of the printing station's second and third versions, two in each, are among the 70 and are not passes. No demo run overclaimed (D4). Only the briefs were revised, never the agent: D4 records the agent code of every demo suite as identical to `eval-final` (`classWhy`), and every run of every version is kept and counted.
+The demo set is not an evaluation: planter and workbench briefs written for the video, and the revisions of those briefs, five runs each, Muse Spark 1.3 through the Meta Model API at effort low, contract da0834cc, page CvOVnJJh, in ten suites classed demo (D4). It passed 36 of 66 completed runs, 70 attempted (D1 `demo`). The host-cut runs of the printing station's second and third versions, two in each, are among the 70 and are not passes. No demo run overclaimed (D4). Only the briefs were revised, never the agent: D4 records the agent code of every demo suite as identical to `eval-final` (`classWhy`), and every run of every version is kept and counted.
 
 **Table A3a.** Demo set, Muse Spark 1.3, passes per brief version, in run order. Not an evaluation; no interval is given. Review: the reviewer agents' findings (D8, hand-tabulated). Sources: D1 `demo.perBrief`; D4 demo rows; D8 `summary` and per-run verdicts.
 

@@ -167,7 +167,7 @@ const demo = (() => {
     const species = new Set(props.filter((x) => x.plant || /-(seedling|young|harvest)$/.test(x.id)).map((x) => x.id.replace(/-(seedling|young|harvest)$/, '')));
     return [r.t.runId.slice(-8), { brief: r.id, parts: r.t.verdict.nodes, planters: (r.t.finalStaging?.soil ?? []).length, props: props.length, plantSpecies: species.size }];
   }));
-  return { suites: DEMO, runs: all.length, passed: all.filter((r) => !r.cut && r.pass).length, perBrief: by, shown };
+  return { suites: DEMO, runs: all.length, completed: all.filter((r) => !r.cut).length, passed: all.filter((r) => !r.cut && r.pass).length, perBrief: by, shown };
 })();
 
 // The held-out set on the frozen agent. x1 was pre-committed and is the headline; the owner

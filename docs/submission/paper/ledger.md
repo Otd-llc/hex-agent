@@ -183,6 +183,8 @@ Round 9 (2026-11-03, final-gate review on paper.md d951e18 by one read-only agen
 
 Round 10 (2026-11-03): demo expanded to four builds; no lens round yet. report.md and this ledger brought in line with paper.md at 38d1cac: report.md 3.4 rewritten for the 70-run demo set (Table A3a from D1 `demo.perBrief`, review findings from D8), 2.3, 3.8, 6 and 7 updated (Meta spend $42.37 over 552 runs; `metaUse` scope stated; every suite folder committed). Rows C57 to C62 added; C49 and C50 SUPERSEDED. number_trace on report.md against D1 to D8 and D3: 0 untraced, 0 dashes. The gate is NOT met for this revision.
 
+Round 11 (2026-11-03, final-gate review of paper.md 418cb98, one read-only agent). Every number matched D1 to D8. Material, folded: the pipeline paragraph claimed a generated product family "is one the agent can design with"; only operations and value lists come from the (vendored) contract, and the tool layer hard-codes hex axial coordinates and Hex Cluster part hints (src/tools.mjs), so it now states that gap; D8 described as verdicts on 45 of 70 demo runs (D8 summary.coverage), report §3.4 no longer says every run. Low: dirty tree scoped to the first demo suite; stray rods scoped to printing v3; "every brief check passed"; printing v1 0/5 disclosed; report critic spend attributed to D3.
+
 ## Appendix: form answers (drafts)
 
 Drafted from the claims above only (C1 to C55); same number rules as the paper. Revised 2026-11-02 (evening) to match paper.md at 613f70a; number_trace run on this appendix alone against D1 to D8 and D3: 0 untraced, 0 dashes. Bracketed slots are owner items. Replace nothing here with a figure from WRITEUP.md (X1 to X7).

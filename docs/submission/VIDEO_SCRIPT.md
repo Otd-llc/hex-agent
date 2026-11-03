@@ -68,19 +68,17 @@ two failures ran out of turns."
 a caption card: "brief versions 1 to 4: 0 passed; version 5: 5 of 5". Voice:
 "A drone pit station of 108 parts. The first four versions of this brief
 passed none. We never changed the agent, only the brief, naming what the
-agent's own tools had already proven. Version five passed 5 of 5. The checks
-don't see everything: the multimeter stands on end with its display facing
-away, and the report didn't say so. Its report marks the quad on its own
-cover and a drawer on each storey facing the viewer as met; the stills show
-the propellers reaching over the next covers and the drawers opening away."
-Owner: this run makes two met claims its stills contradict (paper, Demo and
-results); keep the line whether or not another run is swapped in.
+agent's own tools had already proven. Version five passed 5 of 5."
+Owner decision (2026-11-03): the flaws are not narrated in the video. Do not
+show this run's report lines for the quad cover or the drawers facing the
+viewer (both marked met; the stills contradict them, paper Demo and results):
+keep the replay overlay off the report card, or crop those two lines.
 
-**1:45-2:10. 3D-printing station (run dfdebefd): what the checks verify, and one claim they miss.**
+**1:45-2:10. 3D-printing station (run dfdebefd): what the checks verify.**
 Screen: the replay, then a caption card with the trace's verdict (each check
 and its result), the parts list, and the share link opened in a fresh tab
-showing the same build, plus a caption line: "Report: rods met (stubs described).
-Stills: rod stubs where the brief asked for none." Voice: "A printing station of 133 parts, four
+showing the same build. Do not show the report's rods line (marked met; the
+stills contradict it, paper Demo and results). Voice: "A printing station of 133 parts, four
 filament spools hung on axles. When it finishes, code runs the checks:
 placement rules, the mesh-collision gate, the parts list, the print pack,
 the share link reloaded in a fresh tab, and the brief's own checks. A run

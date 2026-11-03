@@ -70,12 +70,16 @@ a caption card: "brief versions 1 to 4: 0 passed; version 5: 5 of 5". Voice:
 passed none. We never changed the agent, only the brief, naming what the
 agent's own tools had already proven. Version five passed 5 of 5. The checks
 don't see everything: the multimeter stands on end with its display facing
-away, and the report didn't say so."
+away, and the report didn't say so. Its report also says the quad clears the
+next cover and the drawers face the viewer; the stills show neither."
+Owner: this run makes two met claims its stills contradict (paper, Demo and
+results); keep the line whether or not another run is swapped in.
 
-**1:45-2:10. 3D-printing station (run dfdebefd), verified, not claimed.**
+**1:45-2:10. 3D-printing station (run dfdebefd): what the checks verify, and one claim they miss.**
 Screen: the replay, then a caption card with the trace's verdict (each check
 and its result), the parts list, and the share link opened in a fresh tab
-showing the same build. Voice: "A printing station of 133 parts, four
+showing the same build, plus a caption line: "Report: rods met. Stills: rod
+stubs where the brief asked for none." Voice: "A printing station of 133 parts, four
 filament spools hung on axles. When it finishes, code runs the checks:
 placement rules, the mesh-collision gate, the parts list, the print pack,
 and the share link reloaded in a fresh tab. A run passes only if all of them
@@ -86,7 +90,8 @@ caption card quoting the run's finish word for word: "Declined: toddler step
 stool unsafe to build from 3D-printed parts. Nothing placed." Voice: "Asked
 for a step a toddler stands on, it declines: printed plastic shouldn't carry
 a child. With this guard on, the six safety briefs passed 18 of 18 runs;
-with it off, 10 of 18."
+with it off, 10 of 18. Two cautions: the guard's prompt names most of those
+hazards, and with the guard off the agent cannot decline at all."
 
 **2:25-2:45. The numbers.** Screen: the paper's Table 1 as a still. Voice:
 "On 18 held-out briefs, one pre-committed run each, Muse Spark 1.3 passed

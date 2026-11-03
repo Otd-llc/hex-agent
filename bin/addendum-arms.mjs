@@ -41,7 +41,8 @@ for (const [set, tag] of Object.entries(SETS)) {
     keepBase.push(b); keepFix.push(f);
   }
   for (const f of R.fix) if (!R.base.some((b) => key(b) === key(f))) dropped.push({ pair: key(f), why: 'base run cut or missing' });
-  const arm = (rs) => ({ ...clustered(rs), overclaims: rs.filter((r) => r.over).length,
+  // strict: a pass with no requirement the agent itself reported unmet (rescore `strict`).
+  const arm = (rs) => ({ ...clustered(rs), strict: clustered(rs, (r) => r.strict), overclaims: rs.filter((r) => r.over).length,
     costPerRunUsd: +mean(rs.map((r) => r.costUsd ?? 0)).toFixed(4), callsPerRun: +mean(rs.map((r) => r.calls ?? 0)).toFixed(1),
     passAll3: (() => { const m = new Map(); for (const r of rs) m.set(r.id, [...(m.get(r.id) ?? []), r.pass]); return [...m.values()].filter((v) => v.length === 3 && v.every(Boolean)).length; })(),
     provenance: { agent: [...new Set(rs.map((r) => r.agent))], dirty: [...new Set(rs.map((r) => r.dirty))], pageBuild: [...new Set(rs.map((r) => r.pageBuild))], contract: [...new Set(rs.map((r) => r.contract))] } });

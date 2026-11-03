@@ -26,7 +26,7 @@ export function rows(suites, { rescore = true } = {}) {
       const t = tp && existsSync(tp) ? readJson(tp) : null;
       const r = by.get(`${row.id}#${row.attempt}`);
       if (budgetCut(row, t) || infraCut(row, t)) continue;
-      out.push({ suite: id, id: row.id, attempt: row.attempt, pass: r ? r.after : row.pass, over: r?.overclaimed ?? row.overclaimed,
+      out.push({ suite: id, id: row.id, attempt: row.attempt, pass: r ? r.after : row.pass, strict: r ? r.strict : row.strict, over: r?.overclaimed ?? row.overclaimed,
         costUsd: row.costUsd ?? t?.usage?.costUsd ?? null, calls: t?.usage?.calls ?? null, pageBuild: t?.pageBuild ?? null, contract: t?.contractHash?.slice(0, 8) ?? null,
         agent: t?.agent?.commit?.slice(0, 7) ?? null, dirty: t?.agent?.dirty ?? null });
     }

@@ -120,9 +120,10 @@ const judge = async (q) => {
     try {
       return await ask(q);
     } catch (e) {
-      const transient = /connection|timeout|overloaded|ECONNRESET|socket/i.test(String(e.message)) || [429, 500, 502, 503, 529].includes(e.status);
-      if (!transient || attempt >= 3) throw e;
-      await new Promise((r) => setTimeout(r, 5000 * attempt));
+      // fetch failed: undici's dropped connection (the Meta API under load, 2026-11-03).
+      const transient = /connection|timeout|overloaded|ECONNRESET|socket|fetch failed/i.test(String(e.message)) || [429, 500, 502, 503, 504, 529].includes(e.status);
+      if (!transient || attempt >= 5) throw e;
+      await new Promise((r) => setTimeout(r, 10_000 * attempt));
     }
   }
 };

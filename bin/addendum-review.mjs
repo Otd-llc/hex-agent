@@ -5,10 +5,9 @@
 // Muse answer mentions on the runs D8 says have them (a keyword match on its notes
 // and contradicted list, not a hand reading).
 //   node bin/addendum-review.mjs [--write]   (--write: docs/data/addendum/review-meta.json)
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT } from '../src/ledger.mjs';
-import { wilson } from './addendum-lib.mjs';
 import { critOrNull } from './stats.mjs';
 
 const d8 = JSON.parse(readFileSync(join(ROOT, 'docs/data/demo-review.json'), 'utf8'));
@@ -31,6 +30,16 @@ const FAULTS = {
   quadArmsClaim: { d8: /multimeter/i, muse: /quad/i },
 };
 const isDrop = (v) => v === 'DROP';
+// The brief of a D8 run id, from its trace (runs/suite-*/<ts>-<id>/trace.json).
+const briefIds = new Map();
+for (const s of readdirSync(join(ROOT, 'runs'), { withFileTypes: true }).filter((d) => d.isDirectory() && d.name.startsWith('suite-'))) {
+  for (const r of readdirSync(join(ROOT, 'runs', s.name), { withFileTypes: true })) {
+    if (!r.isDirectory() || !(r.name.slice(-8) in d8)) continue;
+    const tp = join(ROOT, 'runs', s.name, r.name, 'trace.json');
+    if (existsSync(tp)) briefIds.set(r.name.slice(-8), JSON.parse(readFileSync(tp, 'utf8')).briefId);
+  }
+}
+const briefOf = (k) => briefIds.get(k) ?? 'unknown';
 const out = { generatedBy: 'bin/addendum-review.mjs', addendum: 'after the paper gate; not part of the submitted numbers', reference: 'D8 docs/data/demo-review.json (Claude reviewer agents)', runs: 0, d8Drop: 0, models: {} };
 const ids = Object.keys(d8).filter((k) => k !== 'summary' && d8[k].verdict !== 'HOST CUT');
 out.runs = ids.length;
@@ -60,13 +69,21 @@ for (const [model, passes] of Object.entries(PASSES)) {
       m.faultsMentioned[f] = { runs: runs.length, contradicted: runs.filter(hit).length, ids: runs.filter(hit) };
     }
     m.dropAgreement = m.answered ? +((m.dropCaught + m.keepKept) / m.answered * 100).toFixed(1) : null;
-    m.dropAgreementWilson95 = m.answered ? wilson(m.dropCaught + m.keepKept, m.answered) : null;
-    // Paired by run against keeping every run: per run, Muse agrees with D8 (1/0) minus keep-every-run agrees (D8 not DROP).
+    // Against keeping every run: per run, Muse agrees with D8 (1/0) minus keep-every-run agrees (D8 not DROP).
+    // The 41 runs repeat 9 briefs and D8's verdicts move together within a brief, so the unit is the
+    // brief: clustered, fewer than 10 briefs gets no interval (statistics.md), only the discordant
+    // counts and per-brief agreement.
     {
-      const d = ids.filter((k) => by.has(k)).map((k) => ((isDrop(d8[k].verdict) === isDrop(by.get(k).verdict)) ? 1 : 0) - (isDrop(d8[k].verdict) ? 0 : 1));
-      const n = d.length, mu = d.reduce((a, b) => a + b, 0) / n, se = Math.sqrt(d.reduce((a, x) => a + (x - mu) ** 2, 0) / (n - 1) / n), c = critOrNull(n);
-      m.minusKeepEveryRun = { runs: n, museOnly: d.filter((x) => x > 0).length, keepOnly: d.filter((x) => x < 0).length, diffPoints: +(mu * 100).toFixed(1),
-        ci95Points: c ? [+((mu - c.value * se) * 100).toFixed(1), +((mu + c.value * se) * 100).toFixed(1)] : null, crit: c?.name ?? null };
+      const runs = ids.filter((k) => by.has(k));
+      const d = runs.map((k) => ((isDrop(d8[k].verdict) === isDrop(by.get(k).verdict)) ? 1 : 0) - (isDrop(d8[k].verdict) ? 0 : 1));
+      const per = {};
+      runs.forEach((k, i) => { const b = briefOf(k); (per[b] ??= { runs: 0, museAgrees: 0, keepAgrees: 0, d: [] }); per[b].runs++; per[b].museAgrees += isDrop(d8[k].verdict) === isDrop(by.get(k).verdict) ? 1 : 0; per[b].keepAgrees += isDrop(d8[k].verdict) ? 0 : 1; per[b].d.push(d[i]); });
+      const items = Object.values(per).map((x) => x.d.reduce((a, b) => a + b, 0) / x.d.length);
+      const B = items.length, mu = items.reduce((a, b) => a + b, 0) / B;
+      const se = B > 1 ? Math.sqrt(items.reduce((a, x) => a + (x - mu) ** 2, 0) / (B - 1) / B) : null, c = se ? critOrNull(B) : null;
+      m.minusKeepEveryRun = { runs: runs.length, briefs: B, museOnly: d.filter((x) => x > 0).length, keepOnly: d.filter((x) => x < 0).length,
+        ci95Points: c ? [+((mu - c.value * se) * 100).toFixed(1), +((mu + c.value * se) * 100).toFixed(1)] : null, crit: c?.name ?? null,
+        perBrief: Object.fromEntries(Object.entries(per).map(([b, x]) => [b, { runs: x.runs, museAgrees: x.museAgrees, keepAgrees: x.keepAgrees }])) };
     }
     return m;
   });

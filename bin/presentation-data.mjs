@@ -160,7 +160,14 @@ const demo = (() => {
     if (r.cut) b.cut++;
     else if (r.pass) b.passed++;
   }
-  return { suites: DEMO, runs: all.length, passed: all.filter((r) => !r.cut && r.pass).length, perBrief: by };
+  // The runs the owner chose for the video: parts, planters (bins with soil) and plant species, from their traces.
+  const SHOWN = ['9329ae20', 'a1530f79', 'f24f0f99', 'dfdebefd'];
+  const shown = Object.fromEntries(all.filter((r) => r.t && SHOWN.some((id) => r.t.runId.endsWith(id))).map((r) => {
+    const props = r.t.finalStaging?.props ?? [];
+    const species = new Set(props.filter((x) => x.plant || /-(seedling|young|harvest)$/.test(x.id)).map((x) => x.id.replace(/-(seedling|young|harvest)$/, '')));
+    return [r.t.runId.slice(-8), { brief: r.id, parts: r.t.verdict.nodes, planters: (r.t.finalStaging?.soil ?? []).length, props: props.length, plantSpecies: species.size }];
+  }));
+  return { suites: DEMO, runs: all.length, passed: all.filter((r) => !r.cut && r.pass).length, perBrief: by, shown };
 })();
 
 // The held-out set on the frozen agent. x1 was pre-committed and is the headline; the owner

@@ -153,6 +153,11 @@ A development build cost about $0.057 of Muse Spark 1.3 tokens on average per ru
 - [Claim ledger](docs/submission/paper/ledger.md): every claim, its data file and the review rounds
 - [EVALUATION.md](EVALUATION.md) run log · [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · [HACKATHON_DELTA.md](HACKATHON_DELTA.md)
 - Run screenshots: release [`runs-2026-11-02`](https://github.com/Otd-llc/hex-agent/releases/tag/runs-2026-11-02)
+- [DATA.md](DATA.md): what every data file is, how to read a trace, how to rebuild a number
+
+## Data
+
+Every number in the paper traces to a file in this repository: 5,128 run traces in 154 suites under [`runs/`](runs/), the brief sets in [`evals/`](evals/), the generated tables in [`docs/data/`](docs/data/) and the API contract each run drove. One zip holds all of it without the git history: [hex-agent-data-2026-11-04.zip](https://github.com/Otd-llc/hex-agent/releases/download/data-2026-11-04/hex-agent-data-2026-11-04.zip) (release [`data-2026-11-04`](https://github.com/Otd-llc/hex-agent/releases/tag/data-2026-11-04), sha256 and packing commit in its notes; rebuilt by `node bin/pack-data.mjs`). The screenshots of every 2026-11-02 Meta Model API run are a second zip, release [`runs-2026-11-02`](https://github.com/Otd-llc/hex-agent/releases/tag/runs-2026-11-02). Paths in both match the repository. [DATA.md](DATA.md) describes each file and the keys of a trace.
 
 ## License
 

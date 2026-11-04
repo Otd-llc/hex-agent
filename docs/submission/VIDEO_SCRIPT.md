@@ -58,17 +58,17 @@ state only; the paper reports the tool calls, the refusals and the checks.
 
 | Segment | Line |
 |---|---|
-| 1 built this week | The configurator and its crystal were already ours. The agent that drives it, and its checks, were built this week. |
+| 1 built this week | Hex Cluster, the configurator, and every part you're about to see existed before this hackathon. What we built this week is the agent: the tools it calls, the checks that keep it honest, and the evaluation behind it. All of it runs on Meta's Muse models. |
 | 2 brief | You type what you want. |
-| 3 tower | Meta's Muse Wonder builds it in our configurator. |
-| 4 engine | It reads the build, asks where parts fit, and places them through the public API. The model chooses. The configurator's rules accept or refuse. Here the rules say no: a deep bin needs a taller base. The model reads the refusal and rebuilds the base. |
-| 5 desk | A desk organiser, by Muse Spark. |
-| 6 print | A printing station. Three builds, picked by us from their runs. |
-| 7 live | Those were recordings. This one is live: Muse Spark 1.3 on Meta's Model API, on a brief from our development set. Whatever the checks say at the end is what we show. |
-| 8 decline | Asked for a step a toddler stands on, it says no. Nothing placed. |
-| 9 most | On briefs it had never seen, it got most of them right. The paper has the exact numbers. |
-| 10 parts | From the agent's build, the configurator makes the parts list, the print files and the assembly steps. Nothing has been printed yet. |
-| 11 end | hex-agent. Muse Spark and Muse Wonder through the Meta Model API. The paper and every run are in the repository. |
+| 3 tower | And it builds it. Out of parts you can actually print. |
+| 4 engine | What you're watching is a real run, replayed. The model placed every part itself. |
+| 5 desk | A desk organiser. |
+| 6 print | A printing station. |
+| 7 live | This one is live. Muse Spark, calling Meta's API right now. |
+| 8 decline | And when something can't be built, it tells you straight, and builds nothing it can't stand behind. |
+| 9 most | It doesn't get everything right. When it misses, it says so. |
+| 10 parts | Every build comes with its sheet and its steps. |
+| 11 end | One sentence in. One real thing out. Typed. Built. |
 
 No number is spoken or shown. Every number the video alludes to is in docs/submission/paper/paper.md
 as published: 14 of 18 (77.8%, Wilson 54.8 to 91.0%), 4 of 18 do-nothing, the film suites' 6 of 9

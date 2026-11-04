@@ -13,6 +13,11 @@ An agent on Meta Muse models that turns one sentence into a checked Hex Cluster 
 
 You give it a brief such as "a strawberry tower for a small balcony". A Meta model reads the build, asks the configurator where parts fit, places them through the public [`window.hexAPI`](https://academy.onethousanddrones.com/hex/api), reads each accept or refusal and the alternatives it offers, and revises. It ends with a share link, a parts list, a print pack the configurator made, and the model's own statement of which requirements were met, partly met or not met. The configurator's checks and our code then decide whether the run passed.
 
+<p align="center">
+  <img src=".github/assets/build-loop.webp" width="720" alt="The live configurator in its dark theme replaying run 9329ae20 at speed: the agent crystal places walls, bases, bins, soil and strawberry plants until the seven-planter tower stands.">
+</p>
+<p align="center"><sub>Run 9329ae20 replayed on hex.onethousanddrones.com (<code>?replays</code>, no model running), 54 s of the replay at 5.4x, recorded November 2026</sub></p>
+
 ## What was built during the hackathon
 
 Hex Cluster, its configurator, placement rules, collision check, `window.hexAPI`, print packs and part catalog existed before the event and belong to One Thousand Drones; none of that source is here. One Thousand Drones also shipped configurator releases during the event, some prompted by the agent's runs; they are product changes, not claimed here, and every result ran on one of them (each identified by its API-contract hash). This repository, from its first commit (`fb78560`, 2026-10-27), is the event work: the agent loop, browser bridge, checked tool layer, Meta model adapters, verification, honesty check, abstention, grader and rescoring, spend ledgers, evaluation suites, baselines, the replay tool and a vision judge on Meta models. Nothing was trained. [HACKATHON_DELTA.md](HACKATHON_DELTA.md) names each pre-existing version.

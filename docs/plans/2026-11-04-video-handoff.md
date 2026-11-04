@@ -15,6 +15,8 @@ Deadline: submissions due 2026-11-04 9:00 PM ET, which is 2026-11-05 02:00 UTC (
 
 Owner's offer: Meta credit remains and anything can be re-run to get a better narrative. Any free software may be installed, and the agent can drive it directly.
 
+The video also needs music, which the first cut did not have. A DAW may be installed and driven. The otd-promo-film skill owns scoring a bed, mastering to a platform target and cutting to a beat grid; read it first. Music must be original or clearly licensed for this use, and the licence recorded.
+
 ## Measured causes
 
 - Soil flipping is not the model. Strawberry run 9329ae20 issued 7 fillSoil ops and terrace run a1530f79 issued 12. The flicker comes from the crystal replay player in the configurator (viz `src/hex/agent/film/film.js`, `pace.js`, `src/hex/agent/area/*`). So a re-run alone will not cure it if the footage comes from `?replays`. Fix it in the film player (lane 1 owns that repo and its deploys), or record a live run directly, which does not use the film player. Unverified: check that a directly recorded run has no flicker.

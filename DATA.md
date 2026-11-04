@@ -6,9 +6,9 @@ Every number in the paper comes from files in this repository, and this page say
 
 | What | Where | Size |
 | --- | --- | --- |
-| Traces, summaries, rescores, brief sets, the API contract, the paper's data files and the paper itself, as one zip | [hex-agent-data-2026-11-04.zip](https://github.com/Otd-llc/hex-agent/releases/download/data-2026-11-04/hex-agent-data-2026-11-04.zip) (release [`data-2026-11-04`](https://github.com/Otd-llc/hex-agent/releases/tag/data-2026-11-04); its sha256 and the commit it was packed from are in the release notes and in the manifest beside it) | see the release |
+| Traces, summaries, rescores, brief sets, the API contract, the paper's data files and the paper itself, as one zip (no stills) | [hex-agent-data-2026-11-04.zip](https://github.com/Otd-llc/hex-agent/releases/download/data-2026-11-04/hex-agent-data-2026-11-04.zip) (release [`data-2026-11-04`](https://github.com/Otd-llc/hex-agent/releases/tag/data-2026-11-04); its sha256 and the commit it was packed from are in the release notes and in the manifest beside it) | see the release notes; 347 MB of JSON unpacked |
 | Screenshots of every run in the eight Meta Model API suites of 2026-11-02 (`final.png`, `still-N.png`) | [hex-agent-run-screenshots-2026-11-02.zip](https://github.com/Otd-llc/hex-agent/releases/download/runs-2026-11-02/hex-agent-run-screenshots-2026-11-02.zip) (release [`runs-2026-11-02`](https://github.com/Otd-llc/hex-agent/releases/tag/runs-2026-11-02)) | 167 MB, 863 files, stored uncompressed |
-| The same files in git | `git clone --depth 1 https://github.com/Otd-llc/hex-agent.git` | the tracked data is about 20 MB |
+| Everything, stills of the earlier suites included, in git | `git clone --depth 1 https://github.com/Otd-llc/hex-agent.git` | the tracked data is about 640 MB in the working tree, 293 MB of it PNG stills |
 
 Paths inside both zips match the repository, so a trace path quoted in the paper opens in either. The data zip is rebuilt by `node bin/pack-data.mjs --out <dir>` from the tracked files at a clean checkout; the script prints the file count, the zip's sha256 and the commit.
 

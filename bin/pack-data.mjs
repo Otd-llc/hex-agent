@@ -5,7 +5,8 @@
  *   node bin/pack-data.mjs --out <dir> [--date YYYY-MM-DD]
  *
  * Contents: every TRACKED file (git ls-files) under runs/, docs/data/, evals/, contract/ and the
- * markdown of docs/submission/paper/, plus DATA.md, LICENSE and NOTICE at the zip root. Paths
+ * markdown of docs/submission/paper/, except PNG stills (they stay in git and in the screenshots
+ * release), plus DATA.md, LICENSE and NOTICE at the zip root. Paths
  * inside the zip match the repository. The packed paths must be clean in the working tree, so
  * the zip is reproducible from the commit the manifest names. Stored with deflate; the manifest
  * (printed, and written beside the zip as <name>.manifest.json) carries the commit, the file
@@ -48,6 +49,8 @@ const files = git('ls-files', '-z', '--', ...PACKED, ...ROOT_FILES)
     .split('\0')
     .filter(Boolean)
     .filter(f => !f.startsWith('docs/submission/paper/') || f.endsWith('.md'))
+    // stills stay out: the tracked PNGs are 293 MB and live in git and in the screenshots release
+    .filter(f => !f.endsWith('.png'))
     .sort();
 for (const f of ROOT_FILES) if (!files.includes(f)) throw new Error(`${f} is not tracked`);
 

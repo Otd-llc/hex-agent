@@ -7,7 +7,7 @@
 
 An agent on Meta Muse models that turns one sentence into a checked Hex Cluster build in the live configurator.
 
-**Live** · [hex.onethousanddrones.com](https://hex.onethousanddrones.com) (the pre-existing configurator the agent drives) · **Docs** · [paper (PDF)](docs/paper/hex-agent-paper.pdf) · **Status** · active
+**Demo video** · [youtu.be/H9a_9u3i0gI](https://youtu.be/H9a_9u3i0gI) (2:53) · **Live** · [hex.onethousanddrones.com](https://hex.onethousanddrones.com) (the pre-existing configurator the agent drives) · **Docs** · [paper (PDF)](docs/paper/hex-agent-paper.pdf) · **Status** · active
 
 ## What it does
 

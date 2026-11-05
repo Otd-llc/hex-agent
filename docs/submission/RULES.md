@@ -98,3 +98,4 @@ Muse Code.
 - 2026-11-02, owner: **Run screenshots:** traces and summaries of new suites are committed; their
   PNGs (final.png, still-N.png) are published as a GitHub Release zip instead of in git.
 - 2026-11-05 01:30 UTC (2026-11-04 19:30 CST), owner: **SUBMITTED**, entry 4349 (joshtol), Startups Track, Push the Frontier, repository Otd-llc/hex-agent at main 347157c, demo video https://youtu.be/H9a_9u3i0gI (2:53, unlisted). Partner feedback field (150 chars): Baseten steadiest, Modal fastest but idle GPU billing, Fireworks hung calls behind a green status page.
+- 2026-11-05 01:40 UTC, owner: Most Viral X post https://x.com/1KDrones/status/2118156694765355511 (native video, repo link in the reply), added to the form.

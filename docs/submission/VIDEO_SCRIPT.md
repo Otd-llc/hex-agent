@@ -4,7 +4,7 @@ The first cut was rejected by the owner as boring (docs/plans/2026-11-04-video-h
 second cut (treatment A, "Typed. Built.", docs/plans/2026-11-04-video-treatments.md) replayed four
 demo-set runs. The third cut, the submitted one, is rebuilt on three builds, every one chosen by the
 owner from the runs of its brief, none of them an evaluation run: a planter tower from a Muse Wonder
-1.0 run, a desk organiser from a Muse Spark 1.3 run, and the printing station from the demo set.
+1.0 run, a desk organizer from a Muse Spark 1.3 run, and the printing station from the demo set.
 Each build appears as a Blender render of the exact build from its run, labelled as a render; the
 tower also appears as a direct replay of its run through the configurator's public API, labelled as
 a replay. One segment is live. No number appears on screen; the paper keeps its numbers
@@ -17,7 +17,7 @@ built by script from files outside the repository (C:/zzz/_video). Under the thr
 | Build | Run | Model | Suite or run folder | Brief |
 |---|---|---|---|---|
 | Planter tower with a crescent | 4d10f23e | Muse Wonder 1.0, Meta Model API | runs/suite-2026-11-04T17-07-56-347Z (brief passed 3 of 3; this run's report marks four requirements partial, every coded check passed) | film-tower-crescent, evals/briefs-film.json |
-| Desk organiser | 6ad4f332 | Muse Spark 1.3, Meta Model API | runs/suite-2026-11-04T16-22-20-053Z (brief passed 3 of 3; this run strict) | film-desk-organiser, evals/briefs-film.json |
+| Desk organizer | 6ad4f332 | Muse Spark 1.3, Meta Model API | runs/suite-2026-11-04T16-22-20-053Z (brief passed 3 of 3; this run strict) | film-desk-organizer, evals/briefs-film.json |
 | 3D-printing station | dfdebefd | Muse Spark 1.3, Meta Model API | runs/suite-2026-11-03T03-25-07-282Z (demo set, brief v3 passed 3 of 3 completed) | demo-print-station-v3 |
 
 The film briefs were written by the author on 2026-11-04 for the video, after every result in the
@@ -43,7 +43,7 @@ messages, tool calls or checks.
 | 2 | The brief | The tower brief types itself over the empty bench | direct recording of the configurator (C:/zzz/_video/raw/s-tower.mp4, the opening frames before the first placement) | none | The text typed is the brief from evals/briefs-film.json verbatim, the one the run received |
 | 3 | The tower | The finished tower from run 4d10f23e on a patio, materialising, then turning | render from C:/zzz/_video/work/mesh-tower (still: work/room-tower-v3/patio.png) | RENDER OF THE BUILD FROM A MUSE WONDER RUN · NOT A PHOTO | Exact build of run 4d10f23e, nothing added or removed; the scene around it (patio, light) is set dressing; the run's own report calls the crescent partial |
 | 4 | The engine room | The tower run replayed at speed in the configurator: parts placed, soil filled, plants set, the NEEDS_TALL_BASE refusal and the rebuild | replay of run 4d10f23e through the public API (C:/zzz/_video/raw/s-tower.mp4, driven by work/s-tower.log from the trace) | REPLAY OF A REAL RUN · MUSE WONDER 1.0 · RUN 4d10f23e · NOT LIVE | Only accepted operations, in order; no model running; tool calls and checks not shown; sped up |
-| 5 | The desk | The desk brief typed, then the desk organiser from run 6ad4f332 materialising and turning | brief: direct recording (raw/s-desk.mp4 opening frames); build: render from work/mesh-desk (still: work/room-desk/desk.png) | RENDER OF THE BUILD FROM A MUSE SPARK RUN · NOT A PHOTO | Exact build of run 6ad4f332 (strict pass); the brief shown is the film brief verbatim |
+| 5 | The desk | The desk brief typed, then the desk organizer from run 6ad4f332 materialising and turning | brief: direct recording (raw/s-desk.mp4 opening frames); build: render from work/mesh-desk (still: work/room-desk/desk.png) | RENDER OF THE BUILD FROM A MUSE SPARK RUN · NOT A PHOTO | Exact build of run 6ad4f332 (strict pass); the brief shown is the film brief verbatim |
 | 6 | The printing station | The printing brief typed, then the printing station from run dfdebefd on a bench, materialising and turning | brief: direct recording (raw/s-print.mp4 opening frames); build: render from work/mesh-print (still: work/room-print/bench.png) | RENDER OF THE BUILD FROM A MUSE SPARK RUN · NOT A PHOTO | Exact build of run dfdebefd, two stray rod stubs included (report 3.4); the brief v3 fixes the layout cell by cell (paper, Demo) |
 | 7 | Live | The screen recording of the live run, cropped to the app, the live panel readable, ending on the run's verdict | screen recording 2026-11-04 (C:/zzz/_video/raw/7-live.mp4), run 23ce1844, runs/2026-11-04T11-53-17-254Z-23ce1844 | LIVE · MUSE SPARK 1.3 · META MODEL API · RECORDED 2026-11-04 · SPED UP | The only footage with a model running; a development brief; 13 model calls, $0.0694 at list price; outside every suite; enters no number in the paper; whatever the checks said is what is shown |
 | 8 | An honest no | Run aca4ce95's finish, word for word, beside the brief (a step a toddler stands on) | card over the empty bench, text from runs/suite-2026-11-02T17-16-28-256Z (run aca4ce95) | none | A declined brief from the abstention suite; nothing placed; the text is the model's, unedited |
@@ -62,7 +62,7 @@ state only; the paper reports the tool calls, the refusals and the checks.
 | 2 brief | You type what you want. |
 | 3 tower | And it builds it. Out of parts you can actually print. |
 | 4 engine | What you're watching is a real run, replayed. The model placed every part itself. |
-| 5 desk | A desk organiser. |
+| 5 desk | A desk organizer. |
 | 6 print | A printing station. |
 | 7 live | This one is live. Muse Spark, calling Meta's API right now. |
 | 8 decline | And when something can't be built, it tells you straight, and builds nothing it can't stand behind. |

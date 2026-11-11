@@ -5,13 +5,13 @@
 
 # hex-agent
 
-An agent on Meta Muse models that turns one sentence into a checked Hex Cluster build in the live configurator.
+An agent that turns one sentence into a checked Hex Cluster build in the live configurator.
 
 **Demo video** · [youtu.be/H9a_9u3i0gI](https://youtu.be/H9a_9u3i0gI) (2:53) · **Live** · [hex.onethousanddrones.com](https://hex.onethousanddrones.com) (the pre-existing configurator the agent drives) · **Docs** · [paper (PDF)](docs/paper/hex-agent-paper.pdf) · **Status** · active
 
 ## What it does
 
-You give it a brief such as "a strawberry tower for a small balcony". A Meta model reads the build, asks the configurator where parts fit, places them through the public [`window.hexAPI`](https://academy.onethousanddrones.com/hex/api), reads each accept or refusal and the alternatives it offers, and revises. It ends with a share link, a parts list, a print pack the configurator made, and the model's own statement of which requirements were met, partly met or not met. The configurator's checks and our code then decide whether the run passed.
+You give it a brief such as "a strawberry tower for a small balcony". An agent reads the build, asks the configurator where parts fit, places them through the public [`window.hexAPI`](https://academy.onethousanddrones.com/hex/api), reads each accept or refusal and the alternatives it offers, and revises. It ends with a share link, a parts list, a print pack the configurator made, and the model's own statement of which requirements were met, partly met or not met. The configurator's checks and our code then decide whether the run passed.
 
 <p align="center">
   <img src=".github/assets/build-loop.webp" width="720" alt="The live configurator in its dark theme replaying run 9329ae20 at speed: the agent crystal places walls, bases, bins, soil and strawberry plants until the seven-planter tower stands.">
@@ -20,7 +20,7 @@ You give it a brief such as "a strawberry tower for a small balcony". A Meta mod
 
 ## What was built during the hackathon
 
-Hex Cluster, its configurator, placement rules, collision check, `window.hexAPI`, print packs and part catalog existed before the event and belong to One Thousand Drones; none of that source is here. One Thousand Drones also shipped configurator releases during the event, some prompted by the agent's runs; they are product changes, not claimed here, and every result ran on one of them (each identified by its API-contract hash). This repository, from its first commit (`fb78560`, 2026-10-27), is the event work: the agent loop, browser bridge, checked tool layer, Meta model adapters, verification, honesty check, abstention, grader and rescoring, spend ledgers, evaluation suites, baselines, the replay tool and a vision judge on Meta models. Nothing was trained. [HACKATHON_DELTA.md](HACKATHON_DELTA.md) names each pre-existing version.
+Hex Cluster, its configurator, placement rules, collision check, `window.hexAPI`, print packs and part catalog existed before the event and belong to One Thousand Drones; none of that source is here. One Thousand Drones also shipped configurator releases during the event, some prompted by the agent's runs; they are product changes, not claimed here, and every result ran on one of them (each identified by its API-contract hash). This repository, from its first commit (`fb78560`, 2026-10-27), is the event work: the agent loop, browser bridge, checked tool layer, model adapters, verification, honesty check, abstention, grader and rescoring, spend ledgers, evaluation suites, baselines, the replay tool and a vision judge on models. Nothing was trained. [HACKATHON_DELTA.md](HACKATHON_DELTA.md) names each pre-existing version.
 
 Pre-existing things the agent and its demo use, and their setup:
 
@@ -30,7 +30,7 @@ Pre-existing things the agent and its demo use, and their setup:
 
 ## Run it
 
-Needs Node 22 or later (`npm test` passes a glob to `node --test`, which needs Node 21 or later), Google Chrome, and, for live runs only, a Meta Model API key in `MODEL_API_KEY`.
+Needs Node 22 or later (`npm test` passes a glob to `node --test`, which needs Node 21 or later), Google Chrome, and, for live runs only, a model API key in `MODEL_API_KEY`.
 
 Without a key:
 

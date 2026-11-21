@@ -99,7 +99,7 @@ export async function openChild({ bin = process.env.HEX_ENGINE_BIN, records = pr
 
 /** The offline hex: openHex's object over two children (main, and fresh on demand). */
 export async function openEngine({ log = null, open = openChild } = {}) {
-  const offline = { standIns: 0, refused: 0, byMember: {}, lastRefused: null };
+  const offline = { standIns: 0, refused: 0, byMember: {}, lastRefused: null, lastWhy: null };
   const count = (member, what) => {
     offline[what]++;
     offline.byMember[member] = (offline.byMember[member] ?? 0) + 1;
@@ -123,7 +123,10 @@ export async function openEngine({ log = null, open = openChild } = {}) {
         return stand.answer();
       }
       count(member, 'refused');
-      if (out.kind === 'unanswered') throw new OfflineError(member, out.why ?? out.message);
+      if (out.kind === 'unanswered') {
+        offline.lastWhy = out.why ?? out.message;
+        throw new OfflineError(member, offline.lastWhy);
+      }
       throw new OfflineError(member, `${out.kind}: ${JSON.stringify(out)}`, `OFFLINE_${String(out.kind).toUpperCase()}`);
     };
     const call = log ? (member, ...args) => log.around(ctx, member, args, () => raw(member, args)) : (member, ...args) => raw(member, args);

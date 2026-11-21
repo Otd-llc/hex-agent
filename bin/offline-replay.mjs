@@ -109,6 +109,7 @@ async function replayRun(trace) {
           result.outcome = 'stopped';
           result.at = hex.offline.lastRefused;
           result.swallowed = !/not answered offline/.test(r?.error ?? '');
+          result.why = String(r?.error ?? hex.offline.lastWhy ?? '').slice(0, 300);
           result.tool = c.name;
           calls = before; // the stopping call is not counted in the rate
           return result;

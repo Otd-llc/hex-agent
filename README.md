@@ -148,6 +148,7 @@ A development build cost about $0.057 of Muse Spark 1.3 tokens on average per ru
 - The Meta Model API and Modal Dedicated open from the command line only. `.env` cannot switch them on; the code refuses it.
 - Spend is ledgered per call in `.spend/`; by default dev and eval runs stop before a $50 demo reserve ([`src/ledger.mjs`](src/ledger.mjs), `SPEND_*` overrides), and after the paper's review gate the owner raised the caps on the command line. The estimate is not the bill; reconcile with the provider console.
 - `src/` is frozen at `eval-final`. Tools added after the gate live in `bin/`. After a configurator deploy, run `node bin/smoke-tools.mjs`, then `node bin/sync-contract.mjs <path-or-url>` if the contract changed.
+- `HEX_CALL_LOG=1` (off by default; the changes to `src/` since `eval-final`: a hook in `src/bridge.mjs`, the run's folder passed in `src/session.mjs`) writes every hexAPI call and its answer, as they crossed `page.evaluate`, to `calls.jsonl` beside the run's `trace.json` (where `openHex` is given no run folder, as in `bin/replay.mjs`: `<HEX_CALL_LOG_DIR or runs/calls>/<opened-at>-<id>/calls.jsonl`) (`hex-agent-calls/1`, [`src/calllog.mjs`](src/calllog.mjs)), for replaying a run offline on hex-core's engine.
 - A replay is never a live run. `bin/replay.mjs` re-applies only what the configurator accepted, with REPLAY on screen. The demo video's four builds are accelerated replays of recorded traces; one segment is a live run on the Meta Model API, labelled LIVE, and it enters no reported number.
 
 ## Docs

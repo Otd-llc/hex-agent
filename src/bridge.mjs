@@ -12,6 +12,9 @@ const WRITE = new Set(['apply', 'applyAll', 'load', 'undo', 'redo']);
 
 // A slow page load is retried once in a fresh browser before giving up.
 export async function openHex(options = {}) {
+  // HEX_CALL_LOG=1: every call and its answer to calls.jsonl (src/calllog.mjs, not loaded otherwise)
+  const log = process.env.HEX_CALL_LOG === '1' ? (await import('./calllog.mjs')).openCallLog({ url: options.url ?? hexUrl(), dir: options.callLogDir }) : null;
+  options = { ...options, log };
   try {
     return await openOnce(options);
   } catch (e) {
@@ -20,22 +23,22 @@ export async function openHex(options = {}) {
   }
 }
 
-async function openOnce({ url = hexUrl(), headless = true, timeoutMs = 90_000 } = {}) {
+async function openOnce({ url = hexUrl(), headless = true, timeoutMs = 90_000, log = null } = {}) {
   // System Chrome: WebGL works and no Playwright browser download is needed.
   const browser = await chromium.launch({ headless, channel: process.env.HEX_BROWSER_CHANNEL || 'chrome' });
   try {
-    const hex = await bind(browser, { url, timeoutMs });
+    const hex = await bind(browser, { url, timeoutMs, log, ctx: 'main' });
     // close() ends the browser; fresh() opens another isolated session (its
     // own context: no shared storage) in the same browser, which is half the
     // memory of a second Chrome.
-    return { ...hex, close: () => browser.close(), fresh: () => bind(browser, { url, timeoutMs }) };
+    return { ...hex, close: () => browser.close().finally(() => log?.end()), fresh: () => bind(browser, { url, timeoutMs, log, ctx: 'fresh' }) };
   } catch (e) {
     await browser.close();
     throw e;
   }
 }
 
-async function bind(browser, { url, timeoutMs }) {
+async function bind(browser, { url, timeoutMs, log = null, ctx = 'main' }) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
   await page.goto(url, { waitUntil: 'load', timeout: timeoutMs });
@@ -43,13 +46,15 @@ async function bind(browser, { url, timeoutMs }) {
   const version = await page.evaluate(async () => (await window.__loadHexAPI()).version);
   // Which deployed build answered: its hashed entry script (/assets/hex-<hash>.js), so a run is tied to a site version.
   const build = await page.evaluate(() => [...document.scripts].map((s) => s.getAttribute('src')).find((s) => s && /assets[/].+[.]js$/.test(s)) ?? null);
-  await call(page, 'settle');
+  log?.head({ version, build });
+  const hexCall = log ? (method, ...args) => log.around(ctx, method, args, () => call(page, method, ...args)) : (method, ...args) => call(page, method, ...args);
+  await hexCall('settle');
 
   return {
     page,
     version,
     build,
-    call: (method, ...args) => call(page, method, ...args),
+    call: hexCall,
     close: () => context.close(),
   };
 }

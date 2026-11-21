@@ -129,7 +129,7 @@ export async function runSession({ brief, briefId = null, expect = null, start =
   const dir = `${outRoot}/${runId}`;
   mkdirSync(dir, { recursive: true });
 
-  const hex = await openHex({ headless });
+  const hex = await openHex({ headless, callLogDir: dir });
   let result, verdict, state, checks, harnessError = null;
   try {
     // A brief may start from a saved build (a state object or a share fragment) instead of the starter.

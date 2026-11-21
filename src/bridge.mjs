@@ -13,7 +13,7 @@ const WRITE = new Set(['apply', 'applyAll', 'load', 'undo', 'redo']);
 // A slow page load is retried once in a fresh browser before giving up.
 export async function openHex(options = {}) {
   // HEX_CALL_LOG=1: every call and its answer to calls.jsonl (src/calllog.mjs, not loaded otherwise)
-  const log = process.env.HEX_CALL_LOG === '1' ? (await import('./calllog.mjs')).openCallLog({ url: options.url ?? hexUrl() }) : null;
+  const log = process.env.HEX_CALL_LOG === '1' ? (await import('./calllog.mjs')).openCallLog({ url: options.url ?? hexUrl(), dir: options.callLogDir }) : null;
   options = { ...options, log };
   try {
     return await openOnce(options);

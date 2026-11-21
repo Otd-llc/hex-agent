@@ -122,3 +122,31 @@ test('call log: a write that fails fails no call, and is said once at the end', 
   assert.match(logSaid[0], /^call log: 7 line\(s\) not written/);
   assert.ok(existsSync(notAFolder));
 });
+
+test('call log: a run folder given (runSession) holds calls.jsonl beside its trace; none given, a folder of its own', async () => {
+  const run = mkdtempSync(join(tmpdir(), 'calls-run-'));
+  const other = mkdtempSync(join(tmpdir(), 'calls-other-'));
+  process.env.HEX_CALL_LOG = '1';
+  process.env.HEX_CALL_LOG_DIR = other;
+  try {
+    const hex = await openHex({ url: 'http://127.0.0.1:1/hex.html', callLogDir: run });
+    await hex.call('getState');
+    await hex.close();
+  } finally {
+    delete process.env.HEX_CALL_LOG;
+  }
+  const got = readFileSync(join(run, 'calls.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.deepEqual(got.map((l) => l.schema ?? l.member), ['hex-agent-calls/1', 'settle', 'getState']);
+  assert.deepEqual(readdirSync(other), [], 'nothing in the folder of its own');
+  // the switch off, a folder given: nothing written
+  const off = mkdtempSync(join(tmpdir(), 'calls-run-off-'));
+  const hex = await openHex({ url: 'http://127.0.0.1:1/hex.html', callLogDir: off });
+  await hex.call('getState');
+  await hex.close();
+  assert.deepEqual(readdirSync(off), []);
+});
+
+test('runSession passes its run folder to openHex', () => {
+  const src = readFileSync(new URL('../src/session.mjs', import.meta.url), 'utf8');
+  assert.match(src, /openHex\(\{ headless, callLogDir: dir \}\)/);
+});

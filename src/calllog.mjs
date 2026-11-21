@@ -2,11 +2,10 @@
 // with its answer, one JSON line each, so a run can be replayed offline on another engine
 // (hex-core's hex-engine). The bridge imports this file only when the switch is on.
 //
-// The file: <HEX_CALL_LOG_DIR or runs/calls>/<opened-at>-<8 hex>/calls.jsonl. The bridge is
-// not told the run's folder (runSession makes it and opens the bridge with { headless } alone),
-// so the log has a folder of its own, named by the time it was opened in the format of a
-// run id; its head line says when, and a run's calls.jsonl is the one whose openedAt is its
-// runId's time (the bridge is opened a few ms after the id is taken).
+// The file: <the run's folder>/calls.jsonl, beside trace.json, where runSession opens the
+// bridge (openHex's callLogDir); where openHex is given no folder (bin/replay.mjs, scripts),
+// <HEX_CALL_LOG_DIR or runs/calls>/<opened-at>-<8 hex>/calls.jsonl, a folder of the log's own
+// named by the time it was opened in the format of a run id.
 //
 // Line 0: { schema: 'hex-agent-calls/1', openedAt, url, version, build }.
 // Then one line a call: { n, t, ctx, member, args, ok: true, result }
@@ -26,10 +25,11 @@ export const CALL_LOG_SCHEMA = 'hex-agent-calls/1';
 
 export const callLogOn = () => process.env.HEX_CALL_LOG === '1';
 
-export function openCallLog({ url, root = process.env.HEX_CALL_LOG_DIR || 'runs/calls', now = () => Date.now() } = {}) {
+export function openCallLog({ url, dir: given = null, root = process.env.HEX_CALL_LOG_DIR || 'runs/calls', now = () => Date.now() } = {}) {
   const t0 = now();
   const openedAt = new Date(t0).toISOString();
-  const dir = join(root, `${openedAt.replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`);
+  // the run's own folder where the caller gives it (runSession), else one of the log's own
+  const dir = given ?? join(root, `${openedAt.replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`);
   const path = join(dir, 'calls.jsonl');
   let n = 0;
   let headed = false;

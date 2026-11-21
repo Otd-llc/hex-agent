@@ -78,6 +78,16 @@ Muse Spark Open: `--model=meta-models/muse-spark-open-1026` (Baseten), `accounts
 </p>
 <p align="center"><sub>Run 9329ae20's recorded trace printed in <code>bin/run.mjs</code>'s console format, November 2026 (turns 0 to 7 and 15 to 20 cut, links shortened). The configurator refuses a bin, the model rebuilds, and the run passes all seven checks.</sub></p>
 
+## Offline mode (hex-core's engine instead of the browser)
+
+`HEX_BACKEND=engine` (with `HEX_ENGINE_BIN`, the `hex-engine` binary of [hex-core](https://github.com/Otd-llc/hex-core), and `HEX_ENGINE_RECORDS`, its parts' `records.json`) makes `openHex` answer every hexAPI call from hex-core's native engine, a child process (`hex-engine serve`), with no browser and no page ([`src/engine-backend.mjs`](src/engine-backend.mjs); unset, it is the browser, unchanged). `fresh()` is a second child, `page` refuses every use by name, and the call log (`HEX_CALL_LOG=1`) works on both.
+
+What it cannot do: anything that needs the scene (`still`, `view`, `measure`, `surfaces`) is refused with code `OFFLINE`, and so is whatever the engine does not answer (today `listParts`, `listProps`, `openSockets`, `validate`, `bom`, the prop and soil ops, and what the page's collision gate decides), with the engine's reason. `settle` is answered as settled and marked `{ offline: true }`: there is no scene to settle and no gate after a batch; the engine's answer to `applyAll` is final.
+
+    HEX_BACKEND=engine HEX_ENGINE_BIN=<hex-engine> HEX_ENGINE_RECORDS=<records.json> node bin/offline-replay.mjs runs/<suite> [...]
+
+replays recorded runs through the tool layer on the engine (no model, no browser) and says how many go to the end with the recorded outcomes and final link, and where the rest stop.
+
 ## What's inside
 
 | Path | What it is | Reach for it when |

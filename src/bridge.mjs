@@ -12,6 +12,8 @@ const WRITE = new Set(['apply', 'applyAll', 'load', 'undo', 'redo']);
 
 // A slow page load is retried once in a fresh browser before giving up.
 export async function openHex(options = {}) {
+  // HEX_LOOKAHEAD=1: a shadow on hex-core's engine beside the page, for try_ops (src/lookahead.mjs, not loaded otherwise)
+  if (process.env.HEX_LOOKAHEAD === '1' && process.env.HEX_BACKEND !== 'engine' && !options.shadowed) return (await import('./lookahead.mjs')).withLookahead(await openHex({ ...options, shadowed: true }));
   // HEX_CALL_LOG=1: every call and its answer to calls.jsonl (src/calllog.mjs, not loaded otherwise)
   const log = process.env.HEX_CALL_LOG === '1' ? (await import('./calllog.mjs')).openCallLog({ url: options.url ?? hexUrl(), dir: options.callLogDir }) : null;
   options = { ...options, log };

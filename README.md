@@ -88,6 +88,10 @@ What it cannot do: anything that needs the scene (`still`, `view`, `measure`, `s
 
 replays recorded runs through the tool layer on the engine (no model, no browser) and says how many go to the end with the recorded outcomes and final link, and where the rest stop.
 
+## Look before acting (`HEX_LOOKAHEAD=1`)
+
+With `HEX_LOOKAHEAD=1` (and `HEX_ENGINE_BIN`, `HEX_ENGINE_RECORDS` as for offline mode) a browser run also starts a shadow session on hex-core's engine beside the page ([`src/lookahead.mjs`](src/lookahead.mjs)), and the agent is offered one more tool, `try_ops`: the same argument as `apply`, answered by the shadow without touching the page. Each op comes back accepted (with what it would add) or refused with the code and message the engine gives; what the engine does not answer (the page's collision gate, props, soil) comes back "the engine cannot say", never guessed. The shadow is kept in step from the page itself: after any write the page took, the next try loads the page's own link (`toUrl`, one page call); after a try it is put back on that link. Every try is a `try_ops` event in the trace (ops, the answer, ms), so a later run can be scored for how often the model tried first and how often the page then refused what the engine had accepted (the engine's error). Off by default; off, no tool, no event and no call change. Its hooks in frozen `src/` are one line in `src/bridge.mjs` and three in `src/tools.mjs` (the import, the spec, the handler).
+
 ## What's inside
 
 | Path | What it is | Reach for it when |

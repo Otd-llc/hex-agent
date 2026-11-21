@@ -7,6 +7,7 @@ import { CONTRACT, checkerFor, refKinds } from './contract.mjs';
 import { BUILD_TESTS, topology } from './checks.mjs';
 import { runPlan, rebind, planLookup, ZONE_KINDS } from './plan.mjs';
 import { TRY_OPS_SPEC } from './lookahead.mjs';
+import { MAKE_PART_SPEC, makePart, partService } from './parttool.mjs';
 
 // Fields each op takes, [required, optional], from the vendored public contract
 // (contract/hex-api-public.json; bin/sync-contract.mjs refreshes it). Checked
@@ -478,7 +479,7 @@ export function toolSpecsFor({ acceptance = false, abstain = false, rolegraph = 
         ['requirements', 'summary', ...(abstain ? ['outcome'] : [])],
       ),
     };
-  }).concat(process.env.HEX_LOOKAHEAD === '1' && process.env.HEX_BACKEND !== 'engine' ? [TRY_OPS_SPEC] : []);
+  }).concat(process.env.HEX_LOOKAHEAD === '1' && process.env.HEX_BACKEND !== 'engine' ? [TRY_OPS_SPEC] : [], partService() ? [MAKE_PART_SPEC] : []);
 }
 
 // The helpers' role fields, left out of the schema when roles are off.
@@ -1149,6 +1150,7 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes
       return withPropCheck(await helperApply(ops));
     },
     ...(hex.lookahead ? { try_ops: (args) => hex.lookahead.tryOps(args, { resolve, liveRefs, takeRole, onEvent }) } : {}),
+    ...(partService() ? { make_part: (args) => makePart(args, { onEvent }) } : {}),
   };
 
   // E6: a helper's props in one pass, then what the page said to do about the refused ones,

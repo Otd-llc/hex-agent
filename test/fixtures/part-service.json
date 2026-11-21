@@ -1,0 +1,62 @@
+{
+  "about": "Examples of the part service's contract (its SERVE.md, the sections on POST /v1/part, health and refusals), copied by hand on 2026-11-21. Each line is as SERVE.md prints it, and sha256 is the SHA-256 of that line's text; test/parttool.test.mjs holds every line to its sha256 and reads its status and body from it. A recipe's sha256 is also its name, which the answers to it carry. The one recipe SERVE.md describes and does not print (the pocket with a member colour added) says so in derived.",
+  "recipes": {
+    "pocket": {
+      "line": "{\"schema\":\"hex-part-recipe/1\",\"base\":\"hex-bin-bolt-edge-m-solid\",\"size\":\"S\",\"changes\":[{\"kind\":\"pocket\",\"outline\":\"circle\",\"centre_mm\":[-40,-30],\"radius_mm\":6,\"depth_mm\":3}]}",
+      "sha256": "8bbc6e3cd79f9b89f756040b2d4be2a40e71f17c6c16811ca9fe6c2e1820c1b2",
+      "content_length": 174
+    },
+    "port-through-joint": {
+      "line": "{\"schema\":\"hex-part-recipe/1\",\"base\":\"hex-bin-bolt-edge-m-solid\",\"size\":\"S\",\"changes\":[{\"kind\":\"port\",\"u_mm\":35,\"z_mm\":40,\"radius_mm\":4}]}",
+      "sha256": "cc3e66436bd4ea47e9646dd89f3769b2ece261f36c4f90ea384590dfbee5770a"
+    },
+    "divider-cell-bin": {
+      "line": "{\"schema\":\"hex-part-recipe/1\",\"base\":\"hex-bin-full\",\"size\":\"S\",\"changes\":[{\"kind\":\"divider\",\"share\":0.5}]}",
+      "sha256": "153df1bbe8cb563eafe7db44299843a2657e815fb73f8d94c7f37ad4e5e9fee6"
+    },
+    "pocket-colour": {
+      "line": "{\"schema\":\"hex-part-recipe/1\",\"base\":\"hex-bin-bolt-edge-m-solid\",\"size\":\"S\",\"changes\":[{\"kind\":\"pocket\",\"outline\":\"circle\",\"centre_mm\":[-40,-30],\"radius_mm\":6,\"depth_mm\":3,\"colour\":\"red\"}]}",
+      "derived": "the pocket recipe with the member \"colour\":\"red\" added after depth_mm"
+    }
+  },
+  "answers": {
+    "health": {
+      "line": "200 {\"schema\":\"hex-cad-serve/1\",\"status\":\"ok\",\"kept\":1,\"recipes\":1,\"catalogue\":0,\"records\":1,\"busy\":false}",
+      "sha256": "4f941ccd66039df416f00a112315f7d40052fb60b0593af838e25dc1bc15bc38"
+    },
+    "pocket-built": {
+      "answers": "pocket",
+      "line": "200 {\"name\":\"8bbc6e3cd79f9b89f756040b2d4be2a40e71f17c6c16811ca9fe6c2e1820c1b2\",\"verdict\":\"clear\",\"notes\":[],\"came\":\"built\",\"kept\":true,\"density\":\"viewer\",\"faces\":136,\"volume_mm3\":156761.01251546017}",
+      "sha256": "e3777d61aae50668e306c0eb611fde4bee3b999ac9033af6d930f81b1f734768",
+      "again": "the same, with \"came\":\"read\""
+    },
+    "origin": {
+      "line": "403 {\"refused\":\"origin\",\"field\":\"origin\"}",
+      "sha256": "9bfe2678c8be1b62c7e87cf34a8ee2301c19a6f86156c8fb42394ec8a3867c95"
+    },
+    "reaches": {
+      "answers": "port-through-joint",
+      "line": "422 {\"refused\":\"reaches\",\"field\":\"changes[0]\",\"verdict\":\"reaches\",\"keep_out\":\"joint:flat-270\",\"name\":\"cc3e66436bd4ea47e9646dd89f3769b2ece261f36c4f90ea384590dfbee5770a\"}",
+      "sha256": "9c39e128ec2bb6ee7ce087e4d2566666cb6dd76a475a66e077349ec31ee3970b"
+    },
+    "scope": {
+      "answers": "divider-cell-bin",
+      "line": "422 {\"refused\":\"scope\",\"field\":null,\"verdict\":\"refused\",\"name\":\"153df1bbe8cb563eafe7db44299843a2657e815fb73f8d94c7f37ad4e5e9fee6\"}",
+      "sha256": "9a71df2a47b881885062e7d4aaf498f3be0a133342ea80f7ecac979457065e47"
+    },
+    "malformed": {
+      "answers": "pocket-colour",
+      "line": "400 {\"refused\":\"malformed\",\"field\":\"changes[0].colour\",\"read\":\"unknown-field\"}",
+      "sha256": "b5517a85fc90ece9da20aa5149c20d4f6a9955d935a4cc4716e60f85657afa80"
+    },
+    "busy": {
+      "line": "503 {\"refused\":\"busy\",\"field\":null}",
+      "sha256": "888780eb5b086469451310e1def8480a135b03e89fbace1a9e47f261ed5c7c2a",
+      "retry_after": "5"
+    },
+    "panic": {
+      "line": "500 {\"refused\":\"panic\",\"field\":null}",
+      "sha256": "ac99fb45aa04c4b1bc9ad5b85e7c4cab0af643bf0f78c21927906cc0234650af"
+    }
+  }
+}

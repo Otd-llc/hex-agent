@@ -2,6 +2,7 @@
 // revises until it calls finish or a budget runs out. Then code, not the
 // model, decides the verdict from the configurator's own checks.
 import { createTools, toolSpecsFor } from './tools.mjs';
+import { PART_TOOL_LINE, partService } from './parttool.mjs';
 import { checkBrief } from './checks.mjs';
 import { costUsd } from './model.mjs';
 import { createHash } from 'node:crypto';
@@ -106,7 +107,7 @@ const PUSHBACKS = 2;
 export async function runAgent({ hex, model, brief, budget = {}, ledger = null, purpose = 'dev', runId = null, strategy = 'interactive', features = {}, onEvent = () => {} }) {
   if (!(strategy in STRATEGIES)) throw new Error(`unknown strategy ${strategy}: ${Object.keys(STRATEGIES).join(', ')}`);
   const { acceptance, abstain, rolegraph, cites, ewDrawers, rollbackRead, topology, verify } = { ...DEFAULT_FEATURES, ...features };
-  const instructions = INSTRUCTIONS + (acceptance ? ACCEPTANCE : '') + (abstain ? ABSTAIN : '') + (rolegraph ? ROLEGRAPH : '') + STRATEGIES[strategy];
+  const instructions = INSTRUCTIONS + (acceptance ? ACCEPTANCE : '') + (abstain ? ABSTAIN : '') + (rolegraph ? ROLEGRAPH : '') + STRATEGIES[strategy] + (partService() ? PART_TOOL_LINE : '');
   const specs = toolSpecsFor({ acceptance, abstain, rolegraph, topology });
   const offered = new Set(specs.map((t) => t.name));
   let pushbacks = 0;

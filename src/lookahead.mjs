@@ -10,7 +10,8 @@
 // link, so the next try starts where the page is. Where the engine cannot hold the page's
 // build (a prop, soil: it loads the link but reads no state of it), try_ops answers
 // "not available for this build" until it can again.
-import { openChild } from './engine-backend.mjs';
+// The engine child is imported when a shadow is opened, so that tools.mjs, which takes the
+// tool's spec from here, loads nothing more than it did.
 
 const WRITES = new Set(['apply', 'applyAll', 'load', 'undo', 'redo']);
 
@@ -46,8 +47,8 @@ function summarise(answer) {
 }
 
 /** The page's hex with a shadow beside it: calls go to the page as before. */
-export async function withLookahead(hex, { open = openChild } = {}) {
-  const child = await open();
+export async function withLookahead(hex, { open = null } = {}) {
+  const child = await (open ?? (await import('./engine-backend.mjs')).openChild)();
   let pageLink = null; // the page's link, null after a write it accepted
   let shadowAt = null; // the link the shadow holds
   const call = async (member, ...args) => {

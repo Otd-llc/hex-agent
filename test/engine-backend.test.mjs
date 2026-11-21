@@ -49,7 +49,7 @@ test('offline: answers from the engine, stand-ins marked, refusals named, fresh 
   assert.equal(await f.call('toUrl'), 'v2s=1');
   assert.equal(await hex.call('toUrl'), 'v2s=0');
   assert.throws(() => hex.page.screenshot(), /HEX_BACKEND=engine: there is no page \(asked for page\.screenshot\)/);
-  assert.deepEqual(hex.offline, { standIns: 3, refused: 2, byMember: { settle: 3, still: 1, bom: 1 }, lastRefused: 'bom' });
+  assert.deepEqual(hex.offline, { standIns: 3, refused: 2, byMember: { settle: 3, still: 1, bom: 1 }, lastRefused: 'bom', lastWhy: 'bom: not ported' });
   assert.deepEqual(Object.keys(STAND_INS).sort(), ['measure', 'settle', 'still', 'surfaces', 'view']);
   await hex.close();
 });

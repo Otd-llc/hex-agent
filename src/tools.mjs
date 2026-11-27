@@ -6,6 +6,7 @@
 import { CONTRACT, checkerFor, refKinds } from './contract.mjs';
 import { BUILD_TESTS, topology } from './checks.mjs';
 import { runPlan, rebind, planLookup, ZONE_KINDS } from './plan.mjs';
+import { DESIGN_HOLDER_SPEC } from './holders.mjs';
 
 // Fields each op takes, [required, optional], from the vendored public contract
 // (contract/hex-api-public.json; bin/sync-contract.mjs refreshes it). Checked
@@ -454,8 +455,10 @@ export const TOOL_SPECS = [
 // The tool list a session offers: set_requirements and a finish keyed by
 // requirement id only with acceptance tests (A64), an outcome only with
 // abstention (A58). Neither on is the interactive default as it was.
-export function toolSpecsFor({ acceptance = false, abstain = false, rolegraph = false, topology = true } = {}) {
-  return TOOL_SPECS.filter((t) => (acceptance || t.name !== 'set_requirements') && (rolegraph || t.name !== 'plan_build')).map((t0) => {
+export function toolSpecsFor({ acceptance = false, abstain = false, rolegraph = false, topology = true, holders = false } = {}) {
+  // design_holder (--features=+holders) goes before finish, the last spec
+  const specs = holders ? [...TOOL_SPECS.slice(0, -1), DESIGN_HOLDER_SPEC, TOOL_SPECS.at(-1)] : TOOL_SPECS;
+  return specs.filter((t) => (acceptance || t.name !== 'set_requirements') && (rolegraph || t.name !== 'plan_build')).map((t0) => {
     const t = !topology && t0.name === 'find_sockets' ? { ...t0, description: t0.description.replace(TOPOLOGY_SOCKETS, '') } : t0;
     if (t.name !== 'finish') return acceptance ? t : withoutRole(t);
     if (!acceptance && !abstain) return t;
@@ -500,7 +503,8 @@ function withoutRole(t) {
 // Tools that change the build: with acceptance tests on, none runs before set_requirements.
 const MUTATING = new Set(['plan_build', 'apply', 'dress', 'hang_spools', 'fill_and_plant', 'fill_compartments', 'undo', 'redo']);
 
-export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes = {} } = {}) {
+// holders: null, or (args) => the design_holder result (src/holders.mjs designHolder, bound to the run folder).
+export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes = {}, holders = null } = {}) {
   const FIX = { ewDrawers: true, rollbackRead: true, topology: true, ...fixes };
   const needs = (family) => (!FIX.ewDrawers && family === 'drawer') || (!FIX.topology && family === 'connector') ? NEEDS_BEFORE[family] : NEEDS[family];
   const sockets = new Map();
@@ -1044,6 +1048,13 @@ export function createTools(hex, { onEvent = () => {}, acceptance = false, fixes
       await hex.call('settle');
       const change = before && roleChange(before, liveSet(await hex.call('getState')));
       return { undone: ok, ...(change ? { roles: change } : {}) };
+    },
+
+    async design_holder(args) {
+      if (!holders) return { error: 'design_holder is off in this session (--features=+holders)' };
+      const out = await holders(args ?? {});
+      if (!out.error) onEvent({ type: 'holder', made: out.made, proved: out.proved ?? null, base: out.base, size: out.size, holds: out.holds?.map((h) => h.tool) ?? [], dropped: out.dropped?.map((d) => d.tool) ?? [], folder: out.files?.folder ?? null });
+      return out;
     },
 
     async redo() {

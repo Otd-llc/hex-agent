@@ -72,6 +72,12 @@ configurator checks fit and collisions only.
   part's: claimed, or kept inside the part. *[tool rack review: two tools
   could not go in, the pliers sat on a 0.45 mm lip, tools reached into the
   storey above]*
+- **The agent asks for a holder with `design_holder`** (`--features=+holders`): the
+  tools, the edge bolt bin and the size; hex-core's holder family
+  (`tools/bolt_on/holder.py --fit`) makes it, drops each tool it cannot hold with the
+  reason, and the build gate proves the rest. The family's rules (pads off the mouth's
+  fold, the notch open over the rim, every tool inside the walls on its way out) are its
+  own; the agent reports what was held and what was dropped. *[hex-core #189, 2026-11-27]*
 - **That check is `hex-cad held`** (hex-core `crates/hex-held`), against the
   built STL with the tools hex-core vendors (`fixtures/held`). A tool passes
   when it rests within 0.5 mm of where it was placed, touches on opposite

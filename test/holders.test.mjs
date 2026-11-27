@@ -17,6 +17,7 @@ test('design_holder arguments are checked before anything runs', () => {
   assert.match(checkHolderArgs({ ...ARGS, base: 'hex-bin-bolt-edge-m-solid-x2; rm -rf /' }), /edge bolt-on bin/, 'a stem is letters, digits and dashes');
   assert.match(checkHolderArgs({ ...ARGS, size: 'XL' }), /one of S, M, L/);
   assert.match(checkHolderArgs({ ...ARGS, spareSlots: 9 }), /0 to 4/);
+  assert.equal(checkHolderArgs({ ...ARGS, tools: ['driver-1.5', 'driver-3.0', 'screwdriver', 'tweezers-blunt', 'strippers'] }), null, 'the drivers and the strippers are held tools');
 });
 
 test('the generator\'s result line and the build gate\'s lines are read', () => {
@@ -59,7 +60,7 @@ function fakeExec({ made = true, gate = 'ok' } = {}) {
       return { code: 0, stdout: `HOLDER dropped tweezers-blunt: 4 slots do not fit\nHOLDER result ${JSON.stringify({ made: true, tools: ['cutters'], dropped: [{ tool: 'tweezers-blunt', why: '4 slots do not fit' }], recipe, scene })}\n`, stderr: '' };
     }
     if (gate === 'ok') return { code: 0, stdout: 'VERDICT clear x\nPROVED at every feature: true; B-rep volume 1 mm3\nHELD cutters OK: comes out\n', stderr: '' };
-    return { code: 1, stdout: 'VERDICT clear x\nPROVED at every feature: true; B-rep volume 1 mm3\nHELD cutters STUCK: rest +0.00 mm\n', stderr: 'hex-cad: refused: a held tool is not held, or blocks a bolt: nothing is written\n' };
+    return { code: 1, stdout: 'VERDICT clear x\nPROVED at every feature: true; B-rep volume 1 mm3\nHELD cutters STUCK: rest +0.00 mm\n', stderr: 'hex-cad: refused: a held tool is not held, blocks a bolt or meets another: nothing is written\n' };
   };
   return { exec, calls };
 }
@@ -126,6 +127,16 @@ test('live: hex-core makes and proves a holder for cutters and tweezers at L', {
   assert.equal(r.proved, true, JSON.stringify(r));
   assert.deepEqual(r.holds.map((h) => h.tool).sort(), ['cutters', 'pliers-45', 'tweezers-blunt']);
   assert.ok(r.holds.every((h) => h.check === 'OK'));
+});
+
+test('live: hex-core stands drivers shaft down in raked holes', { skip: !process.env.HEX_CORE_DIR && 'HEX_CORE_DIR not set', timeout: 300_000 }, async () => {
+  const outDir = mkdtempSync(join(tmpdir(), 'run-'));
+  const tools = ['driver-1.5', 'driver-2.0', 'driver-2.5', 'driver-3.0', 'screwdriver'];
+  const r = await designHolder({ tools, base: 'hex-bin-bolt-edge-m-solid', size: 'L' }, { outDir, name: 'drivers' });
+  assert.ok(!r.error, r.error);
+  assert.equal(r.proved, true, JSON.stringify(r));
+  assert.deepEqual(r.holds.map((h) => h.tool), tools);
+  assert.ok(r.holds.every((h) => h.check === 'OK' && /raked hole/.test(h.heldBy)), JSON.stringify(r.holds));
 });
 
 test('in the loop: +holders offers design_holder, says how to use it, and the trace keeps the result', async () => {

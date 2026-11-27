@@ -46,6 +46,23 @@ configurator checks fit and collisions only.
 - Above three storeys, a column is a second fused part stacked on the first
   (`place` at level 3); its planter takes the top part's depth. *[observed
   round 3]*
+- **A made part keeps the system's keep-outs** (hex-core states them for a
+  changed bolt bin, `crates/hex-cad-record/src/recipe.rs`): nothing added in
+  a bolt's access corridor (radius 7.5 mm about each bolt, x ±15, z 18, 62,
+  98, 142, 178, 222, the same at S, M and L, across the whole cavity: the
+  driver goes in from the tray), nothing in the joint region, everything
+  inside the cavity's walls less 1.2 mm. A part made outside the kernel has no
+  record and no proof: make it in hex-core. *[tool rack review, 2026-11-26:
+  the shelf sat on 3 of 12 bolts]*
+- **A part that holds things is checked with the things in it.** Each held
+  object is a true-size model with its key points (pivot, centre of mass,
+  grip). Its whole path in and out is swept at its working angle, comparing
+  positions, not widths; it rests on a seat at least 1 mm a side, square to
+  the axis it is pushed along; its centre of mass hangs below the support or
+  stands over a base wide enough. The space the held objects take is the
+  part's: claimed, or kept inside the part. *[tool rack review: two tools
+  could not go in, the pliers sat on a 0.45 mm lip, tools reached into the
+  storey above]*
 
 ## B. Design guidance
 
@@ -55,6 +72,10 @@ configurator checks fit and collisions only.
   *[owner R1: "Is it meant to display books? Potted plants? Inside,
   outside?"; catalog: every variation has a one-sentence note]*
 - No tool walls. *[owner R1]*
+- Find the use before the geometry: daily grab or storage? A part that fits
+  perfectly can still be useless. *[owner on the bench tool tray: "The tray
+  is interesting, but I don't really see that as useful"; they wanted tools
+  at hand, standing up and seen]*
 
 ### Shape
 - One recognisable silhouette: a staircase, a pyramid, a spiral, a ring, a
@@ -121,6 +142,28 @@ configurator checks fit and collisions only.
   say so in its purpose). Canted fronts read as
   "use me at an angle", a good primitive for ergonomic desk storage.
   *[owner R1]*
+
+### Parts that hold tools
+- Hold each tool by the principle that suits it. *[tool rack review,
+  2026-11-26, four reviewers]*
+  - Sprung hinged tools (flush cutters, strippers): head up, astride a fin
+    their own spring grips; they lift off in one motion.
+  - Long needle-nose pliers: a raked slot, about 40 degrees toward the user,
+    the jaws inside it. Never hang them by a pivot barely wider than the jaws.
+  - Heavy or odd-shaped tools (a crimper): a cradle.
+  - Tweezers: a tapered slot they seat in by their arms, the tips relieved;
+    never standing on their points.
+- Reach: the grip zone of a seated bench is about 100 to 200 mm above the
+  bench; the lift out is short and toward the body; the most used tools sit
+  in front and low. *[tool rack review]*
+- Room for fingers: 25 to 30 mm between grips, or fan the handles sideways;
+  leaning them all toward the user adds no room. *[tool rack review; owner:
+  "cant them outwards for ergo"]*
+- Show each tool broadside where it can be told apart (three needle-nose
+  pliers edge-on look the same). *[tool rack review]*
+- Nothing hangs over a tray's usable floor. *[tool rack review]*
+- Left and right are the user's, facing the part: for a bolt-on whose front
+  is +y, the user's right is -x. *[tool rack, tweezers first put on the left]*
 
 ## What the owner picked
 

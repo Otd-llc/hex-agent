@@ -46,6 +46,42 @@ configurator checks fit and collisions only.
 - Above three storeys, a column is a second fused part stacked on the first
   (`place` at level 3); its planter takes the top part's depth. *[observed
   round 3]*
+- **A made part keeps the system's keep-outs** (hex-core states them for a
+  changed bolt bin, `crates/hex-cad-record/src/recipe.rs`): nothing added in
+  a bolt's access corridor (radius 7.5 mm about each bolt, x ±15, z 18, 62,
+  98, 142, 178, 222, the same at S, M and L, across the whole cavity: the
+  driver goes in from the tray), nothing in the joint region, everything
+  inside the cavity's walls less 1.2 mm. A part made outside the kernel has no
+  record and no proof: make it in hex-core. *[tool rack review, 2026-11-26:
+  the shelf sat on 3 of 12 bolts]*
+- **A holder bolt-on is a recipe hex-core judges** (hex-core #187): read the
+  bin's free space first (`hex-cad free-space <bolt bin> --size S|M|L`: the
+  footprint, cavity, floor, top and every keep-out), then write its pads and
+  pockets as recipe `solid` changes on any plane and its edge breaks as
+  `chamfer` changes, and let `hex-cad build --recipe` give the verdict before
+  anything is built. By the owner's rulings a holder may join its bin's walls
+  and rise above the mouth; it stays inside the tub's outline less 1.2 mm and
+  under the part's top, and never enters a bolt corridor or the joint.
+  *[owner, 2026-11-26; built 2026-11-27]*
+- **A part that holds things is checked with the things in it.** Each held
+  object is a true-size model with its key points (pivot, centre of mass,
+  grip). Its whole path in and out is swept at its working angle, comparing
+  positions, not widths; it rests on a seat at least 1 mm a side, square to
+  the axis it is pushed along; its centre of mass hangs below the support or
+  stands over a base wide enough. The space the held objects take is the
+  part's: claimed, or kept inside the part. *[tool rack review: two tools
+  could not go in, the pliers sat on a 0.45 mm lip, tools reached into the
+  storey above]*
+- **That check is `hex-cad held`** (hex-core `crates/hex-held`), against the
+  built STL with the tools hex-core vendors (`fixtures/held`). A tool passes
+  when it rests within 0.5 mm of where it was placed, touches on opposite
+  sides, comes straight out along its axis, and, by how it is held: in a
+  pocket or slot it tips no more than 8 degrees about the edge it bears on;
+  in a pocket it stands on both handle ends (contacts more than 5 mm either
+  side); on a fin its saddle stops it within 4 mm front and back. `--space`
+  adds which bolts a loaded tool blocks: none is the bar. The tools' sizes
+  are their models', made from listing photos: a fit is not promised until a
+  real tool has been measured. *[tool rack v3, 2026-11-26/27]*
 
 ## B. Design guidance
 
@@ -55,6 +91,10 @@ configurator checks fit and collisions only.
   *[owner R1: "Is it meant to display books? Potted plants? Inside,
   outside?"; catalog: every variation has a one-sentence note]*
 - No tool walls. *[owner R1]*
+- Find the use before the geometry: daily grab or storage? A part that fits
+  perfectly can still be useless. *[owner on the bench tool tray: "The tray
+  is interesting, but I don't really see that as useful"; they wanted tools
+  at hand, standing up and seen]*
 
 ### Shape
 - One recognisable silhouette: a staircase, a pyramid, a spiral, a ring, a
@@ -121,6 +161,45 @@ configurator checks fit and collisions only.
   say so in its purpose). Canted fronts read as
   "use me at an angle", a good primitive for ergonomic desk storage.
   *[owner R1]*
+
+### Parts that hold tools
+- Hold each tool by the principle that suits it. *[tool rack review,
+  2026-11-26, four reviewers]*
+  - Sprung hinged tools (flush cutters, strippers): head up, astride a fin
+    their own spring grips; they lift off in one motion.
+  - Long needle-nose pliers: a raked slot, about 40 degrees toward the user,
+    the jaws inside it. Never hang them by a pivot barely wider than the jaws.
+  - Heavy or odd-shaped tools (a crimper): a cradle.
+  - Tweezers: a tapered slot they seat in by their arms, the tips relieved;
+    never standing on their points.
+- Reach: the grip zone of a seated bench is about 100 to 200 mm above the
+  bench; the lift out is short and toward the body; the most used tools sit
+  in front and low. *[tool rack review]*
+- Room for fingers: 25 to 30 mm between grips, or fan the handles sideways;
+  leaning them all toward the user adds no room. *[tool rack review; owner:
+  "cant them outwards for ergo"]*
+- Show each tool broadside where it can be told apart (three needle-nose
+  pliers edge-on look the same). *[tool rack review]*
+- Nothing hangs over a tray's usable floor. *[tool rack review]*
+- Left and right are the user's, facing the part: for a bolt-on whose front
+  is +y, the user's right is -x. *[tool rack, tweezers first put on the left]*
+- The most used tool goes front and low, and the wall in front of it is
+  notched so it comes out with a short lift and a pull. *[tool rack v3: the
+  flush cutters, front left]*
+- A hung tool sits in a saddle with stops: on a bare fin a tap knocks it off.
+  *[tool rack v2 review]*
+- A tool with two handle ends stands on both: a step under the higher end.
+  On one end it rocks. *[tool rack v2 review]*
+- Measure finger room at grip height, not at the seat: pitch the pockets so
+  the grips clear (39 mm pitch gave 21 mm, from 6). *[tool rack v3]*
+- Trim a holding block to its pockets and their walls; leave the rest of the
+  tray as free floor for parts. *[tool rack v3: 876 cm3 from 997, the centre
+  left as the parts tray]*
+- Order of work: the use and the user's reach first; the base's free space;
+  the layout in the part's own frame; the recipe; hex-core's verdict; the
+  build; `hex-cad held`; reviewers last. Rulings (may it join the walls, rise
+  above the mouth, which tools are in) are asked up front. *[tool rack,
+  three rounds]*
 
 ## What the owner picked
 

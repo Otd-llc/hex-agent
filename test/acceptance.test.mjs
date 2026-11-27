@@ -192,10 +192,11 @@ test('set_requirements refuses a test that can name nothing, and notes an unknow
 test('features: abstention on by default, acceptance off; none turns all off', async () => {
   const { parseFeatures, DEFAULT_FEATURES } = await import('../src/agent.mjs');
   const fixes = { ewDrawers: true, rollbackRead: true, topology: true, verify: true };
-  assert.deepEqual(DEFAULT_FEATURES, { acceptance: false, abstain: true, rolegraph: false, cites: false, ...fixes });
+  assert.deepEqual(DEFAULT_FEATURES, { acceptance: false, abstain: true, rolegraph: false, cites: false, holders: false, ...fixes });
   assert.deepEqual(parseFeatures(null), DEFAULT_FEATURES);
-  assert.deepEqual(parseFeatures('none'), { acceptance: false, abstain: false, rolegraph: false, cites: false, ...fixes }, 'none leaves the fixes on');
-  assert.deepEqual(parseFeatures('acceptance'), { acceptance: true, abstain: false, rolegraph: false, cites: false, ...fixes });
+  assert.deepEqual(parseFeatures('none'), { acceptance: false, abstain: false, rolegraph: false, cites: false, holders: false, ...fixes }, 'none leaves the fixes on');
+  assert.deepEqual(parseFeatures('acceptance'), { acceptance: true, abstain: false, rolegraph: false, cites: false, holders: false, ...fixes });
+  assert.deepEqual(parseFeatures('+holders'), { ...DEFAULT_FEATURES, holders: true }, 'design_holder on, the rest as default');
   assert.deepEqual(parseFeatures('-topology'), { ...DEFAULT_FEATURES, topology: false }, 'one fix off, the rest as default');
   assert.deepEqual(parseFeatures('-ewDrawers,+acceptance'), { ...DEFAULT_FEATURES, ewDrawers: false, acceptance: true });
   assert.throws(() => parseFeatures('roles'), /unknown feature/);

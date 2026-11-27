@@ -65,6 +65,7 @@ Flags: `--model=<id>` (required; `muse-spark-1.3` or `muse-wonder-1.0` on the Me
 | `acceptance` | off | writes checkable requirements before the first change; code sends back a "met" whose own test fails |
 | `rolegraph` | off | `plan_build`: the build as a role graph bound to configurator offers |
 | `cites` | off | checks that a finish cites parts that exist |
+| `holders` | off | `design_holder`: a bolt-on bin that holds hand tools (cutters, needle-nose pliers, tweezers), made and proved offline by a local hex-core checkout (`HEX_CORE_DIR`; a python with numpy and shapely, `HEX_PYTHON`); the files go to the run folder, and the live build shows the plain bin ([src/holders.mjs](src/holders.mjs)) |
 | `ewDrawers`, `rollbackRead`, `topology`, `verify` | on | fixes 1 to 4: slide drawers offered on east- and west-facing half bases; the model told when a batch was rolled back; base groups and touching walls in the build summary; an all-met finish over a rule or mesh error sent back once ([EVALUATION.md](EVALUATION.md)) |
 
 A plain list (`--features=abstain,acceptance`) sets the behaviour features; `none` turns them all off. The four fixes stay on unless switched off: `--features=-topology`.

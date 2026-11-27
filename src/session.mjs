@@ -155,7 +155,7 @@ export async function runSession({ brief, briefId = null, expect = null, start =
         pushLines(hex.page, linesFor(e), e.t / 1000);
       };
     }
-    result = await runAgent({ hex, model, brief, ledger, purpose, runId, strategy, features, budget: { maxTurns, maxUsd: Math.min(maxUsd, headroom), ...(ledger.runMaxS ? { maxMs: ledger.runMaxS * 1000 } : {}) }, onEvent: events });
+    result = await runAgent({ hex, model, brief, ledger, purpose, runId, strategy, features, outDir: dir, budget: { maxTurns, maxUsd: Math.min(maxUsd, headroom), ...(ledger.runMaxS ? { maxMs: ledger.runMaxS * 1000 } : {}) }, onEvent: events });
     verdict = await verify({ hex, openFresh: () => hex.fresh(), finish: result.finish });
     state = await hex.call('getState');
     checks = expect ? checkBrief(expect, { state, verdict, finish: result.finish, events: result.events }) : null;

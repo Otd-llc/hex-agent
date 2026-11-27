@@ -67,6 +67,13 @@
   and three of those reported the front row as met; every check passed.
 - Claude runs are development baselines. They are labeled `anthropic` in
   every trace and never reported as Muse results.
+- **A holder is not on the live build.** `design_holder` (`--features=+holders`, off)
+  makes a tool holder with hex-core's holder family and proves it offline (built, every
+  tool dropped in and taken out), but the configurator's custom-parts hexAPI takes
+  recipes for full bases, not bolt-on bins, so the build shows the plain bin and the
+  holder is a print file in the run folder. It runs only where a hex-core checkout is
+  named (`HEX_CORE_DIR`), holds only the seven tools hex-core vendors (the bench kit's
+  models, not measured tools), and has no eval yet: unit tests and one live test.
 - **Not measured yet:** the role-graph planner (`--features=rolegraph`,
   off) has unit tests only. It needs an A/B against the interactive default
   and stays off unless it wins. The offline critic (A56) has a framework and

@@ -2,6 +2,7 @@
 // revises until it calls finish or a budget runs out. Then code, not the
 // model, decides the verdict from the configurator's own checks.
 import { createTools, toolSpecsFor } from './tools.mjs';
+import { designHolder, holderConfig } from './holders.mjs';
 import { checkBrief } from './checks.mjs';
 import { costUsd } from './model.mjs';
 import { createHash } from 'node:crypto';
@@ -56,6 +57,11 @@ export const ROLEGRAPH = `
 
 Plan as a role graph, and place the parts with plan_build, not apply. After looking (get_build, find_parts, find_sockets), your first change is one plan_build call with the whole build: the site (the user's side and the wall's), zones (work_clear is the space the user's hands and the work need: nothing goes there; store and display hold things), and roles in build order, each saying what it is for, what it needs (a family and its fields, or a prop) and how it relates to an earlier role (a bin on the base, a mug in the tray). Code binds each role to an offer and places it; a refused offer is replaced for that role only. Read short and refused: rebind a role (plan_build with rebind) or serve it with apply; use apply only for what plan_build left short, the house-rule ops and props. Dress and check as usual.`;
 
+// Holders (--features=+holders): a tool holder made and proved offline by hex-core.
+export const HOLDERS = `
+
+A brief that asks to hold hand tools (cutters, needle-nose pliers, tweezers) upright on a bin: design_holder makes the holder on an edge bolt-on bin and proves it with the tools in it, offline. Place the plain bolt-on bin it names in the build (find_sockets family binBolt; a two- or three-storey solid edge bin, which the cutters need), call design_holder with that stem and the size, and report what it holds and what it dropped, with the reason, in finish. The live build shows the plain bin, not the holder: say the holder is a print file in the run folder, so a requirement it serves is partial on the build and met by the file.`;
+
 const WRAP_TURNS = 4;
 const WRAP_UP = (n) =>
   `${n} turns left. Start nothing new. If one apply would complete a requirement (an offer you already have), send it now; then run check_build, then call finish with an honest status for every requirement. An offer you did not apply is not on the build: anything you could not do is "unmet", with the reason.`;
@@ -79,7 +85,8 @@ Working method for this session: plan, then batch. First survey with get_build, 
 // passes, all 3 citing a wrong ref; off until a live A/B.
 // ewDrawers, rollbackRead, topology and verify are the Modal-review fixes 1-4 (default on): a batch turns one
 // off (--features=-topology) for its before arm on the same commit, so each gain keeps a known cause.
-export const DEFAULT_FEATURES = { acceptance: false, abstain: true, rolegraph: false, cites: false, ewDrawers: true, rollbackRead: true, topology: true, verify: true };
+// holders (design_holder) is off: it needs a local hex-core (HEX_CORE_DIR) and has no eval yet.
+export const DEFAULT_FEATURES = { acceptance: false, abstain: true, rolegraph: false, cites: false, ewDrawers: true, rollbackRead: true, topology: true, verify: true, holders: false };
 
 // Parse --features: a list of names turns exactly those on; 'none' turns all off; absent keeps the defaults;
 // -name / +name (every entry signed) turn one default off or on.
@@ -103,11 +110,11 @@ const FIXES = ['ewDrawers', 'rollbackRead', 'topology', 'verify'];
 // Pushbacks on a finish whose own tests disagree with it, before it is taken as it is.
 const PUSHBACKS = 2;
 
-export async function runAgent({ hex, model, brief, budget = {}, ledger = null, purpose = 'dev', runId = null, strategy = 'interactive', features = {}, onEvent = () => {} }) {
+export async function runAgent({ hex, model, brief, budget = {}, ledger = null, purpose = 'dev', runId = null, strategy = 'interactive', features = {}, outDir = null, holderDesign = null, onEvent = () => {} }) {
   if (!(strategy in STRATEGIES)) throw new Error(`unknown strategy ${strategy}: ${Object.keys(STRATEGIES).join(', ')}`);
-  const { acceptance, abstain, rolegraph, cites, ewDrawers, rollbackRead, topology, verify } = { ...DEFAULT_FEATURES, ...features };
-  const instructions = INSTRUCTIONS + (acceptance ? ACCEPTANCE : '') + (abstain ? ABSTAIN : '') + (rolegraph ? ROLEGRAPH : '') + STRATEGIES[strategy];
-  const specs = toolSpecsFor({ acceptance, abstain, rolegraph, topology });
+  const { acceptance, abstain, rolegraph, cites, ewDrawers, rollbackRead, topology, verify, holders } = { ...DEFAULT_FEATURES, ...features };
+  const instructions = INSTRUCTIONS + (acceptance ? ACCEPTANCE : '') + (abstain ? ABSTAIN : '') + (rolegraph ? ROLEGRAPH : '') + (holders ? HOLDERS : '') + STRATEGIES[strategy];
+  const specs = toolSpecsFor({ acceptance, abstain, rolegraph, topology, holders });
   const offered = new Set(specs.map((t) => t.name));
   let pushbacks = 0;
   // Fix 4: the build-side check of an all-met finish sends it back once at most.
@@ -130,7 +137,9 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     events.push(ev);
     onEvent(ev);
   };
-  const tools = createTools(hex, { onEvent: emit, acceptance, fixes: { ewDrawers, rollbackRead, topology } });
+  // design_holder writes to the run folder (the session's), or a holders folder of its own
+  const design = holders ? (holderDesign ?? ((args) => designHolder(args, { config: holderConfig(), outDir: outDir ?? `runs/${runId ?? 'holders'}` }))) : null;
+  const tools = createTools(hex, { onEvent: emit, acceptance, fixes: { ewDrawers, rollbackRead, topology }, holders: design });
   const usage = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, calls: 0 };
   const items = [{ role: 'user', content: brief }];
   let finish = null;
@@ -297,7 +306,7 @@ export async function runAgent({ hex, model, brief, budget = {}, ledger = null, 
     events,
     counters: tools.counters,
     opsUsed: tools.opsUsed(),
-    features: { acceptance, abstain, rolegraph, cites },
+    features: { acceptance, abstain, rolegraph, cites, ...(holders ? { holders } : {}) },
     // The system prompt this run sent, by hash: runs are comparable only on the same one.
     promptSha256: createHash('sha256').update(instructions).digest('hex'),
     requirements: tools.requirements(),

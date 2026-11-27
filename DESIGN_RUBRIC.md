@@ -54,6 +54,15 @@ configurator checks fit and collisions only.
   inside the cavity's walls less 1.2 mm. A part made outside the kernel has no
   record and no proof: make it in hex-core. *[tool rack review, 2026-11-26:
   the shelf sat on 3 of 12 bolts]*
+- **A holder bolt-on is a recipe hex-core judges** (hex-core #187): read the
+  bin's free space first (`hex-cad free-space <bolt bin> --size S|M|L`: the
+  footprint, cavity, floor, top and every keep-out), then write its pads and
+  pockets as recipe `solid` changes on any plane and its edge breaks as
+  `chamfer` changes, and let `hex-cad build --recipe` give the verdict before
+  anything is built. By the owner's rulings a holder may join its bin's walls
+  and rise above the mouth; it stays inside the tub's outline less 1.2 mm and
+  under the part's top, and never enters a bolt corridor or the joint.
+  *[owner, 2026-11-26; built 2026-11-27]*
 - **A part that holds things is checked with the things in it.** Each held
   object is a true-size model with its key points (pivot, centre of mass,
   grip). Its whole path in and out is swept at its working angle, comparing
@@ -63,6 +72,16 @@ configurator checks fit and collisions only.
   part's: claimed, or kept inside the part. *[tool rack review: two tools
   could not go in, the pliers sat on a 0.45 mm lip, tools reached into the
   storey above]*
+- **That check is `hex-cad held`** (hex-core `crates/hex-held`), against the
+  built STL with the tools hex-core vendors (`fixtures/held`). A tool passes
+  when it rests within 0.5 mm of where it was placed, touches on opposite
+  sides, comes straight out along its axis, and, by how it is held: in a
+  pocket or slot it tips no more than 8 degrees about the edge it bears on;
+  in a pocket it stands on both handle ends (contacts more than 5 mm either
+  side); on a fin its saddle stops it within 4 mm front and back. `--space`
+  adds which bolts a loaded tool blocks: none is the bar. The tools' sizes
+  are their models', made from listing photos: a fit is not promised until a
+  real tool has been measured. *[tool rack v3, 2026-11-26/27]*
 
 ## B. Design guidance
 
@@ -164,6 +183,23 @@ configurator checks fit and collisions only.
 - Nothing hangs over a tray's usable floor. *[tool rack review]*
 - Left and right are the user's, facing the part: for a bolt-on whose front
   is +y, the user's right is -x. *[tool rack, tweezers first put on the left]*
+- The most used tool goes front and low, and the wall in front of it is
+  notched so it comes out with a short lift and a pull. *[tool rack v3: the
+  flush cutters, front left]*
+- A hung tool sits in a saddle with stops: on a bare fin a tap knocks it off.
+  *[tool rack v2 review]*
+- A tool with two handle ends stands on both: a step under the higher end.
+  On one end it rocks. *[tool rack v2 review]*
+- Measure finger room at grip height, not at the seat: pitch the pockets so
+  the grips clear (39 mm pitch gave 21 mm, from 6). *[tool rack v3]*
+- Trim a holding block to its pockets and their walls; leave the rest of the
+  tray as free floor for parts. *[tool rack v3: 876 cm3 from 997, the centre
+  left as the parts tray]*
+- Order of work: the use and the user's reach first; the base's free space;
+  the layout in the part's own frame; the recipe; hex-core's verdict; the
+  build; `hex-cad held`; reviewers last. Rulings (may it join the walls, rise
+  above the mouth, which tools are in) are asked up front. *[tool rack,
+  three rounds]*
 
 ## What the owner picked
 

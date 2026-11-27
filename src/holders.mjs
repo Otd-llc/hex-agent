@@ -16,7 +16,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 // The tools hex-core has vendored (fixtures/held): the bench kit's models, not measured tools.
-export const HELD_TOOLS = ['cutters', 'pliers-45', 'pliers-90', 'pliers-straight', 'tweezers-straight', 'tweezers-curved', 'tweezers-blunt'];
+export const HELD_TOOLS = [
+  'cutters', 'pliers-45', 'pliers-90', 'pliers-straight', 'tweezers-straight', 'tweezers-curved', 'tweezers-blunt',
+  // the four hex drivers (1.5 to 3.0 mm) and the screwdriver set's driver (its bits stay in their case)
+  'driver-1.5', 'driver-2.0', 'driver-2.5', 'driver-3.0', 'screwdriver',
+  // wire strippers, sprung open: placed last, in what room is left
+  'strippers',
+];
 export const HOLDER_SIZES = ['S', 'M', 'L'];
 // An edge bolt-on bin's stem, as the configurator lists it (find_parts family binBolt) and
 // hex-core names it: hex-bin-bolt-edge-{m,f}-{solid,port}[-x2|-x3][-...]. The holder family
@@ -123,7 +129,8 @@ export async function designHolder(args, { config = holderConfig(), outDir, exec
 export const DESIGN_HOLDER_SPEC = {
   name: 'design_holder',
   description:
-    'Design a bolt-on bin that holds hand tools upright (flush cutters on a saddle, needle-nose pliers in raked pockets, tweezers in slots), ' +
+    'Design a bolt-on bin that holds hand tools upright (flush cutters on a saddle, needle-nose pliers in raked pockets, tweezers in slots, ' +
+    'hex drivers and the screwdriver shaft down in raked holes, wire strippers head down with their handles fanned open), ' +
     'made and proved offline by hex-core: built, and each tool dropped in, tipped and taken out. Tools it cannot hold at this bin and size are dropped, ' +
     'each with the reason. The live build cannot show the holder yet: place the plain bolt-on bin it is made on. Takes 10 to 60 s.',
   parameters: {
@@ -131,7 +138,7 @@ export const DESIGN_HOLDER_SPEC = {
     properties: {
       tools: { type: 'array', items: { type: 'string', enum: HELD_TOOLS }, description: 'The tools to hold.' },
       base: { type: 'string', description: 'The edge bolt-on bin stem to make it on, as find_parts lists it (family binBolt), e.g. hex-bin-bolt-edge-m-solid-x2; a solid bin, two or three storeys for cutters.' },
-      size: { type: 'string', enum: HOLDER_SIZES, description: 'The system size. L holds the most: all seven on a two-storey bin.' },
+      size: { type: 'string', enum: HOLDER_SIZES, description: 'The system size. L holds the most: eleven of the thirteen tools on a two-storey bin.' },
       spareSlots: { type: 'integer', description: 'Extra tweezer slots for the user\'s own (default 1).' },
     },
     required: ['tools', 'base', 'size'],

@@ -12,7 +12,7 @@
 // (HEX_PYTHON, default `python`).
 
 import { execFile } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 // The tools hex-core has vendored (fixtures/held): the bench kit's models, not measured tools.
@@ -111,6 +111,22 @@ export async function designHolder(args, { config = holderConfig(), outDir, exec
   const scene = JSON.parse(readFileSync(made.scene, 'utf8'));
   const heldBy = Object.fromEntries(scene.tools.map((t) => [t.tool, t.held_by]));
   const proved = gate.code === 0 && b.verdict === 'clear' && b.proved && b.held.length === made.tools.length && b.held.every((h) => h.verdict === 'OK');
+  // The print file, only for a proved holder: the built STL as a PrusaSlicer 3MF carrying the house
+  // print intent, the holder's fill at 10% infill and the bin at 30% (hex-core tools/bolt_on/print_file.py).
+  let print = null;
+  let printProblem = null;
+  if (proved && made.print) {
+    const stl = existsSync(buildDir) ? readdirSync(buildDir).filter((f) => f.endsWith('.stl')) : [];
+    if (stl.length !== 1) {
+      printProblem = `no print file: the build wrote ${stl.length} STL files`;
+    } else {
+      const out = join(dir, `${id}.3mf`);
+      const p = await exec(config.python, [join(config.dir, 'tools', 'bolt_on', 'print_file.py'), join(buildDir, stl[0]), made.print, out]);
+      writeFileSync(join(dir, 'print.log'), p.stdout + p.stderr);
+      if (p.code === 0 && existsSync(out)) print = out;
+      else printProblem = `no print file: print_file.py exit ${p.error ?? p.code}`;
+    }
+  }
   return {
     made: true,
     proved,
@@ -119,9 +135,11 @@ export async function designHolder(args, { config = holderConfig(), outDir, exec
     holds: made.tools.map((t) => ({ tool: t, heldBy: heldBy[t] ?? null, check: b.held.find((h) => h.tool === t)?.verdict ?? null })),
     dropped,
     ...(proved ? {} : { problem: b.refused ?? `gate exit ${gate.code}, verdict ${b.verdict}, proved ${b.proved}` }),
-    files: { folder: dir, recipe: made.recipe, scene: made.scene },
+    files: { folder: dir, recipe: made.recipe, scene: made.scene, ...(print ? { print } : {}) },
+    ...(printProblem ? { printProblem } : {}),
     note: 'Designed and proved offline by hex-core. The live configurator cannot place a holder yet: place the plain bolt-on bin ' +
-      `${args.base} where it goes (find_sockets family binBolt), and say in finish that the holder is a separate print file in the run folder. ` +
+      `${args.base} where it goes (find_sockets family binBolt), and say in finish that the holder is a separate print file in the run folder` +
+      (print ? ' (a PrusaSlicer 3MF: the holder\'s fill at 10% infill, the bin at the house 30%). ' : '. ') +
       'The tools fit the bench kit\'s models, not measured tools.',
   };
 }

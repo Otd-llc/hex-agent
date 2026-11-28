@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { checkHolderArgs, parseResult, parseBuild, designHolder, holderConfig, HELD_TOOLS } from '../src/holders.mjs';
@@ -49,16 +49,24 @@ function fakeExec({ made = true, gate = 'ok' } = {}) {
   const calls = [];
   const exec = async (cmd, args) => {
     calls.push([cmd, ...args]);
+    if (cmd === 'py' && args[0].endsWith('print_file.py')) {
+      writeFileSync(args[3], 'PK');
+      return { code: 0, stdout: `PRINT wrote ${args[3]}`, stderr: '' };
+    }
     if (cmd === 'py') {
       const out = args[2];
       if (!made) {
         return { code: 1, stdout: 'HOLDER refused hex-bin-bolt-edge-m-solid-drain-x2: a drained bin\nHOLDER result {"made": false, "refused": {"tool": "hex-bin-bolt-edge-m-solid-drain-x2", "why": "a drained bin"}, "dropped": []}\n', stderr: '' };
       }
-      const recipe = join(out, 't.recipe.json'), scene = join(out, 't.scene.json');
+      const recipe = join(out, 't.recipe.json'), scene = join(out, 't.scene.json'), print = join(out, 't.print.json');
       writeFileSync(recipe, '{}');
+      writeFileSync(print, '{}');
       writeFileSync(scene, JSON.stringify({ tools: [{ tool: 'cutters', held_by: 'hangs head up in a saddle' }] }));
-      return { code: 0, stdout: `HOLDER dropped tweezers-blunt: 4 slots do not fit\nHOLDER result ${JSON.stringify({ made: true, tools: ['cutters'], dropped: [{ tool: 'tweezers-blunt', why: '4 slots do not fit' }], recipe, scene })}\n`, stderr: '' };
+      return { code: 0, stdout: `HOLDER dropped tweezers-blunt: 4 slots do not fit\nHOLDER result ${JSON.stringify({ made: true, tools: ['cutters'], dropped: [{ tool: 'tweezers-blunt', why: '4 slots do not fit' }], recipe, scene, print })}\n`, stderr: '' };
     }
+    const out = args[args.indexOf('--out') + 1];
+    mkdirSync(out, { recursive: true });
+    writeFileSync(join(out, 'hex-bin@L~x.stl'), '');
     if (gate === 'ok') return { code: 0, stdout: 'VERDICT clear x\nPROVED at every feature: true; B-rep volume 1 mm3\nHELD cutters OK: comes out\n', stderr: '' };
     return { code: 1, stdout: 'VERDICT clear x\nPROVED at every feature: true; B-rep volume 1 mm3\nHELD cutters STUCK: rest +0.00 mm\n', stderr: 'hex-cad: refused: a held tool is not held, blocks a bolt or meets another: nothing is written\n' };
   };
@@ -81,6 +89,12 @@ test('a holder made and proved: what it holds, what it dropped and why, and wher
   assert.equal(calls[1][0], config.exe);
   assert.ok(calls[1].includes('--held') && calls[1].includes('--scene'));
   assert.ok(existsSync(join(r.files.folder, 'build.log')));
+  // a proved holder gets its print file: print_file.py on the built STL and the generator's print region
+  assert.equal(calls[2][1].endsWith('print_file.py'), true);
+  assert.equal(calls[2][2], join(r.files.folder, 'build', 'hex-bin@L~x.stl'));
+  assert.equal(r.files.print, join(r.files.folder, 't.3mf'));
+  assert.ok(existsSync(r.files.print));
+  assert.match(r.note, /10% infill/);
 });
 
 test('a refused holder says by whom and why; a failed gate is not proved', async () => {
@@ -94,6 +108,8 @@ test('a refused holder says by whom and why; a failed gate is not proved', async
   assert.equal(failed.proved, false);
   assert.match(failed.problem, /not held/);
   assert.equal(failed.holds[0].check, 'STUCK');
+  // an unproved holder gets no print file
+  assert.equal(failed.files.print, undefined);
 });
 
 test('without a hex-core checkout design_holder says so, and runs nothing', async () => {
@@ -127,6 +143,11 @@ test('live: hex-core makes and proves a holder for cutters and tweezers at L', {
   assert.equal(r.proved, true, JSON.stringify(r));
   assert.deepEqual(r.holds.map((h) => h.tool).sort(), ['cutters', 'pliers-45', 'tweezers-blunt']);
   assert.ok(r.holds.every((h) => h.check === 'OK'));
+  // its print file: a 3MF (a zip) with the PrusaSlicer config naming the fill modifier at 10%
+  assert.ok(r.files.print && existsSync(r.files.print), JSON.stringify(r));
+  const zip = readFileSync(r.files.print);
+  assert.equal(zip.subarray(0, 2).toString(), 'PK');
+  assert.ok(zip.includes('Metadata/Slic3r_PE_model.config'));
 });
 
 test('live: hex-core stands drivers shaft down in raked holes', { skip: !process.env.HEX_CORE_DIR && 'HEX_CORE_DIR not set', timeout: 300_000 }, async () => {

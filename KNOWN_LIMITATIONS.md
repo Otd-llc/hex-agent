@@ -73,7 +73,9 @@
   recipes for full bases, not bolt-on bins, so the build shows the plain bin and the
   holder is a print file in the run folder. It runs only where a hex-core checkout is
   named (`HEX_CORE_DIR`), holds only the thirteen tools hex-core vendors (the bench kit's
-  models, not measured tools), and has no eval yet: unit tests and two live tests.
+  models, not measured tools), and has no eval yet: unit tests and two live tests. Its
+  print file (`<id>.3mf`) is in PrusaSlicer's dialect only (the holder's fill at 10%
+  infill, the bin at the house 30%); the Orca / Creality dialect is not written yet.
 - **Not measured yet:** the role-graph planner (`--features=rolegraph`,
   off) has unit tests only. It needs an A/B against the interactive default
   and stays off unless it wins. The offline critic (A56) has a framework and
